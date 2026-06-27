@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  --font-cairo: 'Cairo', sans-serif;
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #dbeafe;
+  --color-success: #16a34a;
+  --color-success-light: #dcfce7;
+  --color-danger: #dc2626;
+  --color-danger-light: #fee2e2;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-sidebar: #1e293b;
+  --color-sidebar-hover: #334155;
+  --color-sidebar-active: #2563eb;
+}
+
+* {
+  font-family: 'Cairo', sans-serif;
+}
+
+body {
+  @apply bg-[#d5dbe3] text-gray-800 m-0;
+  direction: rtl;
+}
+
+.erp-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition;
+}
+
+.erp-btn {
+  @apply px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer;
+}
+.erp-btn-primary {
+  @apply bg-primary text-white hover:bg-primary-dark;
+}
+.erp-btn-success {
+  @apply bg-success text-white hover:opacity-90;
+}
+.erp-btn-danger {
+  @apply bg-danger text-white hover:opacity-90;
+}
+.erp-btn-warning {
+  @apply bg-warning text-white hover:opacity-90;
+}
+.erp-btn-secondary {
+  @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
+}
+.erp-btn-outline {
+  @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50;
+}
+
+.erp-table {
+  @apply w-full text-sm;
+}
+.erp-table thead {
+  @apply bg-gray-100;
+}
+.erp-table th {
+  @apply px-3 py-2 text-right font-semibold text-gray-600 border-b;
+}
+.erp-table td {
+  @apply px-3 py-2 border-b border-gray-100;
+}
+.erp-table tbody tr:hover {
+  @apply bg-blue-50/50;
+}
+
+.badge {
+  @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium;
+}
+.badge-green {
+  @apply bg-success-light text-success;
+}
+.badge-red {
+  @apply bg-danger-light text-danger;
+}
+.badge-yellow {
+  @apply bg-warning-light text-warning;
+}
+.badge-blue {
+  @apply bg-primary-light text-primary;
+}
+.badge-gray {
+  @apply bg-gray-100 text-gray-600;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.stat-card {
+  @apply bg-white rounded-xl p-4 border border-gray-100 shadow-sm;
+}
+
+.page-card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-5;
+}
+
+.page-header {
+  @apply flex items-center justify-between flex-wrap gap-3 mb-4;
+}
+
+.page-title {
+  @apply text-xl font-bold text-gray-800;
+}
+
+.section-divider {
+  @apply border-t border-gray-100 my-4;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { direction: rtl; }
+}
