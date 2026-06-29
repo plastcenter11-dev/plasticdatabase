@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../hooks/useAuth';
+import api from '../api/axios';
 
 export default function LoginPage() {
   const [form, setForm] = useState({ username: '', password: '' });
@@ -13,14 +14,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Mock login — will be replaced with API call
-      if (form.username && form.password) {
-        login({ id: 1, username: form.username, role: 'admin' }, 'mock-token');
-        toast.success('تم تسجيل الدخول');
-        navigate('/');
-      }
-    } catch {
-      toast.error('خطأ في تسجيل الدخول');
+      const { data } = await api.post('/auth/login', form);
+      login(data.user, data.token);
+      toast.success('تم تسجيل الدخول');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'خطأ في تسجيل الدخول');
     } finally {
       setLoading(false);
     }
