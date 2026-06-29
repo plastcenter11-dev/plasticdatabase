@@ -1,12 +1,19 @@
+import { useState, useEffect } from 'react';
 import { MdWarning, MdPrint } from 'react-icons/md';
-
-const mockItems = [
-  { id: 1, code: 'RM-001', name: 'بولي إيثيلين عالي الكثافة', unit: 'كيلو', quantity: 200, reorder_level: 500, warehouse: 'مخزن الخامات' },
-  { id: 2, code: 'RM-002', name: 'بولي بروبيلين', unit: 'كيلو', quantity: 150, reorder_level: 300, warehouse: 'مخزن الخامات' },
-  { id: 5, code: 'SP-001', name: 'ألوان صناعية', unit: 'كيلو', quantity: 30, reorder_level: 50, warehouse: 'مخزن مستلزمات التشغيل' },
-];
+import api from '../api/axios';
 
 export default function ReorderReportPage() {
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    api.get('/items').then(r => {
+      const stockable = r.data.filter(i => i.is_stockable);
+      setItems(stockable);
+    }).catch(() => {});
+  }, []);
+
+  const belowReorder = items.filter(i => Number(i.reorder_level) > 0);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -14,24 +21,24 @@ export default function ReorderReportPage() {
         <button onClick={() => window.print()} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>
       </div>
 
-      <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-        <MdWarning size={24} className="text-red-500" />
-        <p className="text-sm text-red-700 font-medium">{mockItems.length} صنف تحت حد الطلب ويحتاج إعادة طلب</p>
-      </div>
+      {belowReorder.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+          <MdWarning size={24} className="text-red-500" />
+          <p className="text-sm text-red-700 font-medium">{belowReorder.length} صنف يحتاج متابعة</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>الكود</th><th>اسم الصنف</th><th>الوحدة</th><th>المخزن</th><th>الرصيد الحالي</th><th>حد الطلب</th><th>العجز</th></tr></thead>
+          <thead><tr><th>الكود</th><th>اسم الصنف</th><th>الوحدة</th><th>حد الطلب</th></tr></thead>
           <tbody>
-            {mockItems.map(item => (
-              <tr key={item.id} className="bg-red-50/50">
+            {belowReorder.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-gray-400">لا توجد أصناف تحت حد الطلب</td></tr>}
+            {belowReorder.map(item => (
+              <tr key={item.id}>
                 <td className="font-mono text-sm">{item.code}</td>
                 <td className="font-medium">{item.name}</td>
                 <td>{item.unit}</td>
-                <td className="text-sm">{item.warehouse}</td>
-                <td className="text-danger font-bold">{item.quantity.toLocaleString()}</td>
-                <td>{item.reorder_level.toLocaleString()}</td>
-                <td className="text-danger font-bold">{(item.reorder_level - item.quantity).toLocaleString()}</td>
+                <td>{Number(item.reorder_level).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

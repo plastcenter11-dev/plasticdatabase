@@ -1,15 +1,13 @@
+import { useState, useEffect } from 'react';
 import { MdPrint } from 'react-icons/md';
-
-const mockSuppliers = [
-  { id: 1, name: 'شركة البترول للبتروكيماويات', phone: '02-23456789', total_purchases: 45600, total_paid: 45600, balance: 0 },
-  { id: 2, name: 'مصنع الخليج للبلاستيك', phone: '03-4567890', total_purchases: 15960, total_paid: 5000, balance: 10960 },
-  { id: 3, name: 'شركة المواد الأولية', phone: '01187654321', total_purchases: 0, total_paid: 0, balance: 0 },
-];
+import api from '../api/axios';
 
 export default function SupplierSummaryPage() {
-  const totalPurchases = mockSuppliers.reduce((s, su) => s + su.total_purchases, 0);
-  const totalPaid = mockSuppliers.reduce((s, su) => s + su.total_paid, 0);
-  const totalBalance = mockSuppliers.reduce((s, su) => s + su.balance, 0);
+  const [suppliers, setSuppliers] = useState([]);
+
+  useEffect(() => { api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {}); }, []);
+
+  const totalBalance = suppliers.reduce((s, su) => s + Number(su.balance || 0), 0);
 
   return (
     <div className="space-y-4">
@@ -18,33 +16,33 @@ export default function SupplierSummaryPage() {
         <button onClick={() => window.print()} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="stat-card"><p className="text-sm text-gray-500">إجمالي المشتريات</p><p className="text-lg font-bold">{totalPurchases.toLocaleString()} ج.م</p></div>
-        <div className="stat-card"><p className="text-sm text-gray-500">إجمالي المدفوعات</p><p className="text-lg font-bold text-success">{totalPaid.toLocaleString()} ج.م</p></div>
+      <div className="grid grid-cols-2 gap-3 max-w-md">
+        <div className="stat-card"><p className="text-sm text-gray-500">عدد الموردين</p><p className="text-lg font-bold">{suppliers.length}</p></div>
         <div className="stat-card"><p className="text-sm text-gray-500">إجمالي المستحقات</p><p className="text-lg font-bold text-danger">{totalBalance.toLocaleString()} ج.م</p></div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>#</th><th>المورد</th><th>الهاتف</th><th>إجمالي المشتريات</th><th>إجمالي المدفوعات</th><th>المستحق</th></tr></thead>
+          <thead><tr><th>#</th><th>المورد</th><th>الهاتف</th><th>المستحق</th><th>الحالة</th></tr></thead>
           <tbody>
-            {mockSuppliers.map((s, i) => (
+            {suppliers.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا يوجد موردين</td></tr>}
+            {suppliers.map((s, i) => (
               <tr key={s.id}>
                 <td className="text-gray-400">{i + 1}</td>
                 <td className="font-medium">{s.name}</td>
                 <td className="font-mono text-sm">{s.phone}</td>
-                <td>{s.total_purchases.toLocaleString()} ج.م</td>
-                <td className="text-success">{s.total_paid.toLocaleString()} ج.م</td>
-                <td className={s.balance > 0 ? 'text-danger font-bold' : 'text-success font-bold'}>{s.balance.toLocaleString()} ج.م</td>
+                <td className={Number(s.balance) > 0 ? 'text-danger font-bold' : 'text-success font-bold'}>{Number(s.balance).toLocaleString()} ج.م</td>
+                <td>{s.is_active ? <span className="badge badge-green">نشط</span> : <span className="badge badge-gray">غير نشط</span>}</td>
               </tr>
             ))}
           </tbody>
-          <tfoot><tr className="bg-gray-100 font-bold">
-            <td colSpan={3}>الإجمالي</td>
-            <td>{totalPurchases.toLocaleString()} ج.م</td>
-            <td className="text-success">{totalPaid.toLocaleString()} ج.م</td>
-            <td className="text-danger">{totalBalance.toLocaleString()} ج.م</td>
-          </tr></tfoot>
+          {suppliers.length > 0 && (
+            <tfoot><tr className="bg-gray-100 font-bold">
+              <td colSpan={3}>الإجمالي</td>
+              <td className="text-danger">{totalBalance.toLocaleString()} ج.م</td>
+              <td></td>
+            </tr></tfoot>
+          )}
         </table>
       </div>
     </div>
