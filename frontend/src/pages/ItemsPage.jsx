@@ -31,7 +31,12 @@ export default function ItemsPage() {
     return matchSearch && matchCat;
   });
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+  const generateCode = () => {
+    const count = items.length + 1;
+    return `ITM-${String(count).padStart(4, '0')}`;
+  };
+
+  const openAdd = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
   const openEdit = (item) => {
     setEditing(item);
     setForm({ code: item.code, name: item.name, category_id: item.category_id || '', unit: item.unit, purchase_price: item.purchase_price, reorder_level: item.reorder_level, is_stockable: item.is_stockable });
