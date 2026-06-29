@@ -69,6 +69,7 @@ export default function DeliveryNotesPage() {
       const cid = location.state.customerId || '';
       setForm({ customer_id: String(cid), date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] });
       setShowModal(true);
+      if (cid) loadSalesOrders(cid);
       window.history.replaceState({}, '');
     }
   }, []);
