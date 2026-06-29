@@ -133,7 +133,7 @@ export default function DeliveryNotesPage() {
   const addItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.net_weight)) return toast.error('أكمل بيانات الأصناف');
