@@ -33,14 +33,18 @@ function numberToArabicWords(num) {
   }
 
   const kg = Math.floor(num);
+  const grams = Math.round((num - kg) * 1000);
+  let result = '';
   if (kg >= 1000) {
     const t = Math.floor(kg / 1000);
     const r = kg % 1000;
-    let tonText = t === 1 ? 'طن' : t === 2 ? 'طنان' : belowThousand(t) + ' طن';
-    if (r > 0) tonText += ' و' + belowThousand(r) + ' كيلو';
-    return tonText;
+    result = t === 1 ? 'طن' : t === 2 ? 'طنان' : belowThousand(t) + ' طن';
+    if (r > 0) result += ' و' + belowThousand(r) + ' كيلو';
+  } else {
+    result = belowThousand(kg) + ' كيلو';
   }
-  return belowThousand(kg) + ' كيلو';
+  if (grams > 0) result += ' و' + belowThousand(grams) + ' جرام';
+  return result;
 }
 
 export default function DeliveryNotesPage() {
