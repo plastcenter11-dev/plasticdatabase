@@ -223,16 +223,24 @@ export default function DeliveryNotesPage() {
       <table>
         <thead><tr><th class="qty-col">الكمية</th><th>البيان</th></tr></thead>
         <tbody>
-          ${note.items.map(item => {
-            let details = `<div class="weight-words">${numberToArabicWords(item.net_weight)}</div>`;
-            details += `<div class="detail-line">${item.item_name} ${item.item_code}</div>`;
+          ${(note.items || []).map(item => {
+            const name = item.Item?.name || item.item_name || '';
+            const code = item.Item?.code || item.item_code || '';
+            const nw = Number(item.net_weight) || 0;
+            const rc = Number(item.roll_count) || 0;
+            const cw = Number(item.core_weight) || 0;
+            const ww = Number(item.wood_weight) || 0;
+            const sw = Number(item.stretch_weight) || 0;
+            const gw = Number(item.gross_weight) || 0;
+            let details = `<div class="weight-words">${numberToArabicWords(nw)}</div>`;
+            details += `<div class="detail-line">${name} ${code}</div>`;
             if (item.batch_no) details += `<div class="detail-line"><span class="detail-label">رقم الباتش :</span> ${item.batch_no}</div>`;
-            if (item.roll_count) details += `<div class="detail-line"><span class="detail-label">عدد</span> ${item.roll_count} بكرة</div>`;
-            if (item.core_weight) details += `<div class="detail-line"><span class="detail-label">وزن الكور</span> ${item.core_weight} كجم</div>`;
-            if (item.wood_weight) details += `<div class="detail-line"><span class="detail-label">وزن الخشب</span> ${item.wood_weight} كجم</div>`;
-            if (item.stretch_weight) details += `<div class="detail-line"><span class="detail-label">وزن الاسترتش</span> ${item.stretch_weight} كجم</div>`;
-            if (item.gross_weight) details += `<div class="detail-line"><strong>الوزن القائم  ${item.gross_weight} كجم</strong></div>`;
-            return `<tr><td class="qty-col">${item.net_weight} ك</td><td>${details}</td></tr>`;
+            if (rc) details += `<div class="detail-line"><span class="detail-label">عدد</span> ${rc} بكرة</div>`;
+            if (cw) details += `<div class="detail-line"><span class="detail-label">وزن الكور</span> ${cw} كجم</div>`;
+            if (ww) details += `<div class="detail-line"><span class="detail-label">وزن الخشب</span> ${ww} كجم</div>`;
+            if (sw) details += `<div class="detail-line"><span class="detail-label">وزن الاسترتش</span> ${sw} كجم</div>`;
+            if (gw) details += `<div class="detail-line"><strong>الوزن القائم  ${gw} كجم</strong></div>`;
+            return `<tr><td class="qty-col">${nw} ك</td><td>${details}</td></tr>`;
           }).join('')}
         </tbody>
       </table>
