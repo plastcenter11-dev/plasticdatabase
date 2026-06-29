@@ -1,53 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
-
-const mockCustomers = [
-  { id: 1, name: 'شركة النيل للتغليف' },
-  { id: 2, name: 'مصنع الأمل للبلاستيك' },
-  { id: 3, name: 'توزيعات المحروسة' },
-];
-
-const initialReceipts = [
-  { id: 1, receipt_no: 'CR-000001', date: '2026-06-15', customer_id: 1, amount: 5000, payment_method: 'نقدي', notes: 'سداد جزئي' },
-  { id: 2, receipt_no: 'CR-000002', date: '2026-06-19', customer_id: 2, amount: 20000, payment_method: 'تحويل بنكي', notes: 'سداد فاتورة SI-000001' },
-];
+import api from '../api/axios';
 
 const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashReceiptsPage() {
-  const [receipts, setReceipts] = useState(initialReceipts);
+  const [receipts, setReceipts] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
+  const loadData = async () => {
+    try {
+      const [r, c] = await Promise.all([api.get('/finance/cash-receipts'), api.get('/customers')]);
+      setReceipts(r.data); setCustomers(c.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
+
   const filtered = receipts.filter(r => {
     if (!search) return true;
-    const cust = mockCustomers.find(c => c.id === r.customer_id);
-    return r.receipt_no.includes(search) || cust?.name.includes(search);
+    return r.receipt_no?.includes(search) || r.Customer?.name?.includes(search);
   });
 
-  const getCustomerName = (id) => mockCustomers.find(c => c.id === id)?.name || '-';
-  const totalAmount = receipts.reduce((s, r) => s + r.amount, 0);
+  const totalAmount = receipts.reduce((s, r) => s + Number(r.amount), 0);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id || !form.amount) return toast.error('أكمل البيانات');
-    setReceipts([{
-      id: Date.now(), receipt_no: `CR-${String(receipts.length + 1).padStart(6, '0')}`,
-      customer_id: Number(form.customer_id), amount: Number(form.amount),
-      payment_method: form.payment_method, date: form.date, notes: form.notes
-    }, ...receipts]);
-    toast.success('تم تسجيل التحصيل');
-    setShowModal(false);
-    setForm(emptyForm);
+    try {
+      await api.post('/finance/cash-receipts', { ...form, customer_id: Number(form.customer_id), amount: Number(form.amount) });
+      toast.success('تم تسجيل التحصيل');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا التحصيل؟')) return;
-    setReceipts(receipts.filter(r => r.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/finance/cash-receipts/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -76,8 +70,8 @@ export default function CashReceiptsPage() {
               <tr key={r.id}>
                 <td className="font-mono text-sm">{r.receipt_no}</td>
                 <td>{r.date}</td>
-                <td className="font-medium">{getCustomerName(r.customer_id)}</td>
-                <td className="font-bold text-success">{r.amount.toLocaleString()} ج.م</td>
+                <td className="font-medium">{r.Customer?.name || '-'}</td>
+                <td className="font-bold text-success">{Number(r.amount).toLocaleString()} ج.م</td>
                 <td><span className="badge badge-blue">{r.payment_method}</span></td>
                 <td className="text-sm text-gray-500">{r.notes}</td>
                 <td><button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
@@ -94,7 +88,7 @@ export default function CashReceiptsPage() {
               <label className="form-label">العميل *</label>
               <select className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}>
                 <option value="">— اختر —</option>
-                {mockCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">

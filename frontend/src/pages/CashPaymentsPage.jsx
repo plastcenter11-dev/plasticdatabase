@@ -1,53 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
-
-const mockSuppliers = [
-  { id: 1, name: 'شركة البترول للبتروكيماويات' },
-  { id: 2, name: 'مصنع الخليج للبلاستيك' },
-  { id: 3, name: 'شركة المواد الأولية' },
-];
-
-const initialPayments = [
-  { id: 1, payment_no: 'CP-000001', date: '2026-06-12', supplier_id: 1, amount: 45600, payment_method: 'تحويل بنكي', notes: 'سداد فاتورة PI-000001' },
-  { id: 2, payment_no: 'CP-000002', date: '2026-06-17', supplier_id: 2, amount: 5000, payment_method: 'نقدي', notes: 'دفعة مقدمة' },
-];
+import api from '../api/axios';
 
 const emptyForm = { supplier_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashPaymentsPage() {
-  const [payments, setPayments] = useState(initialPayments);
+  const [payments, setPayments] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
+  const loadData = async () => {
+    try {
+      const [p, s] = await Promise.all([api.get('/finance/cash-payments'), api.get('/suppliers')]);
+      setPayments(p.data); setSuppliers(s.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
+
   const filtered = payments.filter(p => {
     if (!search) return true;
-    const sup = mockSuppliers.find(s => s.id === p.supplier_id);
-    return p.payment_no.includes(search) || sup?.name.includes(search);
+    return p.payment_no?.includes(search) || p.Supplier?.name?.includes(search);
   });
 
-  const getSupplierName = (id) => mockSuppliers.find(s => s.id === id)?.name || '-';
-  const totalAmount = payments.reduce((s, p) => s + p.amount, 0);
+  const totalAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id || !form.amount) return toast.error('أكمل البيانات');
-    setPayments([{
-      id: Date.now(), payment_no: `CP-${String(payments.length + 1).padStart(6, '0')}`,
-      supplier_id: Number(form.supplier_id), amount: Number(form.amount),
-      payment_method: form.payment_method, date: form.date, notes: form.notes
-    }, ...payments]);
-    toast.success('تم تسجيل الدفع');
-    setShowModal(false);
-    setForm(emptyForm);
+    try {
+      await api.post('/finance/cash-payments', { ...form, supplier_id: Number(form.supplier_id), amount: Number(form.amount) });
+      toast.success('تم تسجيل الدفع');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا الدفع؟')) return;
-    setPayments(payments.filter(p => p.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/finance/cash-payments/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -76,8 +70,8 @@ export default function CashPaymentsPage() {
               <tr key={p.id}>
                 <td className="font-mono text-sm">{p.payment_no}</td>
                 <td>{p.date}</td>
-                <td className="font-medium">{getSupplierName(p.supplier_id)}</td>
-                <td className="font-bold text-danger">{p.amount.toLocaleString()} ج.م</td>
+                <td className="font-medium">{p.Supplier?.name || '-'}</td>
+                <td className="font-bold text-danger">{Number(p.amount).toLocaleString()} ج.م</td>
                 <td><span className="badge badge-blue">{p.payment_method}</span></td>
                 <td className="text-sm text-gray-500">{p.notes}</td>
                 <td><button onClick={() => handleDelete(p.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
@@ -94,7 +88,7 @@ export default function CashPaymentsPage() {
               <label className="form-label">المورد *</label>
               <select className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
                 <option value="">— اختر —</option>
-                {mockSuppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">

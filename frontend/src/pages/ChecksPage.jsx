@@ -1,40 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel } from 'react-icons/md';
+import api from '../api/axios';
 
-const mockCustomers = [
-  { id: 1, name: 'شركة النيل للتغليف' },
-  { id: 2, name: 'مصنع الأمل للبلاستيك' },
-  { id: 3, name: 'توزيعات المحروسة' },
-];
-
-const initialChecks = [
-  { id: 1, check_no: 'CHK-001', date: '2026-06-10', customer_id: 1, amount: 10000, due_date: '2026-07-10', status: 'pending', bank: 'البنك الأهلي' },
-  { id: 2, check_no: 'CHK-002', date: '2026-06-05', customer_id: 3, amount: 15000, due_date: '2026-06-15', status: 'pending', bank: 'بنك مصر' },
-  { id: 3, check_no: 'CHK-003', date: '2026-05-20', customer_id: 2, amount: 8000, due_date: '2026-06-20', status: 'collected', bank: 'البنك الأهلي' },
-];
-
-const emptyForm = { check_no: '', customer_id: '', amount: '', due_date: '', bank: '', date: new Date().toISOString().split('T')[0] };
+const emptyForm = { check_no: '', party_type: 'customer', party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] };
 
 export default function ChecksPage() {
-  const [checks, setChecks] = useState(initialChecks);
+  const [checks, setChecks] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
+  const loadData = async () => {
+    try {
+      const [ch, cu] = await Promise.all([api.get('/finance/checks'), api.get('/customers')]);
+      setChecks(ch.data); setCustomers(cu.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
+
   const today = new Date().toISOString().split('T')[0];
   const filtered = checks.filter(ch => {
-    const cust = mockCustomers.find(c => c.id === ch.customer_id);
-    const matchSearch = !search || ch.check_no.includes(search) || cust?.name.includes(search);
+    const matchSearch = !search || ch.check_no?.includes(search);
     const matchStatus = !filterStatus || ch.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
-  const getCustomerName = (id) => mockCustomers.find(c => c.id === id)?.name || '-';
+  const getPartyName = (ch) => customers.find(c => c.id === ch.party_id)?.name || '-';
   const isOverdue = (ch) => ch.status === 'pending' && ch.due_date < today;
-  const pendingTotal = checks.filter(c => c.status === 'pending').reduce((s, c) => s + c.amount, 0);
+  const pendingTotal = checks.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.amount), 0);
   const overdueCount = checks.filter(c => isOverdue(c)).length;
 
   const statusBadge = (ch) => {
@@ -44,33 +41,30 @@ export default function ChecksPage() {
     return <span className="badge badge-yellow">قيد الانتظار</span>;
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.customer_id || !form.amount || !form.check_no) return toast.error('أكمل البيانات');
-    setChecks([{
-      id: Date.now(), check_no: form.check_no, date: form.date,
-      customer_id: Number(form.customer_id), amount: Number(form.amount),
-      due_date: form.due_date, status: 'pending', bank: form.bank
-    }, ...checks]);
-    toast.success('تم تسجيل الشيك');
-    setShowModal(false);
-    setForm(emptyForm);
+    if (!form.party_id || !form.amount || !form.check_no) return toast.error('أكمل البيانات');
+    try {
+      await api.post('/finance/checks', { ...form, party_id: Number(form.party_id), amount: Number(form.amount) });
+      toast.success('تم تسجيل الشيك');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleCollect = (id) => {
-    setChecks(checks.map(c => c.id === id ? { ...c, status: 'collected' } : c));
-    toast.success('تم تحصيل الشيك');
+  const handleCollect = async (id) => {
+    try { await api.put(`/finance/checks/${id}`, { status: 'collected' }); toast.success('تم تحصيل الشيك'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleBounce = (id) => {
-    setChecks(checks.map(c => c.id === id ? { ...c, status: 'bounced' } : c));
-    toast.error('تم تسجيل الشيك كمرتجع');
+  const handleBounce = async (id) => {
+    try { await api.put(`/finance/checks/${id}`, { status: 'bounced' }); toast.error('تم تسجيل الشيك كمرتجع'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا الشيك؟')) return;
-    setChecks(checks.filter(c => c.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/finance/checks/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -108,10 +102,10 @@ export default function ChecksPage() {
               <tr key={ch.id} className={isOverdue(ch) ? 'bg-red-50' : ''}>
                 <td className="font-mono text-sm">{ch.check_no}</td>
                 <td>{ch.date}</td>
-                <td className="font-medium">{getCustomerName(ch.customer_id)}</td>
-                <td className="font-bold">{ch.amount.toLocaleString()} ج.م</td>
+                <td className="font-medium">{getPartyName(ch)}</td>
+                <td className="font-bold">{Number(ch.amount).toLocaleString()} ج.م</td>
                 <td className={isOverdue(ch) ? 'text-red-600 font-bold' : ''}>{ch.due_date}</td>
-                <td className="text-sm text-gray-600">{ch.bank}</td>
+                <td className="text-sm text-gray-600">{ch.bank_name}</td>
                 <td>{statusBadge(ch)}</td>
                 <td>
                   <div className="flex gap-1">
@@ -139,16 +133,16 @@ export default function ChecksPage() {
             </div>
             <div>
               <label className="form-label">العميل *</label>
-              <select className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}>
+              <select className="erp-input" required value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })}>
                 <option value="">— اختر —</option>
-                {mockCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
               <div><label className="form-label">تاريخ الاستحقاق *</label><input type="date" className="erp-input" required value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></div>
             </div>
-            <div><label className="form-label">البنك</label><input className="erp-input" value={form.bank} onChange={e => setForm({ ...form, bank: e.target.value })} /></div>
+            <div><label className="form-label">البنك</label><input className="erp-input" value={form.bank_name} onChange={e => setForm({ ...form, bank_name: e.target.value })} /></div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
               <button type="submit" className="erp-btn erp-btn-primary">حفظ</button>
