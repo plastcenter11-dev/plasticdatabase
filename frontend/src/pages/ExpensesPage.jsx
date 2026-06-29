@@ -1,25 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
+import api from '../api/axios';
 
-const categories = ['إيجار', 'كهرباء ومياه', 'رواتب', 'صيانة', 'مواصلات', 'مستلزمات مكتبية', 'أخرى'];
-
-const initialExpenses = [
-  { id: 1, date: '2026-06-01', description: 'إيجار المصنع - يونيو', amount: 15000, category: 'إيجار' },
-  { id: 2, date: '2026-06-05', description: 'فاتورة كهرباء', amount: 3200, category: 'كهرباء ومياه' },
-  { id: 3, date: '2026-06-10', description: 'صيانة ماكينة الحقن', amount: 2500, category: 'صيانة' },
-  { id: 4, date: '2026-06-15', description: 'مواصلات عمال', amount: 800, category: 'مواصلات' },
-];
-
+const expenseCategories = ['إيجار', 'كهرباء ومياه', 'رواتب', 'صيانة', 'مواصلات', 'مستلزمات مكتبية', 'أخرى'];
 const emptyForm = { date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'أخرى' };
 
 export default function ExpensesPage() {
-  const [expenses, setExpenses] = useState(initialExpenses);
+  const [expenses, setExpenses] = useState([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const loadData = async () => {
+    try { setExpenses((await api.get('/finance/expenses')).data); }
+    catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
 
   const filtered = expenses.filter(e => {
     const matchSearch = !search || e.description.includes(search);
@@ -27,21 +26,22 @@ export default function ExpensesPage() {
     return matchSearch && matchCat;
   });
 
-  const totalExpenses = filtered.reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.description || !form.amount) return toast.error('أكمل البيانات');
-    setExpenses([{ id: Date.now(), ...form, amount: Number(form.amount) }, ...expenses]);
-    toast.success('تم تسجيل المصروف');
-    setShowModal(false);
-    setForm(emptyForm);
+    try {
+      await api.post('/finance/expenses', { ...form, amount: Number(form.amount) });
+      toast.success('تم تسجيل المصروف');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا المصروف؟')) return;
-    setExpenses(expenses.filter(e => e.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/finance/expenses/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -63,7 +63,7 @@ export default function ExpensesPage() {
         </div>
         <select className="erp-input w-auto min-w-[130px]" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="">كل التصنيفات</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
@@ -78,7 +78,7 @@ export default function ExpensesPage() {
                 <td>{e.date}</td>
                 <td className="font-medium">{e.description}</td>
                 <td><span className="badge badge-yellow">{e.category}</span></td>
-                <td className="font-bold text-danger">{e.amount.toLocaleString()} ج.م</td>
+                <td className="font-bold text-danger">{Number(e.amount).toLocaleString()} ج.م</td>
                 <td><button onClick={() => handleDelete(e.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
               </tr>
             ))}
@@ -97,7 +97,7 @@ export default function ExpensesPage() {
             <div>
               <label className="form-label">التصنيف</label>
               <select className="erp-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">

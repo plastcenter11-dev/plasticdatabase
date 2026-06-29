@@ -1,39 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
+import api from '../api/axios';
 
-const categories = ['إيرادات متنوعة', 'بيع مخلفات', 'إيجار', 'أخرى'];
-
-const initialIncome = [
-  { id: 1, date: '2026-06-08', description: 'بيع مخلفات بلاستيك', amount: 3500, category: 'بيع مخلفات' },
-  { id: 2, date: '2026-06-14', description: 'إيجار جزء من المخزن', amount: 2000, category: 'إيجار' },
-];
-
+const incomeCategories = ['إيرادات متنوعة', 'بيع مخلفات', 'إيجار', 'أخرى'];
 const emptyForm = { date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'أخرى' };
 
 export default function OtherIncomePage() {
-  const [income, setIncome] = useState(initialIncome);
+  const [income, setIncome] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const filtered = income.filter(i => !search || i.description.includes(search));
-  const totalIncome = filtered.reduce((s, i) => s + i.amount, 0);
+  const loadData = async () => {
+    try { setIncome((await api.get('/finance/other-income')).data); }
+    catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
 
-  const handleSave = (e) => {
+  const filtered = income.filter(i => !search || i.description.includes(search));
+  const totalIncome = filtered.reduce((s, i) => s + Number(i.amount), 0);
+
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.description || !form.amount) return toast.error('أكمل البيانات');
-    setIncome([{ id: Date.now(), ...form, amount: Number(form.amount) }, ...income]);
-    toast.success('تم تسجيل الإيراد');
-    setShowModal(false);
-    setForm(emptyForm);
+    try {
+      await api.post('/finance/other-income', { ...form, amount: Number(form.amount) });
+      toast.success('تم تسجيل الإيراد');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا الإيراد؟')) return;
-    setIncome(income.filter(i => i.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/finance/other-income/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -64,7 +66,7 @@ export default function OtherIncomePage() {
                 <td>{inc.date}</td>
                 <td className="font-medium">{inc.description}</td>
                 <td><span className="badge badge-green">{inc.category}</span></td>
-                <td className="font-bold text-success">{inc.amount.toLocaleString()} ج.م</td>
+                <td className="font-bold text-success">{Number(inc.amount).toLocaleString()} ج.م</td>
                 <td><button onClick={() => handleDelete(inc.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
               </tr>
             ))}
@@ -83,7 +85,7 @@ export default function OtherIncomePage() {
             <div>
               <label className="form-label">التصنيف</label>
               <select className="erp-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                {incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
