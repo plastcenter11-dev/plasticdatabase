@@ -1,52 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
+import { MdAdd, MdDelete } from 'react-icons/md';
+import api from '../api/axios';
 
-const mockCustomers = [
-  { id: 1, name: 'شركة النيل للتغليف' },
-  { id: 2, name: 'مصنع الأمل للبلاستيك' },
-  { id: 3, name: 'توزيعات المحروسة' },
-];
-const mockSuppliers = [
-  { id: 1, name: 'شركة البترول للبتروكيماويات' },
-  { id: 2, name: 'مصنع الخليج للبلاستيك' },
-];
-
-const initialBalances = [
-  { id: 1, party_type: 'customer', party_id: 3, party_name: 'توزيعات المحروسة', financial_year: '2025-2026', opening_balance: 5000, type: 'مدين' },
-  { id: 2, party_type: 'supplier', party_id: 2, party_name: 'مصنع الخليج للبلاستيك', financial_year: '2025-2026', opening_balance: 3000, type: 'دائن' },
-];
-
-const emptyForm = { party_type: 'customer', party_id: '', opening_balance: '', type: 'مدين' };
+const emptyForm = { party_type: 'customer', party_id: '', debit: '', credit: '' };
 
 export default function OpeningBalancesPage() {
-  const [balances, setBalances] = useState(initialBalances);
+  const [balances, setBalances] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [financialYears, setFinancialYears] = useState([]);
   const [filterType, setFilterType] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const filtered = balances.filter(b => !filterType || b.party_type === filterType);
-  const parties = form.party_type === 'customer' ? mockCustomers : mockSuppliers;
+  const loadData = async () => {
+    try {
+      const [b, c, s, fy] = await Promise.all([api.get('/opening-balances'), api.get('/customers'), api.get('/suppliers'), api.get('/financial-years')]);
+      setBalances(b.data); setCustomers(c.data); setSuppliers(s.data); setFinancialYears(fy.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (!form.party_id || !form.opening_balance) return toast.error('أكمل البيانات');
-    const party = parties.find(p => p.id === Number(form.party_id));
-    setBalances([...balances, {
-      id: Date.now(), party_type: form.party_type, party_id: Number(form.party_id),
-      party_name: party?.name || '', financial_year: '2025-2026',
-      opening_balance: Number(form.opening_balance), type: form.type
-    }]);
-    toast.success('تم تسجيل الرصيد الافتتاحي');
-    setShowModal(false);
-    setForm(emptyForm);
+  const filtered = balances.filter(b => !filterType || b.party_type === filterType);
+  const parties = form.party_type === 'customer' ? customers : suppliers;
+  const activeYear = financialYears.find(y => y.is_active);
+
+  const getPartyName = (b) => {
+    if (b.party_type === 'customer') return customers.find(c => c.id === b.party_id)?.name || '-';
+    return suppliers.find(s => s.id === b.party_id)?.name || '-';
   };
 
-  const handleDelete = (id) => {
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.party_id || (!form.debit && !form.credit)) return toast.error('أكمل البيانات');
+    try {
+      await api.post('/opening-balances', { ...form, party_id: Number(form.party_id), debit: Number(form.debit || 0), credit: Number(form.credit || 0), financial_year_id: activeYear?.id });
+      toast.success('تم تسجيل الرصيد الافتتاحي');
+      setShowModal(false); setForm(emptyForm); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
+  };
+
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف هذا الرصيد؟')) return;
-    setBalances(balances.filter(b => b.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/opening-balances/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
@@ -57,7 +56,7 @@ export default function OpeningBalancesPage() {
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-        الأرصدة الافتتاحية تُسجَّل عند بداية استخدام النظام أو عند تقفيل السنة المالية. يمكن إضافتها يدوياً أو ترحيلها تلقائياً.
+        الأرصدة الافتتاحية تُسجَّل عند بداية استخدام النظام أو عند تقفيل السنة المالية.
       </div>
 
       <select className="erp-input w-auto min-w-[150px]" value={filterType} onChange={e => setFilterType(e.target.value)}>
@@ -68,17 +67,16 @@ export default function OpeningBalancesPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>#</th><th>النوع</th><th>الاسم</th><th>السنة المالية</th><th>مدين/دائن</th><th>الرصيد</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>#</th><th>النوع</th><th>الاسم</th><th>مدين</th><th>دائن</th><th>إجراءات</th></tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد أرصدة افتتاحية</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد أرصدة افتتاحية</td></tr>}
             {filtered.map((b, i) => (
               <tr key={b.id}>
                 <td className="text-gray-400">{i + 1}</td>
                 <td>{b.party_type === 'customer' ? <span className="badge badge-blue">عميل</span> : <span className="badge badge-yellow">مورد</span>}</td>
-                <td className="font-medium">{b.party_name}</td>
-                <td>{b.financial_year}</td>
-                <td>{b.type === 'مدين' ? <span className="badge badge-red">مدين</span> : <span className="badge badge-green">دائن</span>}</td>
-                <td className="font-bold">{b.opening_balance.toLocaleString()} ج.م</td>
+                <td className="font-medium">{getPartyName(b)}</td>
+                <td className="text-red-600 font-bold">{Number(b.debit) ? Number(b.debit).toLocaleString() + ' ج.م' : '-'}</td>
+                <td className="text-green-600 font-bold">{Number(b.credit) ? Number(b.credit).toLocaleString() + ' ج.م' : '-'}</td>
                 <td><button onClick={() => handleDelete(b.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
               </tr>
             ))}
@@ -104,14 +102,8 @@ export default function OpeningBalancesPage() {
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">الرصيد *</label><input type="number" className="erp-input" required value={form.opening_balance} onChange={e => setForm({ ...form, opening_balance: e.target.value })} /></div>
-              <div>
-                <label className="form-label">مدين / دائن</label>
-                <select className="erp-input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                  <option value="مدين">مدين (له علينا)</option>
-                  <option value="دائن">دائن (لنا عنده)</option>
-                </select>
-              </div>
+              <div><label className="form-label">مدين</label><input type="number" className="erp-input" value={form.debit} onChange={e => setForm({ ...form, debit: e.target.value })} /></div>
+              <div><label className="form-label">دائن</label><input type="number" className="erp-input" value={form.credit} onChange={e => setForm({ ...form, credit: e.target.value })} /></div>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
