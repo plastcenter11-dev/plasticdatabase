@@ -3,39 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
-
-const mockCustomers = [
-  { id: 1, name: 'كيلوجز' },
-  { id: 2, name: 'شركة النيل للتغليف' },
-  { id: 3, name: 'توزيعات المحروسة' },
-];
-
-const mockItems = [
-  { id: 1, code: '40001600', name: 'ساشيت خضار عادي 100 جم' },
-  { id: 2, code: '40001498', name: 'ساشيت خضار حار 100 جم' },
-  { id: 3, code: '40001700', name: 'ساشيت شوربة 80 جم' },
-];
-
-const mockSalesOrders = [
-  { id: 1, order_no: 'SO-000001', date: '2026-06-15', customer_id: 2, status: 'pending', items: [
-    { item_id: 1, name: 'ساشيت خضار عادي 100 جم', code: '40001600', quantity: 2000, price: 2.5 },
-    { item_id: 2, name: 'ساشيت خضار حار 100 جم', code: '40001498', quantity: 1500, price: 2.5 },
-  ]},
-  { id: 2, order_no: 'SO-000002', date: '2026-06-18', customer_id: 1, status: 'pending', items: [
-    { item_id: 3, name: 'ساشيت شوربة 80 جم', code: '40001700', quantity: 3000, price: 3.0 },
-  ]},
-  { id: 3, order_no: 'SO-000003', date: '2026-06-20', customer_id: 1, status: 'pending', items: [
-    { item_id: 1, name: 'ساشيت خضار عادي 100 جم', code: '40001600', quantity: 5000, price: 2.5 },
-  ]},
-];
-
-const initialNotes = [
-  { id: 1, note_no: 119, date: '2026-06-22', customer_id: 1, status: 'pending', driver_name: '', car_no: '', receiver_name: '',
-    items: [
-      { item_id: 1, item_name: 'ساشيت خضار عادي 100 جم', item_code: '40001600', net_weight: 1663, batch_no: '621/2026', roll_count: 160, core_weight: 40, wood_weight: 35, stretch_weight: 2.9, gross_weight: 1740.9 },
-      { item_id: 2, item_name: 'ساشيت خضار حار 100 جم', item_code: '40001498', net_weight: 1596, batch_no: '617/2026', roll_count: 160, core_weight: 40, wood_weight: 42, stretch_weight: 2.9, gross_weight: 1680.9 },
-    ]},
-];
+import api from '../api/axios';
 
 const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '' };
 
@@ -77,7 +45,18 @@ function numberToArabicWords(num) {
 
 export default function DeliveryNotesPage() {
   const location = useLocation();
-  const [notes, setNotes] = useState(initialNotes);
+  const [notes, setNotes] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [allItems, setAllItems] = useState([]);
+  const [salesOrders, setSalesOrders] = useState([]);
+
+  const loadData = async () => {
+    try {
+      const [n, c, it] = await Promise.all([api.get('/delivery-notes'), api.get('/customers'), api.get('/items')]);
+      setNotes(n.data); setCustomers(c.data); setAllItems(it.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  useEffect(() => { loadData(); }, []);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -95,17 +74,20 @@ export default function DeliveryNotesPage() {
   }, []);
 
   const filtered = notes.filter(n => {
-    const cust = mockCustomers.find(c => c.id === n.customer_id);
-    const matchSearch = !search || String(n.note_no).includes(search) || cust?.name.includes(search);
+    const matchSearch = !search || String(n.note_no).includes(search) || n.Customer?.name?.includes(search);
     const matchStatus = !filterStatus || n.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
-  const getCustomerName = (id) => mockCustomers.find(c => c.id === id)?.name || '-';
+  const getCustomerName = (id) => customers.find(c => c.id === id)?.name || '-';
 
-  const availableOrders = form.customer_id
-    ? mockSalesOrders.filter(o => o.customer_id === Number(form.customer_id) && o.status === 'pending')
-    : [];
+  const loadSalesOrders = async (customerId) => {
+    if (!customerId) { setSalesOrders([]); return; }
+    try { const { data } = await api.get(`/sales-orders/customer/${customerId}/pending`); setSalesOrders(data); }
+    catch { setSalesOrders([]); }
+  };
+
+  const availableOrders = salesOrders;
 
   const toggleOrder = (orderId) => {
     const selected = form.selected_orders.includes(orderId)
@@ -114,11 +96,11 @@ export default function DeliveryNotesPage() {
 
     const orderItems = [];
     selected.forEach(oId => {
-      const order = mockSalesOrders.find(o => o.id === oId);
+      const order = salesOrders.find(o => o.id === oId);
       if (!order) return;
-      order.items.forEach(oi => {
+      (order.items || []).forEach(oi => {
         orderItems.push({
-          item_id: oi.item_id, item_name: oi.name, item_code: oi.code,
+          item_id: oi.item_id, item_name: oi.Item?.name || oi.name || '', item_code: oi.Item?.code || oi.code || '',
           ordered_qty: oi.quantity, net_weight: oi.quantity,
           batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '',
           source_order: order.order_no,
@@ -133,7 +115,7 @@ export default function DeliveryNotesPage() {
     const items = [...form.items];
     items[idx] = { ...items[idx], [field]: value };
     if (field === 'item_id') {
-      const item = mockItems.find(i => i.id === Number(value));
+      const item = allItems.find(i => i.id === Number(value));
       if (item) { items[idx].item_name = item.name; items[idx].item_code = item.code; }
     }
     if (field === 'gross_weight_manual') {
@@ -156,21 +138,22 @@ export default function DeliveryNotesPage() {
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.net_weight)) return toast.error('أكمل بيانات الأصناف');
 
-    const linkedOrders = form.selected_orders.map(id => mockSalesOrders.find(o => o.id === id)?.order_no).filter(Boolean);
-    setNotes([{
-      id: Date.now(), note_no: notes.length > 0 ? Math.max(...notes.map(n => n.note_no)) + 1 : 1,
-      date: form.date, customer_id: Number(form.customer_id), status: 'pending',
-      driver_name: form.driver_name, car_no: form.car_no, receiver_name: '',
-      linked_orders: linkedOrders,
-      items: form.items.map(i => ({
-        ...i, item_id: Number(i.item_id), net_weight: Number(i.net_weight),
-        roll_count: Number(i.roll_count || 0), core_weight: Number(i.core_weight || 0),
-        wood_weight: Number(i.wood_weight || 0), stretch_weight: Number(i.stretch_weight || 0),
-        gross_weight: Number(i.gross_weight || 0)
-      }))
-    }, ...notes]);
-    toast.success('تم إنشاء إذن التسليم');
-    setShowModal(false);
+    try {
+      await api.post('/delivery-notes', {
+        customer_id: Number(form.customer_id), date: form.date,
+        driver_name: form.driver_name, car_no: form.car_no,
+        linked_orders: form.selected_orders,
+        items: form.items.map(i => ({
+          item_id: Number(i.item_id), net_weight: Number(i.net_weight),
+          batch_no: i.batch_no || '', roll_count: Number(i.roll_count || 0),
+          core_weight: Number(i.core_weight || 0), wood_weight: Number(i.wood_weight || 0),
+          stretch_weight: Number(i.stretch_weight || 0), gross_weight: Number(i.gross_weight || 0),
+          ordered_qty: Number(i.ordered_qty || 0), source_order_no: i.source_order || ''
+        }))
+      });
+      toast.success('تم إنشاء إذن التسليم');
+      setShowModal(false); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   const openInvoiceModal = (id) => {
@@ -178,17 +161,19 @@ export default function DeliveryNotesPage() {
     setInvoiceNo('');
   };
 
-  const handleDeliver = () => {
+  const handleDeliver = async () => {
     if (!invoiceNo.trim()) return toast.error('أدخل رقم الفاتورة');
-    setNotes(notes.map(n => n.id === showInvoiceModal ? { ...n, status: 'delivered', invoice_no: invoiceNo.trim() } : n));
-    toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
-    setShowInvoiceModal(null);
+    try {
+      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, { invoice_no: invoiceNo.trim() });
+      toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
+      setShowInvoiceModal(null); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف إذن التسليم؟')) return;
-    setNotes(notes.filter(n => n.id !== id));
-    toast.success('تم الحذف');
+    try { await api.delete(`/delivery-notes/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   const handlePrint = (note, showCompany = true) => {
@@ -296,14 +281,14 @@ export default function DeliveryNotesPage() {
                 <tr key={n.id}>
                   <td className="font-bold">({n.note_no})</td>
                   <td>{n.date}</td>
-                  <td className="font-medium">{getCustomerName(n.customer_id)}</td>
-                  <td className="text-xs">{n.linked_orders?.length > 0 ? n.linked_orders.join('، ') : <span className="text-gray-400">—</span>}</td>
+                  <td className="font-medium">{n.Customer?.name || getCustomerName(n.customer_id)}</td>
+                  <td className="text-xs">{n.SalesOrders?.length > 0 ? n.SalesOrders.map(o => o.order_no).join('، ') : <span className="text-gray-400">—</span>}</td>
                   <td>
-                    {n.items.map((item, i) => (
-                      <div key={i} className="text-sm">{item.item_name} — {item.net_weight} كجم ({item.roll_count} بكرة)</div>
+                    {(n.items || []).map((item, i) => (
+                      <div key={i} className="text-sm">{item.Item?.name || item.item_name || '-'} — {Number(item.net_weight)} كجم ({item.roll_count} بكرة)</div>
                     ))}
                   </td>
-                  <td className="font-bold">{n.items.reduce((s, i) => s + i.net_weight, 0).toLocaleString()} كجم</td>
+                  <td className="font-bold">{(n.items || []).reduce((s, i) => s + Number(i.net_weight), 0).toLocaleString()} كجم</td>
                   <td>{n.status === 'pending' ? <span className="badge badge-yellow">معلق</span> : <span className="badge badge-green">تم التسليم</span>}</td>
                   <td>
                     <div className="flex gap-1">
@@ -330,9 +315,9 @@ export default function DeliveryNotesPage() {
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="form-label">العميل *</label>
-                <select className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value, selected_orders: [], items: [{ ...emptyItem }] })}>
+                <select className="erp-input" required value={form.customer_id} onChange={e => { setForm({ ...form, customer_id: e.target.value, selected_orders: [], items: [{ ...emptyItem }] }); loadSalesOrders(e.target.value); }}>
                   <option value="">— اختر —</option>
-                  {mockCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
@@ -390,7 +375,7 @@ export default function DeliveryNotesPage() {
                       ) : (
                         <select className="erp-input" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
                           <option value="">— اختر —</option>
-                          {mockItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}
+                          {allItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}
                         </select>
                       )}
                     </div>
