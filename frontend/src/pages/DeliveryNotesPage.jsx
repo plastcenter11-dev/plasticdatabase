@@ -436,7 +436,7 @@ export default function DeliveryNotesPage() {
       )}
 
       {showInvoiceModal && (
-        <Modal title="ترحيل لفاتورة بيع" onClose={() => setShowInvoiceModal(null)} width="max-w-sm">
+        <Modal title="ترحيل لفاتورة بيع" onClose={() => setShowInvoiceModal(null)} width="max-w-sm" zIndex={100}>
           <div className="space-y-4">
             <div>
               <label className="form-label">رقم الفاتورة *</label>

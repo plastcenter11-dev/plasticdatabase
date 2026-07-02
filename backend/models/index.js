@@ -75,6 +75,7 @@ const SalesOrder = sequelize.define('SalesOrder', {
 const SalesOrderItem = sequelize.define('SalesOrderItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: null, allowNull: true },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 
@@ -113,6 +114,7 @@ const SalesInvoice = sequelize.define('SalesInvoice', {
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   paid: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   remaining: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  delivery_note_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const SalesInvoiceItem = sequelize.define('SalesInvoiceItem', {

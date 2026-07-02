@@ -1,6 +1,6 @@
-export default function Modal({ title, onClose, children, width = 'max-w-lg' }) {
+export default function Modal({ title, onClose, children, width = 'max-w-lg', zIndex = 50 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 flex items-center justify-center bg-black/40" style={{ zIndex }} onClick={onClose}>
       <div className={`bg-white rounded-xl shadow-xl w-full ${width} mx-4 max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h2 className="font-bold text-gray-800">{title}</h2>

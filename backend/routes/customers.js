@@ -1,12 +1,33 @@
 const router = require('express').Router();
-const { Customer, SalesInvoice, CashReceipt } = require('../models');
+const { Customer, SalesInvoice, CashReceipt, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
   try {
     const where = {};
     if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
-    res.json(await Customer.findAll({ where, order: [['id', 'DESC']] }));
+    const customers = await Customer.findAll({ where, order: [['id', 'DESC']] });
+
+    // Calculate real balance for each customer from invoices - receipts
+    const ids = customers.map(c => c.id);
+    if (ids.length === 0) return res.json([]);
+
+    const [invoiceSums] = await sequelize.query(
+      `SELECT customer_id, COALESCE(SUM(total),0) as total FROM sales_invoices WHERE status='posted' AND customer_id IN (${ids.join(',')}) GROUP BY customer_id`
+    );
+    const [receiptSums] = await sequelize.query(
+      `SELECT customer_id, COALESCE(SUM(amount),0) as total FROM cash_receipts WHERE customer_id IN (${ids.join(',')}) GROUP BY customer_id`
+    );
+
+    const invMap = {}, recMap = {};
+    invoiceSums.forEach(r => { invMap[r.customer_id] = Number(r.total); });
+    receiptSums.forEach(r => { recMap[r.customer_id] = Number(r.total); });
+
+    const result = customers.map(c => ({
+      ...c.toJSON(),
+      balance: (invMap[c.id] || 0) - (recMap[c.id] || 0),
+    }));
+    res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

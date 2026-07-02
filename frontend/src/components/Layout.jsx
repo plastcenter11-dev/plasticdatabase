@@ -33,7 +33,7 @@ const menuGroups = [
     items: [
       { path: '/sales-orders', label: 'طلبيات البيع', icon: MdAssignment },
       { path: '/delivery-notes', label: 'إذون التسليم', icon: MdLocalShipping },
-      { path: '/sales-invoices', label: 'مبيعات آجل', icon: MdReceipt },
+      { path: '/sales-invoices', label: 'فواتير بيع', icon: MdReceipt },
       { path: '/sales-returns', label: 'مرتجع مبيعات', icon: MdTrendingDown },
     ]
   },

@@ -20,9 +20,10 @@ router.post('/', async (req, res) => {
     const { items, ...data } = req.body;
     const count = await SalesOrder.count();
     data.order_no = `SO-${String(count + 1).padStart(6, '0')}`;
-    data.total = items.reduce((s, i) => s + Number(i.quantity) * Number(i.price), 0);
+    const calcItemTotal = i => Number(i.quantity) * Number(i.price) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
+    data.total = items.reduce((s, i) => s + calcItemTotal(i), 0);
     const order = await SalesOrder.create(data);
-    if (items?.length) await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: Number(i.quantity) * Number(i.price) })));
+    if (items?.length) await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })));
     res.status(201).json(await SalesOrder.findByPk(order.id, { include: [{ model: SalesOrderItem, as: 'items' }] }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -33,9 +34,10 @@ router.put('/:id', async (req, res) => {
     if (!order) return res.status(404).json({ error: 'غير موجود' });
     const { items, ...data } = req.body;
     if (items) {
-      data.total = items.reduce((s, i) => s + Number(i.quantity) * Number(i.price), 0);
+      const calcItemTotal = i => Number(i.quantity) * Number(i.price) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
+      data.total = items.reduce((s, i) => s + calcItemTotal(i), 0);
       await SalesOrderItem.destroy({ where: { order_id: order.id } });
-      await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: Number(i.quantity) * Number(i.price) })));
+      await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })));
     }
     await order.update(data);
     res.json(await SalesOrder.findByPk(order.id, { include: [{ model: SalesOrderItem, as: 'items' }] }));

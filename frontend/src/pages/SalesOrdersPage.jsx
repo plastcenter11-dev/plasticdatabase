@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch, MdLocalShipping } from 'react-icons/md';
 import api from '../api/axios';
 
-const emptyItem = { item_id: '', quantity: '', price: '' };
+const emptyItem = { item_id: '', quantity: '', price: '', tax_rate: '' };
 
 export default function SalesOrdersPage() {
   const navigate = useNavigate();
@@ -48,14 +48,15 @@ export default function SalesOrdersPage() {
 
   const addFormItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
-  const calcTotal = () => form.items.reduce((sum, i) => sum + (Number(i.quantity || 0) * Number(i.price || 0)), 0);
+  const calcItemTotal = (i) => Number(i.quantity || 0) * Number(i.price || 0) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
+  const calcTotal = () => form.items.reduce((sum, i) => sum + calcItemTotal(i), 0);
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
     try {
-      const payload = { customer_id: Number(form.customer_id), date: form.date, items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price) })) };
+      const payload = { customer_id: Number(form.customer_id), date: form.date, items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price), tax_rate: i.tax_rate ? Number(i.tax_rate) : null })) };
       if (editing) { await api.put(`/sales-orders/${editing.id}`, payload); toast.success('تم تحديث الطلبية'); }
       else { await api.post('/sales-orders', payload); toast.success('تمت إضافة الطلبية'); }
       setShowModal(false); loadData();
@@ -79,12 +80,13 @@ export default function SalesOrdersPage() {
         <button onClick={() => { setEditing(null); setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> طلبية جديدة</button>
       </div>
 
-      <div className="relative max-w-sm">
-        <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
-        <input className="erp-input pr-10" placeholder="بحث برقم الطلبية أو اسم العميل..." value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="p-3 border-b">
+          <div className="relative max-w-sm">
+            <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
+            <input className="erp-input pr-10" placeholder="بحث برقم الطلبية أو اسم العميل..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
         <table className="erp-table">
           <thead><tr><th>رقم الطلبية</th><th>التاريخ</th><th>العميل</th><th>عدد الأصناف</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>
@@ -104,7 +106,7 @@ export default function SalesOrdersPage() {
                         <MdLocalShipping size={14} /> إذن تسليم
                       </button>
                     )}
-                    <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, price: i.price })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
+                    <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, price: i.price, tax_rate: i.tax_rate || '' })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
                     <button onClick={() => handleDelete(o.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
                   </div>
                 </td>
@@ -137,7 +139,7 @@ export default function SalesOrdersPage() {
                 <button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button>
               </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>ضريبة</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>
                   {form.items.map((item, idx) => (
                     <tr key={idx}>
@@ -149,7 +151,19 @@ export default function SalesOrdersPage() {
                       </td>
                       <td><input type="number" className="erp-input py-1 w-24" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                       <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>
-                      <td className="font-bold">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString()}</td>
+                      <td>
+                        <div className="flex items-center gap-1">
+                          <input type="checkbox" checked={item.tax_rate !== ''} onChange={e => updateFormItem(idx, 'tax_rate', e.target.checked ? '14' : '')} />
+                          {item.tax_rate !== '' && (
+                            <div className="flex items-center gap-1">
+                              <input type="number" className="erp-input py-1 w-16" value={item.tax_rate} onChange={e => updateFormItem(idx, 'tax_rate', e.target.value)} />
+                              <span className="text-xs text-gray-500">%</span>
+                            </div>
+                          )}
+                          {item.tax_rate === '' && <span className="text-xs text-gray-400">بخلاف الضريبة</span>}
+                        </div>
+                      </td>
+                      <td className="font-bold">{calcItemTotal(item).toLocaleString()}</td>
                       <td>{form.items.length > 1 && <button type="button" onClick={() => removeFormItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                     </tr>
                   ))}

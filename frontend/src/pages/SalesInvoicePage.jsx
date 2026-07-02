@@ -104,7 +104,7 @@ export default function SalesInvoicePage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold text-gray-800">مبيعات آجل</h1>
+        <h1 className="text-xl font-bold text-gray-800">فواتير بيع</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
           <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>
