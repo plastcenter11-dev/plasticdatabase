@@ -51,7 +51,7 @@ const menuGroups = [
       { path: '/suppliers', label: 'تعريف موردين', icon: MdPeople },
       { path: '/opening-balances', label: 'الأرصدة الافتتاحية', icon: MdAccountBalance },
       { path: '/reports/customer-statement', label: 'كشف حساب', icon: MdBarChart },
-      { path: '/reports/customer-statement-summary', label: 'كشف حساب م', icon: MdBarChart },
+      { path: '/reports/supplier-statement', label: 'كشف حساب م', icon: MdBarChart },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart },
       { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart },
       { path: '/customer-credit-limits', label: 'حدود الائتمان العملاء', icon: MdPeople },

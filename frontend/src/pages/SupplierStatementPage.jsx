@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdSearch, MdPrint } from 'react-icons/md';
+import { MdSearch, MdPrint, MdOpenInNew, MdClose } from 'react-icons/md';
 import api from '../api/axios';
 
 export default function SupplierStatementPage() {
@@ -8,6 +8,7 @@ export default function SupplierStatementPage() {
   const [movements, setMovements] = useState([]);
   const [dateFrom, setDateFrom] = useState(new Date().getFullYear() + '-01-01');
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [invoiceModal, setInvoiceModal] = useState(null);
 
   useEffect(() => { api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {}); }, []);
 
@@ -17,6 +18,13 @@ export default function SupplierStatementPage() {
   }, [supplierId]);
 
   const supplierName = suppliers.find(s => s.id === Number(supplierId))?.name || '';
+
+  const openInvoice = async (invoiceId) => {
+    try {
+      const r = await api.get(`/purchase-invoices/${invoiceId}`);
+      setInvoiceModal(r.data);
+    } catch { }
+  };
 
   let balance = 0;
   const rows = movements.map(m => {
@@ -62,7 +70,16 @@ export default function SupplierStatementPage() {
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.date}</td>
-                  <td>{r.type} {r.reference}</td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <span>{r.type} {r.reference}</span>
+                      {r.invoice_id && (
+                        <button onClick={() => openInvoice(r.invoice_id)} className="text-blue-500 hover:text-blue-700" title="عرض الفاتورة">
+                          <MdOpenInNew size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                   <td className={r.debit ? 'text-green-600 font-medium' : ''}>{r.debit ? Number(r.debit).toLocaleString() : ''}</td>
                   <td className={r.credit ? 'text-red-600 font-medium' : ''}>{r.credit ? Number(r.credit).toLocaleString() : ''}</td>
                   <td className="font-bold">{r.balance.toLocaleString()}</td>
@@ -78,6 +95,47 @@ export default function SupplierStatementPage() {
               </tr></tfoot>
             )}
           </table>
+        </div>
+      )}
+
+      {invoiceModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setInvoiceModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h2 className="font-bold text-gray-800">فاتورة شراء — {invoiceModal.invoice_no}</h2>
+              <button onClick={() => setInvoiceModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><MdClose size={22} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-gray-500">المورد:</span> <strong>{invoiceModal.Supplier?.name}</strong></div>
+                <div><span className="text-gray-500">التاريخ:</span> <strong>{invoiceModal.date}</strong></div>
+                <div><span className="text-gray-500">رقم الفاتورة:</span> <strong>{invoiceModal.invoice_no}</strong></div>
+                <div><span className="text-gray-500">الحالة:</span> <strong>{invoiceModal.status === 'posted' ? 'مرحّلة' : 'مسودة'}</strong></div>
+              </div>
+              <table className="erp-table">
+                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <tbody>
+                  {(invoiceModal.items || []).map((item, i) => (
+                    <tr key={i}>
+                      <td>{item.Item?.name || item.item_id}</td>
+                      <td>{Number(item.quantity).toLocaleString()}</td>
+                      <td>{Number(item.price).toLocaleString()}</td>
+                      <td className="font-bold">{Number(item.total).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  {invoiceModal.tax_amount > 0 && (
+                    <tr><td colSpan={3} className="text-left text-gray-500">ضريبة</td><td className="font-medium">{Number(invoiceModal.tax_amount).toLocaleString()}</td></tr>
+                  )}
+                  <tr className="bg-gray-50 font-bold">
+                    <td colSpan={3} className="text-left">الإجمالي</td>
+                    <td className="text-primary text-lg">{Number(invoiceModal.total).toLocaleString()} ج.م</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>
