@@ -117,12 +117,40 @@ export default function SettingsPage() {
         )}
 
         {activeTab === 'backup' && (
-          <div className="space-y-4 max-w-lg">
+          <div className="space-y-5 max-w-lg">
             <h2 className="text-lg font-bold text-gray-700">النسخة الاحتياطية</h2>
-            <p className="text-sm text-gray-600">تحميل نسخة احتياطية من قاعدة البيانات.</p>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-1">
+              <p className="font-bold">ماذا يتم تحميله؟</p>
+              <p>ملف <code className="bg-blue-100 px-1 rounded">plasticdb-backup-YYYY-MM-DD.json</code> يحتوي على <strong>كل بيانات قاعدة البيانات</strong>: عملاء، موردين، أصناف، فواتير، مخزون، حسابات، إعدادات — كل شيء.</p>
+              <p className="text-blue-600 mt-1">يُحفظ في مجلد التنزيلات (Downloads) بشكل تلقائي.</p>
+            </div>
+
             <div className="flex gap-3">
-              <button onClick={() => toast.success('جاري تحميل النسخة الاحتياطية...')} className="erp-btn erp-btn-primary flex items-center gap-1"><MdBackup size={18} /> تحميل نسخة احتياطية</button>
-              <button onClick={() => toast.info('اختر ملف النسخة الاحتياطية')} className="erp-btn erp-btn-outline flex items-center gap-1"><MdRefresh size={18} /> استعادة نسخة</button>
+              <button
+                onClick={async () => {
+                  try {
+                    toast.info('جاري تجهيز النسخة الاحتياطية...');
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/backup', { headers: { Authorization: `Bearer ${token}` } });
+                    if (!res.ok) throw new Error('فشل التحميل');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const date = new Date().toISOString().split('T')[0];
+                    a.href = url; a.download = `plasticdb-backup-${date}.json`;
+                    a.click(); URL.revokeObjectURL(url);
+                    toast.success('تم تحميل النسخة الاحتياطية بنجاح ✓');
+                  } catch { toast.error('خطأ في تحميل النسخة الاحتياطية'); }
+                }}
+                className="erp-btn erp-btn-primary flex items-center gap-2"
+              >
+                <MdBackup size={20} /> تحميل نسخة احتياطية
+              </button>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm text-gray-500 mb-1">لاستعادة النسخة الاحتياطية، تواصل مع مسؤول النظام لرفع ملف الـ JSON إلى قاعدة البيانات.</p>
             </div>
           </div>
         )}

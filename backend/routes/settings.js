@@ -1,6 +1,12 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
-const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Supplier, Stock } = require('../models');
+const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Supplier, Stock,
+  Item, Category, Warehouse, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem,
+  SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
+  SalesReturn, SalesReturnItem, PurchaseReturn, PurchaseReturnItem,
+  CashReceipt, CashPayment, Check, Expense, OtherIncome,
+  StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent,
+} = require('../models');
 const { adminOnly } = require('../middleware/auth');
 
 // Users
@@ -179,6 +185,53 @@ router.get('/categories', async (req, res) => {
 router.post('/categories', async (req, res) => {
   try { res.status(201).json(await require('../models').Category.create(req.body)); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Backup — export all tables as JSON
+router.get('/backup', async (req, res) => {
+  try {
+    const safe = m => m ? m.findAll() : Promise.resolve([]);
+    const [
+      users, employees, categories, warehouses, items,
+      customers, suppliers, financialYears, openingBalances, settings,
+      salesOrders, salesOrderItems, deliveryNotes, deliveryNoteItems,
+      salesInvoices, salesInvoiceItems, purchaseInvoices, purchaseInvoiceItems,
+      salesReturns, salesReturnItems, purchaseReturns, purchaseReturnItems,
+      cashReceipts, cashPayments, checks, expenses, otherIncome,
+      stock, stockMovements, warehouseTransfers, warehouseTransferItems,
+      itemAssemblies, itemAssemblyComponents,
+    ] = await Promise.all([
+      User.findAll({ attributes: { exclude: ['password'] } }),
+      safe(Employee), safe(Category), safe(Warehouse), safe(Item),
+      safe(Customer), safe(Supplier), safe(FinancialYear), safe(OpeningBalance), Settings.findAll(),
+      safe(SalesOrder), safe(SalesOrderItem), safe(DeliveryNote), safe(DeliveryNoteItem),
+      safe(SalesInvoice), safe(SalesInvoiceItem), safe(PurchaseInvoice), safe(PurchaseInvoiceItem),
+      safe(SalesReturn), safe(SalesReturnItem), safe(PurchaseReturn), safe(PurchaseReturnItem),
+      safe(CashReceipt), safe(CashPayment), safe(Check), safe(Expense), safe(OtherIncome),
+      safe(Stock), safe(StockMovement), safe(WarehouseTransfer), safe(WarehouseTransferItem),
+      safe(ItemAssembly), safe(ItemAssemblyComponent),
+    ]);
+
+    const backup = {
+      version: '1.0',
+      createdAt: new Date().toISOString(),
+      tables: {
+        users, employees, categories, warehouses, items,
+        customers, suppliers, financialYears, openingBalances, settings,
+        salesOrders, salesOrderItems, deliveryNotes, deliveryNoteItems,
+        salesInvoices, salesInvoiceItems, purchaseInvoices, purchaseInvoiceItems,
+        salesReturns, salesReturnItems, purchaseReturns, purchaseReturnItems,
+        cashReceipts, cashPayments, checks, expenses, otherIncome,
+        stock, stockMovements, warehouseTransfers, warehouseTransferItems,
+        itemAssemblies, itemAssemblyComponents,
+      },
+    };
+
+    const date = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Disposition', `attachment; filename="plasticdb-backup-${date}.json"`);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.json(backup);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
