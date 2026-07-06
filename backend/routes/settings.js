@@ -1,7 +1,25 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
-const { execFile } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const os = require('os');
+
+// Auto-detect mysql/mysqldump paths
+function findMysqlBin(exe) {
+  const candidates = [
+    `C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\${exe}`,
+    `C:\\Program Files\\MySQL\\MySQL Server 8.4\\bin\\${exe}`,
+    `C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\${exe}`,
+    `C:\\xampp\\mysql\\bin\\${exe}`,
+    `C:\\wamp64\\bin\\mysql\\mysql8.0\\bin\\${exe}`,
+    `C:\\wamp64\\bin\\mysql\\mysql5.7\\bin\\${exe}`,
+  ];
+  for (const p of candidates) { if (fs.existsSync(p)) return p; }
+  return exe; // fallback: hope it's in PATH
+}
+
+const upload = multer({ dest: os.tmpdir() });
 const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Supplier, Stock,
   Item, Category, Warehouse, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem,
   SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
@@ -189,9 +207,47 @@ router.post('/categories', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Restore — import .sql file via mysql
+router.post('/backup/restore', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'لم يتم رفع أي ملف' });
+  const mysql = findMysqlBin('mysql.exe');
+  const { DB_HOST, DB_USER, DB_PASS, DB_NAME } = process.env;
+
+  const args = [
+    `--host=${DB_HOST}`,
+    `--user=${DB_USER}`,
+    `--password=${DB_PASS}`,
+    DB_NAME,
+  ];
+
+  const proc = require('child_process').spawn(mysql, args);
+  const fileStream = fs.createReadStream(req.file.path);
+  fileStream.pipe(proc.stdin);
+
+  let stderr = '';
+  proc.stderr.on('data', d => { stderr += d.toString(); });
+
+  proc.on('close', (code) => {
+    fs.unlink(req.file.path, () => {});
+    if (code === 0) {
+      res.json({ message: 'تم استعادة قاعدة البيانات بنجاح' });
+    } else {
+      // mysqldump prints warnings to stderr even on success — filter real errors
+      const realError = stderr.split('\n').find(l => l.toLowerCase().includes('error'));
+      if (realError) res.status(500).json({ error: realError });
+      else res.json({ message: 'تم استعادة قاعدة البيانات بنجاح' });
+    }
+  });
+
+  proc.on('error', (err) => {
+    fs.unlink(req.file.path, () => {});
+    res.status(500).json({ error: `تعذر تشغيل mysql: ${err.message}` });
+  });
+});
+
 // Backup — SQL dump via mysqldump
 router.get('/backup/sql', async (req, res) => {
-  const mysqldump = 'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe';
+  const mysqldump = findMysqlBin('mysqldump.exe');
   const { DB_HOST, DB_USER, DB_PASS, DB_NAME } = process.env;
   const date = new Date().toISOString().split('T')[0];
   const filename = `plasticdb-backup-${date}.sql`;

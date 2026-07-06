@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory } from 'react-icons/md';
+import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory, MdUpload } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
@@ -173,8 +173,48 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="border-t pt-4">
-              <p className="text-sm text-gray-500 mb-1">لاستعادة النسخة الاحتياطية، تواصل مع مسؤول النظام لرفع ملف الـ JSON إلى قاعدة البيانات.</p>
+            <div className="border-t pt-5 space-y-3">
+              <h3 className="font-bold text-gray-700">استعادة من نسخة SQL</h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                <strong>تحذير:</strong> الاستعادة ستحذف وتستبدل جميع البيانات الحالية بالبيانات الموجودة في ملف الـ SQL.
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="erp-btn erp-btn-outline flex items-center gap-2 cursor-pointer">
+                  <MdUpload size={18} />
+                  اختر ملف SQL
+                  <input
+                    type="file"
+                    accept=".sql"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      if (!window.confirm(`هل أنت متأكد من استعادة قاعدة البيانات من الملف:\n${file.name}\n\nسيتم حذف كل البيانات الحالية!`)) {
+                        e.target.value = '';
+                        return;
+                      }
+                      try {
+                        toast.info('جاري استعادة قاعدة البيانات...');
+                        const token = localStorage.getItem('token');
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const res = await fetch('/api/backup/restore', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}` },
+                          body: formData,
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        toast.success('تم استعادة قاعدة البيانات بنجاح ✓');
+                      } catch (err) {
+                        toast.error(`فشل الاستعادة: ${err.message}`);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <span className="text-sm text-gray-400">ملفات .sql فقط</span>
+              </div>
             </div>
           </div>
         )}
