@@ -16,7 +16,7 @@ export default function WarehouseItemsPage() {
   const filtered = items.filter(item => {
     if (search) {
       const q = search.toLowerCase();
-      if (!item.name?.toLowerCase().includes(q) && !item.code?.toLowerCase().includes(q)) return false;
+      if (!item.item_name?.toLowerCase().includes(q) && !item.item_code?.toLowerCase().includes(q)) return false;
     }
     return true;
   });
@@ -33,8 +33,8 @@ export default function WarehouseItemsPage() {
   const handlePrint = () => {
     const whName = warehouses.find(w => w.id === Number(warehouseFilter))?.name || 'كل المخازن';
     const rows = displayRows.map(item => `<tr>
-      <td>${item.code || ''}</td>
-      <td>${item.name || ''}</td>
+      <td>${item.item_code || ''}</td>
+      <td>${item.item_name || ''}</td>
       <td>${Number(item.qty).toLocaleString()}</td>
       <td>${Number(item.weight).toLocaleString()}</td>
       <td>${item.unit || ''}</td>
@@ -90,8 +90,8 @@ export default function WarehouseItemsPage() {
             )}
             {displayRows.map((item) => (
               <tr key={item.item_id} className={item.qty < 0 ? 'bg-red-50' : ''}>
-                <td className="font-mono text-sm text-gray-500">{item.code}</td>
-                <td className="font-medium">{item.name}</td>
+                <td className="font-mono text-sm text-gray-500">{item.item_code}</td>
+                <td className="font-medium">{item.item_name}</td>
                 {!warehouseFilter && (
                   <td className="text-xs text-gray-400">
                     {item.warehouses.length > 0

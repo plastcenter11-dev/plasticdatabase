@@ -38,6 +38,8 @@ import CustomerCreditPage from './pages/CustomerCreditPage';
 import OverdueChecksPage from './pages/OverdueChecksPage';
 import ExpensesReportPage from './pages/ExpensesReportPage';
 import CommissionsPage from './pages/CommissionsPage';
+import ReorderOrderPage from './pages/ReorderOrderPage';
+import DocumentCyclePage from './pages/DocumentCyclePage';
 
 function Placeholder({ title }) {
   return (
@@ -75,7 +77,7 @@ function AppRoutes() {
         <Route path="stock-receive" element={<StockAdjustmentsPage />} />
         <Route path="warehouse-transfers" element={<WarehouseTransfersPage />} />
         <Route path="item-assembly" element={<ItemAssemblyPage />} />
-        <Route path="reorder-level" element={<Placeholder title="أمر حد الطلب" />} />
+        <Route path="reorder-level" element={<ReorderOrderPage />} />
         <Route path="warehouse-items" element={<WarehouseItemsPage />} />
         <Route path="item-inquiry" element={<ItemInquiryPage />} />
 
@@ -117,7 +119,7 @@ function AppRoutes() {
 
         {/* تعريفات أساسية */}
         <Route path="warehouses" element={<WarehousesPage />} />
-        <Route path="document-cycle" element={<Placeholder title="إعدادات الدورة المستندية" />} />
+        <Route path="document-cycle" element={<DocumentCyclePage />} />
 
         {/* التقارير */}
         <Route path="reports/item-movement" element={<ItemMovementPage />} />
