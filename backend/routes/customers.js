@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 
     const result = customers.map(c => ({
       ...c.toJSON(),
-      balance: (invMap[c.id] || 0) - (recMap[c.id] || 0),
+      balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0)) * 100) / 100,
     }));
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }

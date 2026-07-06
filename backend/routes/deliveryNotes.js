@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder, Customer, Item, SalesOrder, SalesOrderItem, SalesInvoice, SalesInvoiceItem, sequelize } = require('../models');
+const { DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder, Customer, Item, SalesOrder, SalesOrderItem, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, sequelize } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
@@ -91,6 +91,26 @@ router.post('/:id/deliver', async (req, res) => {
     if (note.customer_id) {
       const customer = await Customer.findByPk(note.customer_id, { transaction: t });
       if (customer) await customer.update({ balance: Number(customer.balance || 0) + total }, { transaction: t });
+    }
+
+    // Decrement stock for each delivered item
+    if (note.warehouse_id) {
+      for (const item of items) {
+        const qty = Number(item.net_weight || item.gross_weight || item.quantity || 0);
+        if (qty <= 0) continue;
+        const [stock] = await Stock.findOrCreate({
+          where: { item_id: item.item_id, warehouse_id: note.warehouse_id },
+          defaults: { quantity: 0, weight: 0 },
+          transaction: t,
+        });
+        await stock.update({ quantity: Number(stock.quantity) - qty }, { transaction: t });
+        await StockMovement.create({
+          item_id: item.item_id, warehouse_id: note.warehouse_id,
+          movement_type: 'فاتورة بيع', quantity: qty,
+          unit_price: 0, date: note.date,
+          description: `إذن تسليم رقم ${note.note_no}`, reference: String(note.note_no),
+        }, { transaction: t });
+      }
     }
 
     await note.update({ status: 'delivered', invoice_no: invoiceNumber }, { transaction: t });

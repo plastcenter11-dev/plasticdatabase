@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock } = require('../models');
+const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
@@ -46,9 +46,29 @@ router.post('/:id/post', async (req, res) => {
   try {
     const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }] });
     if (!inv) return res.status(404).json({ error: 'غير موجود' });
+    if (inv.status === 'posted') return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' });
+
     await inv.update({ status: 'posted' });
-    const customer = await Customer.findByPk(inv.customer_id);
-    if (customer) await customer.update({ balance: Number(customer.balance) + Number(inv.remaining) });
+
+    // Decrement stock for each item
+    if (inv.warehouse_id) {
+      for (const item of (inv.items || [])) {
+        const qty = Number(item.quantity || 0);
+        if (qty <= 0) continue;
+        const [stock] = await Stock.findOrCreate({
+          where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
+          defaults: { quantity: 0, weight: 0 },
+        });
+        await stock.update({ quantity: Number(stock.quantity) - qty });
+        await StockMovement.create({
+          item_id: item.item_id, warehouse_id: inv.warehouse_id,
+          movement_type: 'فاتورة بيع', quantity: qty,
+          unit_price: Number(item.price || 0), date: inv.date,
+          description: `فاتورة بيع ${inv.invoice_no}`, reference: inv.invoice_no,
+        });
+      }
+    }
+
     res.json({ message: 'تم الترحيل' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
