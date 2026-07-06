@@ -1,12 +1,31 @@
 const router = require('express').Router();
-const { Supplier, PurchaseInvoice, CashPayment } = require('../models');
+const { Supplier, PurchaseInvoice, CashPayment, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
   try {
     const where = {};
     if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
-    res.json(await Supplier.findAll({ where, order: [['id', 'DESC']] }));
+    const suppliers = await Supplier.findAll({ where, order: [['id', 'DESC']] });
+
+    const ids = suppliers.map(s => s.id);
+    if (ids.length === 0) return res.json([]);
+
+    const [invoiceSums] = await sequelize.query(
+      `SELECT supplier_id, COALESCE(SUM(total),0) as total FROM purchase_invoices WHERE status='posted' AND supplier_id IN (${ids.join(',')}) GROUP BY supplier_id`
+    );
+    const [paymentSums] = await sequelize.query(
+      `SELECT supplier_id, COALESCE(SUM(amount),0) as total FROM cash_payments WHERE supplier_id IN (${ids.join(',')}) GROUP BY supplier_id`
+    );
+
+    const invMap = {}, payMap = {};
+    invoiceSums.forEach(r => { invMap[r.supplier_id] = Number(r.total); });
+    paymentSums.forEach(r => { payMap[r.supplier_id] = Number(r.total); });
+
+    res.json(suppliers.map(s => ({
+      ...s.toJSON(),
+      balance: (invMap[s.id] || 0) - (payMap[s.id] || 0),
+    })));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

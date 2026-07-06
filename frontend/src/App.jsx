@@ -31,6 +31,13 @@ import OpeningBalancesPage from './pages/OpeningBalancesPage';
 import EmployeesPage from './pages/EmployeesPage';
 import UsersPage from './pages/UsersPage';
 import SettingsPage from './pages/SettingsPage';
+import WarehouseItemsPage from './pages/WarehouseItemsPage';
+import SalesReturnsPage from './pages/SalesReturnsPage';
+import ItemInquiryPage from './pages/ItemInquiryPage';
+import CustomerCreditPage from './pages/CustomerCreditPage';
+import OverdueChecksPage from './pages/OverdueChecksPage';
+import ExpensesReportPage from './pages/ExpensesReportPage';
+import CommissionsPage from './pages/CommissionsPage';
 
 function Placeholder({ title }) {
   return (
@@ -69,14 +76,14 @@ function AppRoutes() {
         <Route path="warehouse-transfers" element={<WarehouseTransfersPage />} />
         <Route path="item-assembly" element={<ItemAssemblyPage />} />
         <Route path="reorder-level" element={<Placeholder title="أمر حد الطلب" />} />
-        <Route path="warehouse-items" element={<Placeholder title="مخزن لأصناف" />} />
-        <Route path="item-inquiry" element={<Placeholder title="استعلام عن صنف" />} />
+        <Route path="warehouse-items" element={<WarehouseItemsPage />} />
+        <Route path="item-inquiry" element={<ItemInquiryPage />} />
 
         {/* المبيعات */}
         <Route path="sales-orders" element={<SalesOrdersPage />} />
         <Route path="delivery-notes" element={<DeliveryNotesPage />} />
         <Route path="sales-invoices" element={<SalesInvoicePage />} />
-        <Route path="sales-returns" element={<Placeholder title="مرتجع مبيعات" />} />
+        <Route path="sales-returns" element={<SalesReturnsPage />} />
 
         {/* المشتريات */}
         <Route path="purchase-invoices" element={<PurchaseInvoicePage />} />
@@ -86,7 +93,7 @@ function AppRoutes() {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="opening-balances" element={<OpeningBalancesPage />} />
-        <Route path="customer-credit-limits" element={<Placeholder title="حدود الائتمان العملاء" />} />
+        <Route path="customer-credit-limits" element={<CustomerCreditPage />} />
         <Route path="reports/customer-statement" element={<CustomerStatementPage />} />
         <Route path="reports/customer-statement-summary" element={<CustomerStatementPage />} />
         <Route path="reports/supplier-statement" element={<SupplierStatementPage />} />
@@ -97,16 +104,16 @@ function AppRoutes() {
         <Route path="cash-receipts" element={<CashReceiptsPage />} />
         <Route path="cash-payments" element={<CashPaymentsPage />} />
         <Route path="checks" element={<ChecksPage />} />
-        <Route path="reports/overdue-checks" element={<Placeholder title="شيكات قبض متأخرة" />} />
+        <Route path="reports/overdue-checks" element={<OverdueChecksPage />} />
 
         {/* قيود و مصروفات */}
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="other-income" element={<OtherIncomePage />} />
-        <Route path="reports/expenses" element={<Placeholder title="تقرير مصروفات" />} />
+        <Route path="reports/expenses" element={<ExpensesReportPage />} />
 
         {/* موظفين */}
         <Route path="employees" element={<EmployeesPage />} />
-        <Route path="employee-commissions" element={<Placeholder title="عمولة مندوب - صنف" />} />
+        <Route path="employee-commissions" element={<CommissionsPage />} />
 
         {/* تعريفات أساسية */}
         <Route path="warehouses" element={<WarehousesPage />} />
@@ -127,8 +134,7 @@ function AppRoutes() {
         <Route path="settings/item-setup" element={<SettingsPage />} />
         <Route path="settings/company" element={<SettingsPage />} />
         <Route path="financial-years" element={<FinancialYearsPage />} />
-        <Route path="users" element={<Placeholder title="المستخدمين" />} />
-        <Route path="settings" element={<Placeholder title="الإعدادات" />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

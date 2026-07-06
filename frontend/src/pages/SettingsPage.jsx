@@ -1,10 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory } from 'react-icons/md';
+import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('company');
-  const [company, setCompany] = useState({ name: 'مصنع بلاست سنتر', address: 'القاهرة - المنطقة الصناعية', phone: '02-12345678', tax_no: '123-456-789', logo: '' });
+  const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '' });
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+
+  useEffect(() => {
+    api.get('/settings').then(r => {
+      setCompany({
+        company_name: r.data.company_name || '',
+        company_address: r.data.company_address || '',
+        company_phone: r.data.company_phone || '',
+        company_tax_no: r.data.company_tax_no || '',
+      });
+    }).catch(() => {});
+  }, []);
+
+  const saveCompany = async () => {
+    try { await api.put('/settings', company); toast.success('تم حفظ بيانات المنشأة'); }
+    catch { toast.error('خطأ في الحفظ'); }
+  };
+
+  const savePassword = async () => {
+    if (pwForm.newPw !== pwForm.confirm) return toast.error('كلمات المرور غير متطابقة');
+    if (!pwForm.newPw) return toast.error('أدخل كلمة المرور الجديدة');
+    try {
+      await api.put(`/users/${user.id}`, { password: pwForm.newPw });
+      toast.success('تم تغيير كلمة المرور');
+      setPwForm({ current: '', newPw: '', confirm: '' });
+    } catch { toast.error('خطأ في تغيير كلمة المرور'); }
+  };
 
   const tabs = [
     { key: 'company', label: 'بيانات المنشأة', icon: MdBusiness },
@@ -34,13 +64,13 @@ export default function SettingsPage() {
         {activeTab === 'company' && (
           <div className="space-y-4 max-w-lg">
             <h2 className="text-lg font-bold text-gray-700">بيانات المنشأة</h2>
-            <div><label className="form-label">اسم المنشأة</label><input className="erp-input" value={company.name} onChange={e => setCompany({ ...company, name: e.target.value })} /></div>
-            <div><label className="form-label">العنوان</label><input className="erp-input" value={company.address} onChange={e => setCompany({ ...company, address: e.target.value })} /></div>
+            <div><label className="form-label">اسم المنشأة</label><input className="erp-input" value={company.company_name} onChange={e => setCompany({ ...company, company_name: e.target.value })} /></div>
+            <div><label className="form-label">العنوان</label><input className="erp-input" value={company.company_address} onChange={e => setCompany({ ...company, company_address: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">الهاتف</label><input className="erp-input" value={company.phone} onChange={e => setCompany({ ...company, phone: e.target.value })} /></div>
-              <div><label className="form-label">الرقم الضريبي</label><input className="erp-input" value={company.tax_no} onChange={e => setCompany({ ...company, tax_no: e.target.value })} /></div>
+              <div><label className="form-label">الهاتف</label><input className="erp-input" value={company.company_phone} onChange={e => setCompany({ ...company, company_phone: e.target.value })} /></div>
+              <div><label className="form-label">الرقم الضريبي</label><input className="erp-input" value={company.company_tax_no} onChange={e => setCompany({ ...company, company_tax_no: e.target.value })} /></div>
             </div>
-            <button onClick={() => toast.success('تم حفظ بيانات المنشأة')} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
+            <button onClick={saveCompany} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
           </div>
         )}
 
@@ -61,10 +91,9 @@ export default function SettingsPage() {
         {activeTab === 'password' && (
           <div className="space-y-4 max-w-sm">
             <h2 className="text-lg font-bold text-gray-700">تغيير كلمة المرور</h2>
-            <div><label className="form-label">كلمة المرور الحالية</label><input type="password" className="erp-input" /></div>
-            <div><label className="form-label">كلمة المرور الجديدة</label><input type="password" className="erp-input" /></div>
-            <div><label className="form-label">تأكيد كلمة المرور</label><input type="password" className="erp-input" /></div>
-            <button onClick={() => toast.success('تم تغيير كلمة المرور')} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> تغيير</button>
+            <div><label className="form-label">كلمة المرور الجديدة</label><input type="password" className="erp-input" value={pwForm.newPw} onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))} /></div>
+            <div><label className="form-label">تأكيد كلمة المرور</label><input type="password" className="erp-input" value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} /></div>
+            <button onClick={savePassword} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> تغيير</button>
           </div>
         )}
 

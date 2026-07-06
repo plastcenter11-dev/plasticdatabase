@@ -9,6 +9,9 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     dialect: 'mysql',
     logging: false,
+    dialectOptions: {
+      charset: 'utf8mb4',
+    },
     define: {
       timestamps: true,
       underscored: true,

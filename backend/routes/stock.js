@@ -42,10 +42,38 @@ router.get('/movements/:itemId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Stock balances
+// Stock balances (existing records only)
 router.get('/balances', async (req, res) => {
   try {
     res.json(await Stock.findAll({ include: [{ model: Item, attributes: ['id', 'code', 'name', 'unit'] }, { model: Warehouse, attributes: ['id', 'name'] }] }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// All items with stock per warehouse (includes items with zero stock)
+router.get('/items-stock', async (req, res) => {
+  try {
+    const [items, stockRecords, warehouses] = await Promise.all([
+      Item.findAll({ where: { is_stockable: true }, attributes: ['id', 'code', 'name', 'unit'], order: [['code', 'ASC']] }),
+      Stock.findAll({ include: [{ model: Warehouse, attributes: ['id', 'name'] }] }),
+      Warehouse.findAll({ attributes: ['id', 'name'] }),
+    ]);
+    // Map: item_id -> warehouse_id -> stock record
+    const stockMap = {};
+    stockRecords.forEach(s => {
+      if (!stockMap[s.item_id]) stockMap[s.item_id] = {};
+      stockMap[s.item_id][s.warehouse_id] = s;
+    });
+    // Build result: one row per item (total across all warehouses) + per warehouse breakdown
+    const result = items.map(item => {
+      const itemStocks = warehouses.map(wh => {
+        const s = stockMap[item.id]?.[wh.id];
+        return { warehouse_id: wh.id, warehouse_name: wh.name, quantity: s ? Number(s.quantity) : 0, weight: s ? Number(s.weight || 0) : 0 };
+      }).filter(s => s.quantity !== 0 || s.weight !== 0); // skip warehouses with no stock
+      const totalQty = itemStocks.reduce((sum, s) => sum + s.quantity, 0);
+      const totalWeight = itemStocks.reduce((sum, s) => sum + s.weight, 0);
+      return { item_id: item.id, code: item.code, name: item.name, unit: item.unit, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
+    });
+    res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
