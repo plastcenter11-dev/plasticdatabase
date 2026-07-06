@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const { execFile } = require('child_process');
+const path = require('path');
 const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Supplier, Stock,
   Item, Category, Warehouse, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem,
   SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
@@ -185,6 +187,34 @@ router.get('/categories', async (req, res) => {
 router.post('/categories', async (req, res) => {
   try { res.status(201).json(await require('../models').Category.create(req.body)); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Backup — SQL dump via mysqldump
+router.get('/backup/sql', async (req, res) => {
+  const mysqldump = 'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe';
+  const { DB_HOST, DB_USER, DB_PASS, DB_NAME } = process.env;
+  const date = new Date().toISOString().split('T')[0];
+  const filename = `plasticdb-backup-${date}.sql`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+
+  const args = [
+    `--host=${DB_HOST}`,
+    `--user=${DB_USER}`,
+    `--password=${DB_PASS}`,
+    '--single-transaction',
+    '--routines',
+    '--triggers',
+    DB_NAME,
+  ];
+
+  const proc = require('child_process').spawn(mysqldump, args);
+  proc.stdout.pipe(res);
+  proc.stderr.on('data', () => {}); // suppress warnings
+  proc.on('error', (err) => {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // Backup — export all tables as JSON

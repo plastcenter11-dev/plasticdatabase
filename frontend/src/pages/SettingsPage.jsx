@@ -120,13 +120,37 @@ export default function SettingsPage() {
           <div className="space-y-5 max-w-lg">
             <h2 className="text-lg font-bold text-gray-700">النسخة الاحتياطية</h2>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-1">
-              <p className="font-bold">ماذا يتم تحميله؟</p>
-              <p>ملف <code className="bg-blue-100 px-1 rounded">plasticdb-backup-YYYY-MM-DD.json</code> يحتوي على <strong>كل بيانات قاعدة البيانات</strong>: عملاء، موردين، أصناف، فواتير، مخزون، حسابات، إعدادات — كل شيء.</p>
-              <p className="text-blue-600 mt-1">يُحفظ في مجلد التنزيلات (Downloads) بشكل تلقائي.</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-2">
+              <p className="font-bold">أنواع النسخ الاحتياطية</p>
+              <div className="space-y-1">
+                <p><strong>نسخة SQL</strong> — نسخة كاملة من قاعدة البيانات (بنية الجداول + البيانات). تُستعاد بأمر واحد في MySQL. <span className="text-green-700 font-bold">موصى بها</span></p>
+                <p><strong>نسخة JSON</strong> — بيانات فقط بدون بنية الجداول. مناسبة للاطلاع على البيانات أو النقل اليدوي.</p>
+              </div>
+              <p className="text-blue-600">كلا الملفين يُحفظان في مجلد التنزيلات (Downloads) تلقائياً.</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={async () => {
+                  try {
+                    toast.info('جاري تجهيز نسخة SQL...');
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/backup/sql', { headers: { Authorization: `Bearer ${token}` } });
+                    if (!res.ok) throw new Error('فشل التحميل');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const date = new Date().toISOString().split('T')[0];
+                    a.href = url; a.download = `plasticdb-backup-${date}.sql`;
+                    a.click(); URL.revokeObjectURL(url);
+                    toast.success('تم تحميل نسخة SQL بنجاح ✓');
+                  } catch { toast.error('خطأ في تحميل نسخة SQL'); }
+                }}
+                className="erp-btn erp-btn-primary flex items-center gap-2"
+              >
+                <MdBackup size={20} /> تحميل نسخة SQL (كاملة)
+              </button>
+
               <button
                 onClick={async () => {
                   try {
@@ -143,9 +167,9 @@ export default function SettingsPage() {
                     toast.success('تم تحميل النسخة الاحتياطية بنجاح ✓');
                   } catch { toast.error('خطأ في تحميل النسخة الاحتياطية'); }
                 }}
-                className="erp-btn erp-btn-primary flex items-center gap-2"
+                className="erp-btn erp-btn-outline flex items-center gap-2"
               >
-                <MdBackup size={20} /> تحميل نسخة احتياطية
+                <MdBackup size={20} /> تحميل نسخة JSON (بيانات فقط)
               </button>
             </div>
 
