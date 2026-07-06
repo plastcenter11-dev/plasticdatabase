@@ -201,7 +201,7 @@ router.get('/backup', async (req, res) => {
       stock, stockMovements, warehouseTransfers, warehouseTransferItems,
       itemAssemblies, itemAssemblyComponents,
     ] = await Promise.all([
-      User.findAll({ attributes: { exclude: ['password'] } }),
+      User.findAll(),
       safe(Employee), safe(Category), safe(Warehouse), safe(Item),
       safe(Customer), safe(Supplier), safe(FinancialYear), safe(OpeningBalance), Settings.findAll(),
       safe(SalesOrder), safe(SalesOrderItem), safe(DeliveryNote), safe(DeliveryNoteItem),
