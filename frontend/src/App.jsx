@@ -40,6 +40,8 @@ import ExpensesReportPage from './pages/ExpensesReportPage';
 import CommissionsPage from './pages/CommissionsPage';
 import ReorderOrderPage from './pages/ReorderOrderPage';
 import DocumentCyclePage from './pages/DocumentCyclePage';
+import NonStockItemsPage from './pages/NonStockItemsPage';
+import OpeningInventoryPage from './pages/OpeningInventoryPage';
 
 function Placeholder({ title }) {
   return (
@@ -70,8 +72,8 @@ function AppRoutes() {
 
         {/* المخازن */}
         <Route path="items" element={<ItemsPage />} />
-        <Route path="items-non-stock" element={<Placeholder title="تعريف صنف لا مخزني" />} />
-        <Route path="opening-inventory" element={<Placeholder title="جرد أول المدة" />} />
+        <Route path="items-non-stock" element={<NonStockItemsPage />} />
+        <Route path="opening-inventory" element={<OpeningInventoryPage />} />
         <Route path="stock-adjustments" element={<StockAdjustmentsPage />} />
         <Route path="stock-issue" element={<StockAdjustmentsPage />} />
         <Route path="stock-receive" element={<StockAdjustmentsPage />} />
