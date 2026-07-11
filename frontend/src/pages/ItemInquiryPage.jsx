@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 
@@ -78,7 +78,7 @@ export default function ItemInquiryPage() {
               {stock.length === 0
                 ? <div className="p-4 text-center text-gray-400 text-sm">لا يوجد مخزون مسجّل</div>
                 : <table className="erp-table">
-                    <thead><tr><th>المخزن</th><th>الكمية</th><th>الوزن (كجم)</th></tr></thead>
+                    <thead><tr><th>المخزن</th><th>العدد</th><th>الوزن (كجم)</th></tr></thead>
                     <tbody>
                       {stock.map((s, i) => (
                         <tr key={i}>
@@ -97,7 +97,7 @@ export default function ItemInquiryPage() {
               {movements.length === 0
                 ? <div className="p-4 text-center text-gray-400 text-sm">لا توجد حركات</div>
                 : <table className="erp-table text-sm">
-                    <thead><tr><th>التاريخ</th><th>النوع</th><th>المخزن</th><th>الكمية</th><th>البيان</th></tr></thead>
+                    <thead><tr><th>التاريخ</th><th>النوع</th><th>المخزن</th><th>العدد</th><th>البيان</th></tr></thead>
                     <tbody>
                       {movements.map((m, i) => (
                         <tr key={i}>

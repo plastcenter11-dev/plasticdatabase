@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdPrint } from 'react-icons/md';
@@ -136,7 +136,7 @@ export default function SalesReturnsPage() {
                 <button type="button" onClick={() => setForm(f => ({ ...f, items: [...f.items, { ...emptyItem }] }))} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button>
               </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>
                   {form.items.map((item, idx) => (
                     <tr key={idx}>

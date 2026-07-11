@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 
@@ -51,7 +51,7 @@ export default function WarehouseItemsPage() {
       .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}
       tfoot td{font-weight:bold;background:#f0f0f0}</style></head>
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
-      <table><thead><tr><th>الكود</th><th>الصنف</th><th>الكمية</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
+      <table><thead><tr><th>الكود</th><th>الصنف</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td colspan="6">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
       </table></body></html>`);
@@ -87,7 +87,7 @@ export default function WarehouseItemsPage() {
               <th>الكود</th>
               <th>الصنف</th>
               {!warehouseFilter && <th>المخازن</th>}
-              <th>الكمية</th>
+              <th>العدد</th>
               <th>الوزن (كجم)</th>
               <th>الوحدة</th>
               <th>سعر التكلفة</th>

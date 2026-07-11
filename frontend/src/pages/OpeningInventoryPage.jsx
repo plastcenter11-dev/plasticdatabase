@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { MdSave, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
@@ -86,7 +86,7 @@ export default function OpeningInventoryPage() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <MdWarning size={22} className="text-amber-500 shrink-0 mt-0.5" />
         <div className="text-sm text-amber-800">
-          <strong>تنبيه:</strong> هذه الصفحة تستخدم <strong>تعديل جرد</strong> — كل حفظ يضبط الكمية الحالية على القيمة المُدخلة. استخدمها مرة واحدة عند بدء النظام أو عند إجراء جرد فعلي.
+          <strong>تنبيه:</strong> هذه الصفحة تستخدم <strong>تعديل جرد</strong> — كل حفظ يضبط العدد الحالية على القيمة المُدخلة. استخدمها مرة واحدة عند بدء النظام أو عند إجراء جرد فعلي.
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export default function OpeningInventoryPage() {
               <th>الكود</th>
               <th>الصنف</th>
               <th>الوحدة</th>
-              <th>الكمية</th>
+              <th>العدد</th>
               <th>الوزن (كجم)</th>
               <th>سعر التكلفة</th>
               <th>القيمة</th>

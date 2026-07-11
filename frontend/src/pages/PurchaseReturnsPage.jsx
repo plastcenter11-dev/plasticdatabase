@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdPrint } from 'react-icons/md';
@@ -121,7 +121,7 @@ export default function PurchaseReturnsPage() {
             <div>
               <label className="form-label mb-2">الأصناف المرتجعة</label>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية المشتراة</th><th>كمية المرتجع *</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد المشتراة</th><th>كمية المرتجع *</th><th>السعر</th><th>الإجمالي</th></tr></thead>
                 <tbody>{form.items.map((item, idx) => (
                   <tr key={idx}>
                     <td className="font-medium">{item.name || '—'}</td>

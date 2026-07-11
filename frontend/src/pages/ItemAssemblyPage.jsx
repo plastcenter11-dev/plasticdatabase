@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete } from 'react-icons/md';
@@ -55,7 +55,7 @@ export default function ItemAssemblyPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>الكمية</th><th>المخزن</th><th>المكونات</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>العدد</th><th>المخزن</th><th>المكونات</th></tr></thead>
           <tbody>
             {assemblies.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
             {assemblies.map(a => (
@@ -76,13 +76,13 @@ export default function ItemAssemblyPage() {
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div><label className="form-label">الصنف المركّب *</label><select className="erp-input" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></div>
-              <div><label className="form-label">الكمية *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
+              <div><label className="form-label">العدد *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
               <div><label className="form-label">المخزن *</label><select className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">المكونات</label><button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th></th></tr></thead>
                 <tbody>{form.components.map((comp, idx) => (
                   <tr key={idx}>
                     <td><select className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></td>

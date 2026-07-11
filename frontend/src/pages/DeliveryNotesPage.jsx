@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -225,7 +225,7 @@ export default function DeliveryNotesPage() {
       </div>
       <div class="customer">اسم العميل : <strong>${cust}</strong></div>
       <table>
-        <thead><tr><th class="qty-col">الكمية</th><th>البيان</th></tr></thead>
+        <thead><tr><th class="qty-col">العدد</th><th>البيان</th></tr></thead>
         <tbody>
           ${(note.items || []).map(item => {
             const name = item.Item?.name || item.item_name || '';
@@ -376,7 +376,7 @@ export default function DeliveryNotesPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-gray-500">صنف #{idx + 1}</span>
                       {item.source_order && <span className="badge badge-blue text-xs">من {item.source_order}</span>}
-                      {item.ordered_qty && <span className="text-xs text-gray-400">(الكمية المطلوبة: {Number(item.ordered_qty).toLocaleString()} كجم)</span>}
+                      {item.ordered_qty && <span className="text-xs text-gray-400">(العدد المطلوبة: {Number(item.ordered_qty).toLocaleString()} كجم)</span>}
                     </div>
                     {form.items.length > 1 && <button type="button" onClick={() => removeItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}
                   </div>

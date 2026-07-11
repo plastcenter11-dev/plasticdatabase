@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
@@ -95,7 +95,7 @@ export default function SalesInvoicePage() {
     th{background:#f0f0f0}.totals{margin-top:15px;text-align:left;font-size:14px}.totals div{margin:4px 0}.total-line{font-size:18px;font-weight:bold}</style></head><body>
     <h1>فاتورة بيع آجل</h1>
     <div class="info"><span>العميل: <strong>${cust}</strong></span><span>المندوب: ${emp}</span><span>التاريخ: ${inv.date}</span></div>
-    <table><thead><tr><th>#</th><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الخصم</th><th>الإجمالي</th></tr></thead>
+    <table><thead><tr><th>#</th><th>الصنف</th><th>العدد</th><th>السعر</th><th>الخصم</th><th>الإجمالي</th></tr></thead>
     <tbody>${invItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.Item?.name || '-'}</td><td>${Number(item.quantity).toLocaleString()}</td><td>${item.price}</td><td>${item.discount}</td><td>${Number(item.total).toLocaleString()}</td></tr>`).join('')}</tbody></table>
     <div class="totals"><div class="total-line">الإجمالي: ${Number(inv.total).toLocaleString()} ج.م</div></div></body></html>`;
     const win = window.open('', '_blank'); win.document.write(printContent); win.document.close(); win.print();
@@ -156,7 +156,7 @@ export default function SalesInvoicePage() {
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>{form.items.map((item, idx) => {
                   const lineTotal = (Number(item.quantity) || 0) * (Number(item.price) || 0) - Number(item.discount || 0);
                   return (<tr key={idx}>

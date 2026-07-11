@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { MdSearch, MdPrint, MdOpenInNew, MdClose } from 'react-icons/md';
 import api from '../api/axios';
 
@@ -113,7 +113,7 @@ export default function SupplierStatementPage() {
                 <div><span className="text-gray-500">الحالة:</span> <strong>{invoiceModal.status === 'posted' ? 'مرحّلة' : 'مسودة'}</strong></div>
               </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead>
                 <tbody>
                   {(invoiceModal.items || []).map((item, i) => (
                     <tr key={i}>

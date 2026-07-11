@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdDeleteSweep } from 'react-icons/md';
@@ -133,7 +133,7 @@ export default function PurchaseInvoicePage() {
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>{form.items.map((item, idx) => {
                   const lineTotal = (Number(item.quantity) || 0) * (Number(item.price) || 0) - Number(item.discount || 0);
                   return (<tr key={idx}>
