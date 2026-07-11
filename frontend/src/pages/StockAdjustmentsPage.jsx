@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyForm = { movement_type: 'إضافة', warehouse_id: '', item_id: '', quantity: '', weight: '', unit_price: '', date: new Date().toISOString().split('T')[0], description: '' };
@@ -18,6 +18,7 @@ export default function StockAdjustmentsPage() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ ...emptyForm, movement_type: defaultType });
 
   const loadData = async () => {
@@ -40,13 +41,25 @@ export default function StockAdjustmentsPage() {
     return <span className="badge badge-blue">تعديل جرد</span>;
   };
 
+  const openEdit = (a) => {
+    setEditing(a.id);
+    setForm({ movement_type: a.movement_type, warehouse_id: String(a.warehouse_id), item_id: String(a.item_id), quantity: a.quantity, weight: a.weight, unit_price: a.unit_price, date: a.date, description: a.description || '' });
+    setShowModal(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.warehouse_id || !form.item_id || !form.weight) return toast.error('أكمل البيانات');
+    const data = { ...form, item_id: Number(form.item_id), warehouse_id: Number(form.warehouse_id), quantity: Number(form.quantity || 0), weight: Number(form.weight), unit_price: Number(form.unit_price || 0) };
     try {
-      await api.post('/stock/adjustments', { ...form, item_id: Number(form.item_id), warehouse_id: Number(form.warehouse_id), quantity: Number(form.quantity || 0), weight: Number(form.weight), unit_price: Number(form.unit_price || 0) });
-      toast.success(`تم تسجيل ${form.movement_type}`);
-      setShowModal(false); setForm({ ...emptyForm, movement_type: defaultType }); loadData();
+      if (editing) {
+        await api.put(`/stock/adjustments/${editing}`, data);
+        toast.success('تم التعديل بنجاح');
+      } else {
+        await api.post('/stock/adjustments', data);
+        toast.success(`تم تسجيل ${form.movement_type}`);
+      }
+      setShowModal(false); setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -60,7 +73,7 @@ export default function StockAdjustmentsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">{pageTitle}</h1>
-        <button onClick={() => { setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>
+        <button onClick={() => { setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>
       </div>
 
       <div className="page-card">
@@ -92,7 +105,10 @@ export default function StockAdjustmentsPage() {
                   <td className="font-bold">{Number(a.quantity).toLocaleString()}</td>
                   <td>{Number(a.unit_price).toLocaleString()}</td>
                   <td className="text-sm text-gray-500">{a.description}</td>
-                  <td><button onClick={() => handleDelete(a.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                  <td className="flex gap-1">
+                    <button onClick={() => openEdit(a)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
+                    <button onClick={() => handleDelete(a.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -101,7 +117,7 @@ export default function StockAdjustmentsPage() {
       </div>
 
       {showModal && (
-        <Modal title="حركة مخزون جديدة" onClose={() => setShowModal(false)} width="max-w-lg">
+        <Modal title={editing ? 'تعديل حركة مخزون' : 'حركة مخزون جديدة'} onClose={() => { setShowModal(false); setEditing(null); }} width="max-w-lg">
           <form onSubmit={handleSave} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>

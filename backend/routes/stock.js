@@ -26,10 +26,50 @@ router.post('/adjustments', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/adjustments/:id', async (req, res) => {
+  try {
+    const old = await StockMovement.findByPk(req.params.id);
+    if (!old) return res.status(404).json({ error: 'غير موجود' });
+
+    // Reverse old movement effect on stock
+    const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    if (old.movement_type === 'إضافة') {
+      await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) });
+    } else if (old.movement_type === 'صرف') {
+      await oldStock.update({ quantity: Number(oldStock.quantity) + Number(old.quantity), weight: Number(oldStock.weight) + Number(old.weight || 0) });
+    }
+
+    // Update the movement record
+    const { item_id, warehouse_id, quantity, weight, movement_type } = req.body;
+    await old.update(req.body);
+
+    // Apply new movement effect on stock
+    const [newStock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    if (movement_type === 'إضافة') {
+      await newStock.update({ quantity: Number(newStock.quantity) + Number(quantity), weight: Number(newStock.weight) + Number(weight || 0) });
+    } else if (movement_type === 'صرف') {
+      await newStock.update({ quantity: Number(newStock.quantity) - Number(quantity), weight: Number(newStock.weight) - Number(weight || 0) });
+    } else {
+      await newStock.update({ quantity: Number(quantity), weight: Number(weight || 0) });
+    }
+
+    res.json(old);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/adjustments/:id', async (req, res) => {
   try {
     const m = await StockMovement.findByPk(req.params.id);
     if (!m) return res.status(404).json({ error: 'غير موجود' });
+
+    // Reverse stock effect before deleting
+    const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    if (m.movement_type === 'إضافة') {
+      await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) });
+    } else if (m.movement_type === 'صرف') {
+      await stock.update({ quantity: Number(stock.quantity) + Number(m.quantity), weight: Number(stock.weight) + Number(m.weight || 0) });
+    }
+
     await m.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(500).json({ error: err.message }); }
