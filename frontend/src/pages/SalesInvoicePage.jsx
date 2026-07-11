@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyItem = { item_id: '', quantity: '', price: '', discount: 0 };
@@ -60,6 +60,16 @@ export default function SalesInvoicePage() {
       else { await api.post('/sales-invoices', payload); toast.success('تمت إضافة الفاتورة'); }
       setShowModal(false); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
+  };
+
+  const openEdit = (inv) => {
+    setEditing(inv);
+    setForm({
+      customer_id: String(inv.customer_id), employee_id: String(inv.employee_id || ''),
+      date: inv.date, discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid,
+      items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, price: i.price, discount: i.discount || 0 })),
+    });
+    setShowModal(true);
   };
 
   const handlePost = async (id) => {
@@ -135,6 +145,7 @@ export default function SalesInvoicePage() {
                 <td>
                   <div className="flex gap-1">
                     {inv.status === 'draft' && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
+                    {inv.status === 'draft' && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
                     <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
                   </div>

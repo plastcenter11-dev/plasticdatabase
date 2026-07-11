@@ -2,7 +2,7 @@
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
+import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '' };
@@ -64,6 +64,7 @@ export default function DeliveryNotesPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(null);
   const [invoiceNo, setInvoiceNo] = useState('');
   const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] });
@@ -138,26 +139,49 @@ export default function DeliveryNotesPage() {
   const addItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
+  const openEdit = (note) => {
+    setEditing(note);
+    setForm({
+      customer_id: String(note.customer_id), date: note.date,
+      driver_name: note.driver_name || '', car_no: note.car_no || '',
+      selected_orders: [],
+      items: (note.items || []).map(i => ({
+        item_id: String(i.item_id), item_name: i.Item?.name || '', item_code: i.Item?.code || '',
+        net_weight: i.net_weight, batch_no: i.batch_no || '', roll_count: i.roll_count || '',
+        core_weight: i.core_weight || '', wood_weight: i.wood_weight || '',
+        stretch_weight: i.stretch_weight || '', gross_weight: i.gross_weight || '',
+      })),
+    });
+    setShowModal(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.net_weight)) return toast.error('أكمل بيانات الأصناف');
 
+    const payload = {
+      customer_id: Number(form.customer_id), date: form.date,
+      driver_name: form.driver_name, car_no: form.car_no,
+      linked_orders: form.selected_orders,
+      items: form.items.map(i => ({
+        item_id: Number(i.item_id), net_weight: Number(i.net_weight),
+        batch_no: i.batch_no || '', roll_count: Number(i.roll_count || 0),
+        core_weight: Number(i.core_weight || 0), wood_weight: Number(i.wood_weight || 0),
+        stretch_weight: Number(i.stretch_weight || 0), gross_weight: Number(i.gross_weight || 0),
+        ordered_qty: Number(i.ordered_qty || 0), source_order_no: i.source_order || ''
+      }))
+    };
+
     try {
-      await api.post('/delivery-notes', {
-        customer_id: Number(form.customer_id), date: form.date,
-        driver_name: form.driver_name, car_no: form.car_no,
-        linked_orders: form.selected_orders,
-        items: form.items.map(i => ({
-          item_id: Number(i.item_id), net_weight: Number(i.net_weight),
-          batch_no: i.batch_no || '', roll_count: Number(i.roll_count || 0),
-          core_weight: Number(i.core_weight || 0), wood_weight: Number(i.wood_weight || 0),
-          stretch_weight: Number(i.stretch_weight || 0), gross_weight: Number(i.gross_weight || 0),
-          ordered_qty: Number(i.ordered_qty || 0), source_order_no: i.source_order || ''
-        }))
-      });
-      toast.success('تم إنشاء إذن التسليم');
-      setShowModal(false); loadData();
+      if (editing) {
+        await api.put(`/delivery-notes/${editing.id}`, payload);
+        toast.success('تم تحديث إذن التسليم');
+      } else {
+        await api.post('/delivery-notes', payload);
+        toast.success('تم إنشاء إذن التسليم');
+      }
+      setShowModal(false); setEditing(null); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -307,6 +331,9 @@ export default function DeliveryNotesPage() {
                     <div className="flex gap-1">
                       {n.status === 'pending' && (
                         <button onClick={() => openInvoiceModal(n.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdReceipt size={14} /> ترحيل</button>
+                      )}
+                      {n.status === 'pending' && (
+                        <button onClick={() => openEdit(n)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
                       )}
                       <button onClick={() => handlePrint(n, false)} className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1"><MdPrint size={14} /> طباعة</button>
                       <button onClick={() => handlePrint(n, true)} className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1 text-gray-400"><MdPrint size={14} /> هيدر</button>
