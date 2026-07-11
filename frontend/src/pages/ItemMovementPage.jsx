@@ -49,6 +49,20 @@ export default function ItemMovementPage() {
                 </tr>
               ))}
             </tbody>
+            {movements.length > 0 && (() => {
+              const totalWeight = movements.reduce((s, m) => s + Number(m.weight || 0), 0);
+              const totalQty = movements.reduce((s, m) => s + Number(m.quantity || 0), 0);
+              return (
+                <tfoot>
+                  <tr className="bg-primary/10 font-bold text-primary border-t-2 border-primary/30">
+                    <td colSpan={4} className="text-right">الرصيد الإجمالي</td>
+                    <td>{totalWeight.toLocaleString()} كجم</td>
+                    <td>{totalQty.toLocaleString()}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
       )}

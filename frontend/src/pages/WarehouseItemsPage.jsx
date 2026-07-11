@@ -30,23 +30,31 @@ export default function WarehouseItemsPage() {
 
   const displayRows = filtered.map(item => ({ ...item, ...getQty(item) }));
 
+  const getValue = (item) => Number(item.weight || 0) * Number(item.purchase_price || 0);
+
   const handlePrint = () => {
     const whName = warehouses.find(w => w.id === Number(warehouseFilter))?.name || 'كل المخازن';
+    const totalValue = displayRows.reduce((s, r) => s + getValue(r), 0);
     const rows = displayRows.map(item => `<tr>
       <td>${item.item_code || ''}</td>
       <td>${item.item_name || ''}</td>
       <td>${Number(item.qty).toLocaleString()}</td>
       <td>${Number(item.weight).toLocaleString()}</td>
       <td>${item.unit || ''}</td>
+      <td>${Number(item.purchase_price || 0).toLocaleString()}</td>
+      <td>${getValue(item).toLocaleString()}</td>
     </tr>`).join('');
     const win = window.open('', '_blank');
     win.document.write(`<html dir="rtl"><head><title>مخزن الأصناف</title>
       <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:20px;text-align:center;margin-bottom:10px}
       table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:13px}th{background:#f0f0f0}
-      .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}</style></head>
+      .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}
+      tfoot td{font-weight:bold;background:#f0f0f0}</style></head>
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
-      <table><thead><tr><th>الكود</th><th>الصنف</th><th>الكمية</th><th>الوزن (كجم)</th><th>الوحدة</th></tr></thead>
-      <tbody>${rows}</tbody></table></body></html>`);
+      <table><thead><tr><th>الكود</th><th>الصنف</th><th>الكمية</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="6">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
+      </table></body></html>`);
     win.document.close(); win.print();
   };
 
@@ -82,6 +90,8 @@ export default function WarehouseItemsPage() {
               <th>الكمية</th>
               <th>الوزن (كجم)</th>
               <th>الوحدة</th>
+              <th>سعر التكلفة</th>
+              <th>القيمة الإجمالية</th>
             </tr>
           </thead>
           <tbody>
@@ -106,6 +116,8 @@ export default function WarehouseItemsPage() {
                   {Number(item.weight).toLocaleString()}
                 </td>
                 <td className="text-gray-500">{item.unit}</td>
+                <td className="text-gray-600">{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>
+                <td className="font-bold text-primary">{getValue(item) > 0 ? getValue(item).toLocaleString() + ' ج.م' : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -116,6 +128,8 @@ export default function WarehouseItemsPage() {
                 <td>{displayRows.reduce((s, r) => s + Number(r.qty), 0).toLocaleString()}</td>
                 <td>{displayRows.reduce((s, r) => s + Number(r.weight), 0).toLocaleString()}</td>
                 <td></td>
+                <td></td>
+                <td className="text-primary">{displayRows.reduce((s, r) => s + getValue(r), 0).toLocaleString()} ج.م</td>
               </tr>
             </tfoot>
           )}
