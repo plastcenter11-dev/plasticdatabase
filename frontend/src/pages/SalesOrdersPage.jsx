@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch, MdLocalShipping } from 'react-icons/md';
@@ -9,6 +9,7 @@ const emptyItem = { item_id: '', quantity: '', price: '', tax_rate: '' };
 
 export default function SalesOrdersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
@@ -24,6 +25,15 @@ export default function SalesOrdersPage() {
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    if (location.state?.openNew) {
+      setEditing(null);
+      setForm({ customer_id: String(location.state.customerId || ''), date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] });
+      setShowModal(true);
+      window.history.replaceState({}, '');
+    }
+  }, []);
 
   const filtered = orders.filter(o => {
     if (!search) return true;

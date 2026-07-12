@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel } from 'react-icons/md';
+import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel, MdShoppingCart } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyForm = { check_no: '', party_type: 'customer', party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] };
 
 export default function ChecksPage() {
+  const navigate = useNavigate();
   const [checks, setChecks] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
@@ -71,7 +73,10 @@ export default function ChecksPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">شيكات - قبض</h1>
-        <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/sales-orders', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> طلبية بيع جديدة</button>
+          <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 max-w-xl">

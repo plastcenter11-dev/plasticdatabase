@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
+import { MdAdd, MdDelete, MdSearch, MdShoppingCart } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashReceiptsPage() {
+  const navigate = useNavigate();
   const [receipts, setReceipts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
@@ -48,7 +50,10 @@ export default function CashReceiptsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">حركات تحصيل نقدية</h1>
-        <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/sales-orders', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> طلبية بيع جديدة</button>
+          <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
