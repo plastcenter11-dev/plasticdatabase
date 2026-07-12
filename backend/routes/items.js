@@ -12,6 +12,21 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/reports/reorder', async (req, res) => {
+  try {
+    const items = await Item.findAll({
+      where: { is_stockable: true },
+      include: [{ model: Stock }],
+    });
+    const below = items.filter(i => {
+      if (!Number(i.reorder_level)) return false;
+      const totalQty = i.Stocks?.reduce((s, st) => s + Number(st.quantity), 0) || 0;
+      return totalQty <= Number(i.reorder_level);
+    });
+    res.json(below);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const item = await Item.findByPk(req.params.id, { include: [Category, { model: Stock }] });
@@ -42,20 +57,6 @@ router.delete('/:id', async (req, res) => {
     if (!item) return res.status(404).json({ error: 'غير موجود' });
     await item.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.get('/reports/reorder', async (req, res) => {
-  try {
-    const items = await Item.findAll({
-      where: { is_stockable: true },
-      include: [{ model: Stock }],
-    });
-    const below = items.filter(i => {
-      const totalQty = i.Stocks?.reduce((s, st) => s + Number(st.quantity), 0) || 0;
-      return totalQty <= Number(i.reorder_level);
-    });
-    res.json(below);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -17,7 +17,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/items').then(r => r.data.filter(i => i.is_stockable && Number(i.reorder_level) > 0).length),
+      api.get('/items/reports/reorder').then(r => r.data.length),
       api.get('/finance/checks/overdue').then(r => r.data.length),
     ]).then(([reorder, overdue]) => setStats({ reorderCount: reorder, overdueChecks: overdue }))
       .catch(() => {});

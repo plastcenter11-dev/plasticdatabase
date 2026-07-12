@@ -6,13 +6,10 @@ export default function ReorderReportPage() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    api.get('/items').then(r => {
-      const stockable = r.data.filter(i => i.is_stockable);
-      setItems(stockable);
-    }).catch(() => {});
+    api.get('/items/reports/reorder').then(r => setItems(r.data)).catch(() => {});
   }, []);
 
-  const belowReorder = items.filter(i => Number(i.reorder_level) > 0);
+  const belowReorder = items;
 
   return (
     <div className="space-y-4">
@@ -30,17 +27,21 @@ export default function ReorderReportPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>الكود</th><th>اسم الصنف</th><th>الوحدة</th><th>حد الطلب</th></tr></thead>
+          <thead><tr><th>الكود</th><th>اسم الصنف</th><th>الوحدة</th><th>الرصيد الحالي</th><th>حد الطلب</th></tr></thead>
           <tbody>
-            {belowReorder.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-gray-400">لا توجد أصناف تحت حد الطلب</td></tr>}
-            {belowReorder.map(item => (
-              <tr key={item.id}>
-                <td className="font-mono text-sm">{item.code}</td>
-                <td className="font-medium">{item.name}</td>
-                <td>{item.unit}</td>
-                <td>{Number(item.reorder_level).toLocaleString()}</td>
-              </tr>
-            ))}
+            {belowReorder.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد أصناف تحت حد الطلب</td></tr>}
+            {belowReorder.map(item => {
+              const totalQty = (item.Stocks || []).reduce((s, st) => s + Number(st.quantity), 0);
+              return (
+                <tr key={item.id} className="bg-red-50">
+                  <td className="font-mono text-sm">{item.code}</td>
+                  <td className="font-medium">{item.name}</td>
+                  <td>{item.unit}</td>
+                  <td className="font-bold text-red-600">{totalQty.toLocaleString()}</td>
+                  <td>{Number(item.reorder_level).toLocaleString()}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

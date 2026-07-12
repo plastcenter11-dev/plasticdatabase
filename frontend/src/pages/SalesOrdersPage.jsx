@@ -6,6 +6,8 @@ import { MdAdd, MdEdit, MdDelete, MdSearch, MdLocalShipping } from 'react-icons/
 import api from '../api/axios';
 
 const emptyItem = { item_id: '', quantity: '', price: '', tax_rate: '' };
+const emptyCash = { enabled: false, amount: '', payment_method: 'نقدي', notes: '' };
+const emptyCheck = { enabled: false, check_no: '', amount: '', due_date: '', bank_name: '' };
 
 export default function SalesOrdersPage() {
   const navigate = useNavigate();
@@ -17,6 +19,8 @@ export default function SalesOrdersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] });
+  const [cashForm, setCashForm] = useState({ ...emptyCash });
+  const [checkForm, setCheckForm] = useState({ ...emptyCheck });
 
   const loadData = async () => {
     try {
@@ -30,6 +34,8 @@ export default function SalesOrdersPage() {
     if (location.state?.openNew) {
       setEditing(null);
       setForm({ customer_id: String(location.state.customerId || ''), date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] });
+      setCashForm({ ...emptyCash });
+      setCheckForm({ ...emptyCheck });
       setShowModal(true);
       window.history.replaceState({}, '');
     }
@@ -68,7 +74,16 @@ export default function SalesOrdersPage() {
     try {
       const payload = { customer_id: Number(form.customer_id), date: form.date, items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price), tax_rate: i.tax_rate ? Number(i.tax_rate) : null })) };
       if (editing) { await api.put(`/sales-orders/${editing.id}`, payload); toast.success('تم تحديث الطلبية'); }
-      else { await api.post('/sales-orders', payload); toast.success('تمت إضافة الطلبية'); }
+      else {
+        await api.post('/sales-orders', payload);
+        if (cashForm.enabled && cashForm.amount) {
+          await api.post('/finance/cash-receipts', { customer_id: Number(form.customer_id), amount: Number(cashForm.amount), payment_method: cashForm.payment_method, date: form.date, notes: cashForm.notes });
+        }
+        if (checkForm.enabled && checkForm.check_no && checkForm.amount) {
+          await api.post('/finance/checks', { check_no: checkForm.check_no, party_type: 'customer', party_id: Number(form.customer_id), amount: Number(checkForm.amount), due_date: checkForm.due_date || form.date, bank_name: checkForm.bank_name, date: form.date });
+        }
+        toast.success('تمت إضافة الطلبية');
+      }
       setShowModal(false); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
@@ -87,7 +102,7 @@ export default function SalesOrdersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">طلبيات البيع</h1>
-        <button onClick={() => { setEditing(null); setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> طلبية جديدة</button>
+        <button onClick={() => { setEditing(null); setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] }); setCashForm({ ...emptyCash }); setCheckForm({ ...emptyCheck }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> طلبية جديدة</button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -181,6 +196,66 @@ export default function SalesOrdersPage() {
               </table>
               <div className="text-left mt-2 text-lg font-bold text-primary">الإجمالي: {calcTotal().toLocaleString()} ج.م</div>
             </div>
+
+            {!editing && (
+              <>
+                {/* Cash Receipt Section */}
+                <div className="border rounded-lg overflow-hidden">
+                  <button type="button" onClick={() => setCashForm(p => ({ ...p, enabled: !p.enabled }))} className={`w-full flex items-center justify-between px-4 py-2 text-sm font-semibold transition-colors ${cashForm.enabled ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+                    <span>تحصيل نقدي</span>
+                    <span className={`text-lg ${cashForm.enabled ? 'text-green-600' : 'text-gray-400'}`}>{cashForm.enabled ? '✓' : '+'}</span>
+                  </button>
+                  {cashForm.enabled && (
+                    <div className="p-3 grid grid-cols-2 gap-3 bg-white">
+                      <div>
+                        <label className="form-label">المبلغ *</label>
+                        <input type="number" className="erp-input" value={cashForm.amount} onChange={e => setCashForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="form-label">طريقة الدفع</label>
+                        <select className="erp-input" value={cashForm.payment_method} onChange={e => setCashForm(p => ({ ...p, payment_method: e.target.value }))}>
+                          <option value="نقدي">نقدي</option>
+                          <option value="تحويل بنكي">تحويل بنكي</option>
+                          <option value="شيك">شيك</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="form-label">ملاحظات</label>
+                        <input className="erp-input" value={cashForm.notes} onChange={e => setCashForm(p => ({ ...p, notes: e.target.value }))} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Check Section */}
+                <div className="border rounded-lg overflow-hidden">
+                  <button type="button" onClick={() => setCheckForm(p => ({ ...p, enabled: !p.enabled }))} className={`w-full flex items-center justify-between px-4 py-2 text-sm font-semibold transition-colors ${checkForm.enabled ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+                    <span>شيك قبض</span>
+                    <span className={`text-lg ${checkForm.enabled ? 'text-blue-600' : 'text-gray-400'}`}>{checkForm.enabled ? '✓' : '+'}</span>
+                  </button>
+                  {checkForm.enabled && (
+                    <div className="p-3 grid grid-cols-2 gap-3 bg-white">
+                      <div>
+                        <label className="form-label">رقم الشيك *</label>
+                        <input className="erp-input" value={checkForm.check_no} onChange={e => setCheckForm(p => ({ ...p, check_no: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="form-label">المبلغ *</label>
+                        <input type="number" className="erp-input" value={checkForm.amount} onChange={e => setCheckForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="form-label">تاريخ الاستحقاق</label>
+                        <input type="date" className="erp-input" value={checkForm.due_date} onChange={e => setCheckForm(p => ({ ...p, due_date: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="form-label">البنك</label>
+                        <input className="erp-input" value={checkForm.bank_name} onChange={e => setCheckForm(p => ({ ...p, bank_name: e.target.value }))} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
