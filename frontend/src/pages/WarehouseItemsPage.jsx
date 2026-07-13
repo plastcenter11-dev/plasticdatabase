@@ -6,6 +6,7 @@ export default function WarehouseItemsPage() {
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [categoryFilters, setCategoryFilters] = useState([]);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -13,11 +14,14 @@ export default function WarehouseItemsPage() {
     api.get('/warehouses').then(r => setWarehouses(r.data)).catch(() => {});
   }, []);
 
+  const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();
+
   const filtered = items.filter(item => {
     if (search) {
       const q = search.toLowerCase();
       if (!item.item_name?.toLowerCase().includes(q) && !item.item_code?.toLowerCase().includes(q)) return false;
     }
+    if (categoryFilters.length > 0 && !categoryFilters.includes(item.category_name)) return false;
     return true;
   });
 
@@ -38,6 +42,7 @@ export default function WarehouseItemsPage() {
     const rows = displayRows.map(item => `<tr>
       <td>${item.item_code || ''}</td>
       <td>${item.item_name || ''}</td>
+      <td>${item.category_name || ''}</td>
       <td>${Number(item.qty).toLocaleString()}</td>
       <td>${Number(item.weight).toLocaleString()}</td>
       <td>${item.unit || ''}</td>
@@ -51,7 +56,7 @@ export default function WarehouseItemsPage() {
       .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}
       tfoot td{font-weight:bold;background:#f0f0f0}</style></head>
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
-      <table><thead><tr><th>الكود</th><th>الصنف</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
+      <table><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td colspan="6">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
       </table></body></html>`);
@@ -67,18 +72,35 @@ export default function WarehouseItemsPage() {
         </button>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <div className="min-w-[200px]">
-          <select className="erp-input" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
-            <option value="">كل المخازن</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        </div>
+      <div className="flex gap-3 flex-wrap items-center">
+        <select className="erp-input w-auto min-w-[150px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
+          <option value="">كل المخازن</option>
+          {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+        </select>
         <div className="relative flex-1 min-w-[200px]">
           <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
           <input className="erp-input pr-10" placeholder="بحث باسم الصنف أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
+
+      {categories.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-500 font-medium shrink-0">القسم:</span>
+          {categories.map(c => {
+            const active = categoryFilters.includes(c);
+            return (
+              <button key={c} type="button"
+                onClick={() => setCategoryFilters(prev => active ? prev.filter(x => x !== c) : [...prev, c])}
+                className={`px-3 py-1 rounded-full text-sm border transition-colors cursor-pointer ${active ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'}`}>
+                {c}
+              </button>
+            );
+          })}
+          {categoryFilters.length > 0 && (
+            <button type="button" onClick={() => setCategoryFilters([])} className="text-xs text-gray-400 hover:text-red-500 underline cursor-pointer">مسح</button>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
@@ -86,6 +108,7 @@ export default function WarehouseItemsPage() {
             <tr>
               <th>الكود</th>
               <th>الصنف</th>
+              <th>القسم</th>
               {!warehouseFilter && <th>المخازن</th>}
               <th>العدد</th>
               <th>الوزن (كجم)</th>
@@ -102,6 +125,7 @@ export default function WarehouseItemsPage() {
               <tr key={item.item_id} className={item.qty < 0 ? 'bg-red-50' : ''}>
                 <td className="font-mono text-sm text-gray-500">{item.item_code}</td>
                 <td className="font-medium">{item.item_name}</td>
+                <td className="text-sm text-gray-500">{item.category_name || '—'}</td>
                 {!warehouseFilter && (
                   <td className="text-xs text-gray-400">
                     {item.warehouses.length > 0
@@ -124,7 +148,7 @@ export default function WarehouseItemsPage() {
           {displayRows.length > 0 && (
             <tfoot>
               <tr className="bg-gray-50 font-bold">
-                <td colSpan={warehouseFilter ? 2 : 3}>الإجمالي ({displayRows.length} صنف)</td>
+                <td colSpan={warehouseFilter ? 3 : 4}>الإجمالي ({displayRows.length} صنف)</td>
                 <td>{displayRows.reduce((s, r) => s + Number(r.qty), 0).toLocaleString()}</td>
                 <td>{displayRows.reduce((s, r) => s + Number(r.weight), 0).toLocaleString()}</td>
                 <td></td>

@@ -86,7 +86,7 @@ export default function ItemsPage() {
             <input className="erp-input pr-10" placeholder="بحث بالاسم أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <select className="erp-input w-auto min-w-[150px]" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-            <option value="">كل التصنيفات</option>
+            <option value="">كل الأقسام</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -94,7 +94,7 @@ export default function ItemsPage() {
         <div className="overflow-hidden rounded-lg border border-gray-100">
         <table className="erp-table">
           <thead>
-            <tr><th>الكود</th><th>اسم الصنف</th><th>التصنيف</th><th>الوحدة</th><th>سعر الشراء</th><th>حد الطلب</th><th>النوع</th><th>إجراءات</th></tr>
+            <tr><th>الكود</th><th>اسم الصنف</th><th>القسم</th><th>الوحدة</th><th>سعر الشراء</th><th>حد الطلب</th><th>النوع</th><th>إجراءات</th></tr>
           </thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد أصناف</td></tr>}
@@ -130,11 +130,22 @@ export default function ItemsPage() {
                 <input className="erp-input" required value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} />
               </div>
               <div>
-                <label className="form-label">التصنيف</label>
-                <select className="erp-input" value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
-                  <option value="">بدون تصنيف</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <label className="form-label">القسم</label>
+                <div className="flex gap-1">
+                  <select className="erp-input flex-1" value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                    <option value="">— بدون قسم —</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <button type="button" title="إضافة قسم جديد" onClick={async () => {
+                    const name = window.prompt('اسم القسم الجديد:');
+                    if (!name?.trim()) return;
+                    try {
+                      const r = await api.post('/categories', { name: name.trim() });
+                      await loadData();
+                      setForm(f => ({ ...f, category_id: String(r.data.id) }));
+                    } catch { toast.error('خطأ في إضافة القسم'); }
+                  }} className="erp-btn erp-btn-outline px-2 text-lg font-bold">+</button>
+                </div>
               </div>
             </div>
             <div>

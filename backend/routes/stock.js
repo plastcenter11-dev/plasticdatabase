@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse } = require('../models');
+const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category } = require('../models');
 
 // Stock Adjustments
 router.get('/adjustments', async (req, res) => {
@@ -93,7 +93,7 @@ router.get('/balances', async (req, res) => {
 router.get('/items-stock', async (req, res) => {
   try {
     const [items, stockRecords, warehouses] = await Promise.all([
-      Item.findAll({ where: { is_stockable: true }, attributes: ['id', 'code', 'name', 'unit', 'reorder_level', 'purchase_price'], order: [['code', 'ASC']] }),
+      Item.findAll({ where: { is_stockable: true }, attributes: ['id', 'code', 'name', 'unit', 'reorder_level', 'purchase_price', 'category_id'], include: [{ model: Category, attributes: ['id', 'name'] }], order: [['code', 'ASC']] }),
       Stock.findAll({ include: [{ model: Warehouse, attributes: ['id', 'name'] }] }),
       Warehouse.findAll({ attributes: ['id', 'name'] }),
     ]);
@@ -111,7 +111,7 @@ router.get('/items-stock', async (req, res) => {
       }).filter(s => s.quantity !== 0 || s.weight !== 0); // skip warehouses with no stock
       const totalQty = itemStocks.reduce((sum, s) => sum + s.quantity, 0);
       const totalWeight = itemStocks.reduce((sum, s) => sum + s.weight, 0);
-      return { item_id: item.id, item_code: item.code, item_name: item.name, unit: item.unit, reorder_level: item.reorder_level, purchase_price: item.purchase_price, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
+      return { item_id: item.id, item_code: item.code, item_name: item.name, unit: item.unit, reorder_level: item.reorder_level, purchase_price: item.purchase_price, category_name: item.Category?.name || null, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
     });
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
