@@ -21,7 +21,7 @@ function findMysqlBin(exe) {
 
 const upload = multer({ dest: os.tmpdir() });
 const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Supplier, Stock,
-  Item, Category, Warehouse, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem,
+  Item, Category, ItemType, Warehouse, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem,
   SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
   SalesReturn, SalesReturnItem, PurchaseReturn, PurchaseReturnItem,
   CashReceipt, CashPayment, Check, Expense, OtherIncome,
@@ -204,6 +204,21 @@ router.get('/categories', async (req, res) => {
 
 router.post('/categories', async (req, res) => {
   try { res.status(201).json(await require('../models').Category.create(req.body)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/item-types', async (req, res) => {
+  try { res.json(await ItemType.findAll({ order: [['id', 'ASC']] })); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/item-types', async (req, res) => {
+  try { res.status(201).json(await ItemType.create(req.body)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/item-types/:id', async (req, res) => {
+  try { await ItemType.destroy({ where: { id: req.params.id } }); res.json({ message: 'تم الحذف' }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -4,7 +4,7 @@ import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
 
-const emptyItem = { item_id: '', quantity: '', price: '', discount: 0 };
+const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 
 export default function PurchaseInvoicePage() {
   const [invoices, setInvoices] = useState([]);
@@ -51,7 +51,7 @@ export default function PurchaseInvoicePage() {
     const subtotal = calcSubtotal(), disc = Number(form.discount || 0), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
       supplier_id: Number(form.supplier_id), date: form.date, subtotal, discount: disc, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
-      items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.quantity) * Number(i.price) - Number(i.discount || 0) }))
+      items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.quantity) * Number(i.price) - Number(i.discount || 0) }))
     };
     try {
       if (editing) { await api.put(`/purchase-invoices/${editing.id}`, payload); toast.success('تم تحديث الفاتورة'); }
@@ -65,7 +65,7 @@ export default function PurchaseInvoicePage() {
     setForm({
       supplier_id: String(inv.supplier_id), date: inv.date,
       discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid,
-      items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, price: i.price, discount: i.discount || 0 })),
+      items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
     setShowModal(true);
   };
@@ -144,12 +144,13 @@ export default function PurchaseInvoicePage() {
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>الوزن (كجم)</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>{form.items.map((item, idx) => {
                   const lineTotal = (Number(item.quantity) || 0) * (Number(item.price) || 0) - Number(item.discount || 0);
                   return (<tr key={idx}>
                     <td><select className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></td>
-                    <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
+                    <td><input type="number" className="erp-input py-1 w-20" placeholder="0" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
+                    <td><input type="number" step="0.01" className="erp-input py-1 w-24" placeholder="0.00" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" value={item.discount} onChange={e => updateFormItem(idx, 'discount', e.target.value)} /></td>
                     <td className="font-bold">{lineTotal.toLocaleString()}</td>

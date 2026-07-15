@@ -19,12 +19,17 @@ const Category = sequelize.define('Category', {
   parent_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
+const ItemType = sequelize.define('ItemType', {
+  name: { type: DataTypes.STRING, allowNull: false },
+});
+
 const Item = sequelize.define('Item', {
   code: { type: DataTypes.STRING, allowNull: false, unique: true },
   name: { type: DataTypes.STRING, allowNull: false },
   unit: { type: DataTypes.STRING, defaultValue: 'كيلو' },
   purchase_price: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   reorder_level: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  width: { type: DataTypes.DECIMAL(10, 2), defaultValue: null },
   is_stockable: { type: DataTypes.BOOLEAN, defaultValue: true },
 });
 
@@ -139,6 +144,7 @@ const PurchaseInvoice = sequelize.define('PurchaseInvoice', {
 
 const PurchaseInvoiceItem = sequelize.define('PurchaseInvoiceItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   discount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
@@ -259,6 +265,8 @@ const Settings = sequelize.define('Settings', {
 Item.belongsTo(Category, { foreignKey: 'category_id', allowNull: true });
 Category.hasMany(Item, { foreignKey: 'category_id' });
 Category.belongsTo(Category, { as: 'parent', foreignKey: 'parent_id' });
+Item.belongsTo(ItemType, { foreignKey: 'type_id', allowNull: true });
+ItemType.hasMany(Item, { foreignKey: 'type_id' });
 
 Stock.belongsTo(Item, { foreignKey: 'item_id', onDelete: 'CASCADE' });
 Stock.belongsTo(Warehouse, { foreignKey: 'warehouse_id' });
@@ -339,7 +347,7 @@ Expense.belongsTo(FinancialYear, { foreignKey: 'financial_year_id', allowNull: t
 OtherIncome.belongsTo(FinancialYear, { foreignKey: 'financial_year_id', allowNull: true });
 
 module.exports = {
-  sequelize, User, Warehouse, Category, Item, Stock, Customer, Supplier, Employee,
+  sequelize, User, Warehouse, Category, ItemType, Item, Stock, Customer, Supplier, Employee,
   FinancialYear, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder,
   SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
   PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem,

@@ -4,11 +4,12 @@ import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 
-const emptyForm = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '', is_stockable: true };
+const emptyForm = { code: '', name: '', category_id: '', type_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '', width: '', is_stockable: true };
 
 export default function ItemsPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [types, setTypes] = useState([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -17,9 +18,10 @@ export default function ItemsPage() {
 
   const loadData = async () => {
     try {
-      const [itemsRes, catsRes] = await Promise.all([api.get('/items'), api.get('/categories')]);
+      const [itemsRes, catsRes, typesRes] = await Promise.all([api.get('/items'), api.get('/categories'), api.get('/item-types')]);
       setItems(itemsRes.data);
       setCategories(catsRes.data);
+      setTypes(typesRes.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
 
@@ -39,14 +41,14 @@ export default function ItemsPage() {
   const openAdd = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
   const openEdit = (item) => {
     setEditing(item);
-    setForm({ code: item.code, name: item.name, category_id: item.category_id || '', unit: item.unit, purchase_price: item.purchase_price, reorder_level: item.reorder_level, is_stockable: item.is_stockable });
+    setForm({ code: item.code, name: item.name, category_id: item.category_id || '', type_id: item.type_id || '', unit: item.unit, purchase_price: item.purchase_price, reorder_level: item.reorder_level, width: item.width || '', is_stockable: item.is_stockable });
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...form, purchase_price: Number(form.purchase_price || 0), reorder_level: Number(form.reorder_level || 0), category_id: form.category_id ? Number(form.category_id) : null };
+      const payload = { ...form, purchase_price: Number(form.purchase_price || 0), reorder_level: Number(form.reorder_level || 0), width: form.width !== '' ? Number(form.width) : null, category_id: form.category_id ? Number(form.category_id) : null, type_id: form.type_id ? Number(form.type_id) : null };
       if (editing) {
         await api.put(`/items/${editing.id}`, payload);
         toast.success('تم تحديث الصنف');
@@ -101,12 +103,15 @@ export default function ItemsPage() {
             {filtered.map(item => (
               <tr key={item.id}>
                 <td className="font-mono text-xs text-gray-500">{item.code}</td>
-                <td className="font-medium">{item.name}</td>
+                <td className="font-medium">
+                  {item.name}
+                  {!item.is_stockable && <span className="mr-1 badge badge-gray text-xs">لا مخزني</span>}
+                </td>
                 <td><span className="badge badge-blue">{getCatName(item.category_id)}</span></td>
                 <td>{item.unit}</td>
                 <td>{Number(item.purchase_price).toLocaleString()} ج.م</td>
                 <td>{Number(item.reorder_level).toLocaleString()}</td>
-                <td>{item.is_stockable ? <span className="badge badge-green">مخزني</span> : <span className="badge badge-gray">لا مخزني</span>}</td>
+                <td>{item.ItemType?.name ? <span className="badge badge-blue">{item.ItemType.name}</span> : <span className="text-gray-400 text-xs">—</span>}</td>
                 <td>
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
@@ -148,11 +153,31 @@ export default function ItemsPage() {
                 </div>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">النوع</label>
+                <div className="flex gap-1">
+                  <select className="erp-input flex-1" value={form.type_id} onChange={e => setForm({ ...form, type_id: e.target.value })}>
+                    <option value="">— بدون نوع —</option>
+                    {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <button type="button" title="إضافة نوع جديد" onClick={async () => {
+                    const name = window.prompt('اسم النوع الجديد:');
+                    if (!name?.trim()) return;
+                    try {
+                      const r = await api.post('/item-types', { name: name.trim() });
+                      await loadData();
+                      setForm(f => ({ ...f, type_id: String(r.data.id) }));
+                    } catch { toast.error('خطأ في إضافة النوع'); }
+                  }} className="erp-btn erp-btn-outline px-2 text-lg font-bold">+</button>
+                </div>
+              </div>
+            </div>
             <div>
               <label className="form-label">اسم الصنف *</label>
               <input className="erp-input" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="form-label">الوحدة</label>
                 <select className="erp-input" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })}>
@@ -160,6 +185,10 @@ export default function ItemsPage() {
                   <option value="قطعة">قطعة</option>
                   <option value="-">-</option>
                 </select>
+              </div>
+              <div>
+                <label className="form-label">العرض (سم)</label>
+                <input type="number" step="0.01" className="erp-input" placeholder="اختياري" value={form.width} onChange={e => setForm({ ...form, width: e.target.value })} />
               </div>
               <div>
                 <label className="form-label">سعر الشراء</label>

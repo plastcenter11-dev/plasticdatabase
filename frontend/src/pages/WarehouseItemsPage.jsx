@@ -7,6 +7,7 @@ export default function WarehouseItemsPage() {
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [categoryFilters, setCategoryFilters] = useState([]);
+  const [typeFilters, setTypeFilters] = useState([]);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function WarehouseItemsPage() {
   }, []);
 
   const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();
+  const types = [...new Set(items.map(i => i.type_name).filter(Boolean))].sort();
 
   const filtered = items.filter(item => {
     if (search) {
@@ -22,6 +24,7 @@ export default function WarehouseItemsPage() {
       if (!item.item_name?.toLowerCase().includes(q) && !item.item_code?.toLowerCase().includes(q)) return false;
     }
     if (categoryFilters.length > 0 && !categoryFilters.includes(item.category_name)) return false;
+    if (typeFilters.length > 0 && !typeFilters.includes(item.type_name)) return false;
     return true;
   });
 
@@ -98,6 +101,25 @@ export default function WarehouseItemsPage() {
           })}
           {categoryFilters.length > 0 && (
             <button type="button" onClick={() => setCategoryFilters([])} className="text-xs text-gray-400 hover:text-red-500 underline cursor-pointer">مسح</button>
+          )}
+        </div>
+      )}
+
+      {types.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-500 font-medium shrink-0">النوع:</span>
+          {types.map(t => {
+            const active = typeFilters.includes(t);
+            return (
+              <button key={t} type="button"
+                onClick={() => setTypeFilters(prev => active ? prev.filter(x => x !== t) : [...prev, t])}
+                className={`px-3 py-1 rounded-full text-sm border transition-colors cursor-pointer ${active ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'}`}>
+                {t}
+              </button>
+            );
+          })}
+          {typeFilters.length > 0 && (
+            <button type="button" onClick={() => setTypeFilters([])} className="text-xs text-gray-400 hover:text-red-500 underline cursor-pointer">مسح</button>
           )}
         </div>
       )}

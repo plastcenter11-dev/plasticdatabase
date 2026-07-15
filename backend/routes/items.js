@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Item, Category, Stock } = require('../models');
+const { Item, Category, ItemType, Stock } = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
     const where = {};
     if (req.query.search) where[Op.or] = [{ name: { [Op.like]: `%${req.query.search}%` } }, { code: { [Op.like]: `%${req.query.search}%` } }];
     if (req.query.category_id) where.category_id = req.query.category_id;
-    const items = await Item.findAll({ where, include: [{ model: Category, attributes: ['id', 'name'] }], order: [['id', 'DESC']] });
+    const items = await Item.findAll({ where, include: [{ model: Category, attributes: ['id', 'name'] }, { model: ItemType, attributes: ['id', 'name'] }], order: [['id', 'DESC']] });
     res.json(items);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
