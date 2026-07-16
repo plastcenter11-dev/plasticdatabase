@@ -10,8 +10,8 @@ router.get('/cash-receipts', async (req, res) => {
 
 router.post('/cash-receipts', async (req, res) => {
   try {
-    const count = await CashReceipt.count();
-    req.body.receipt_no = `CR-${String(count + 1).padStart(6, '0')}`;
+    const max = await CashReceipt.max('id') || 0;
+    req.body.receipt_no = `CR-${String(max + 1).padStart(6, '0')}`;
     const r = await CashReceipt.create(req.body);
     const customer = await Customer.findByPk(r.customer_id);
     if (customer) await customer.update({ balance: Number(customer.balance) - Number(r.amount) });
@@ -38,8 +38,8 @@ router.get('/cash-payments', async (req, res) => {
 
 router.post('/cash-payments', async (req, res) => {
   try {
-    const count = await CashPayment.count();
-    req.body.payment_no = `CP-${String(count + 1).padStart(6, '0')}`;
+    const max = await CashPayment.max('id') || 0;
+    req.body.payment_no = `CP-${String(max + 1).padStart(6, '0')}`;
     const p = await CashPayment.create(req.body);
     const supplier = await Supplier.findByPk(p.supplier_id);
     if (supplier) await supplier.update({ balance: Number(supplier.balance) - Number(p.amount) });

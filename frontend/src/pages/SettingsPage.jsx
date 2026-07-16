@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory, MdUpload } from 'react-icons/md';
+import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
@@ -9,6 +9,46 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company');
   const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '' });
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [categories, setCategories] = useState([]);
+  const [types, setTypes] = useState([]);
+  const [editingCat, setEditingCat] = useState(null);
+  const [editingType, setEditingType] = useState(null);
+  const [newCatName, setNewCatName] = useState('');
+  const [newTypeName, setNewTypeName] = useState('');
+
+  const loadLookups = async () => {
+    const [cats, tps] = await Promise.all([api.get('/categories'), api.get('/item-types')]);
+    setCategories(cats.data); setTypes(tps.data);
+  };
+
+  const saveEdit = async (type, id, name) => {
+    if (!name?.trim()) return;
+    try {
+      await api.put(`/${type}/${id}`, { name: name.trim() });
+      toast.success('تم التعديل');
+      setEditingCat(null); setEditingType(null);
+      loadLookups();
+    } catch { toast.error('خطأ في التعديل'); }
+  };
+
+  const handleDelete = async (type, id) => {
+    if (!window.confirm('حذف هذا البند؟')) return;
+    try {
+      await api.delete(`/${type}/${id}`);
+      toast.success('تم الحذف');
+      loadLookups();
+    } catch { toast.error('خطأ في الحذف'); }
+  };
+
+  const handleAdd = async (type, name, setName) => {
+    if (!name?.trim()) return;
+    try {
+      await api.post(`/${type}`, { name: name.trim() });
+      toast.success('تمت الإضافة');
+      setName('');
+      loadLookups();
+    } catch { toast.error('خطأ في الإضافة'); }
+  };
 
   useEffect(() => {
     api.get('/settings').then(r => {
@@ -36,9 +76,12 @@ export default function SettingsPage() {
     } catch { toast.error('خطأ في تغيير كلمة المرور'); }
   };
 
+  useEffect(() => { if (activeTab === 'lookups') loadLookups(); }, [activeTab]);
+
   const tabs = [
     { key: 'company', label: 'بيانات المنشأة', icon: MdBusiness },
     { key: 'options', label: 'خيارات', icon: MdTune },
+    { key: 'lookups', label: 'الأقسام والأنواع', icon: MdInventory },
     { key: 'password', label: 'تغيير كلمة المرور', icon: MdPassword },
     { key: 'protection', label: 'حماية السجلات', icon: MdLock },
     { key: 'unlock', label: 'إلغاء حماية', icon: MdLockOpen },
@@ -85,6 +128,74 @@ export default function SettingsPage() {
               <label className="flex items-center gap-2"><input type="checkbox" /><span className="text-sm">طلب اعتماد الفواتير قبل الترحيل</span></label>
             </div>
             <button onClick={() => toast.success('تم حفظ الخيارات')} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
+          </div>
+        )}
+
+        {activeTab === 'lookups' && (
+          <div className="grid grid-cols-2 gap-8 max-w-2xl">
+            {/* Categories */}
+            <div>
+              <h2 className="text-lg font-bold text-gray-700 mb-4">الأقسام</h2>
+              <div className="flex gap-2 mb-4">
+                <input className="erp-input flex-1" placeholder="اسم القسم الجديد" value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd('categories', newCatName, setNewCatName)} />
+                <button onClick={() => handleAdd('categories', newCatName, setNewCatName)} className="erp-btn erp-btn-primary px-3"><MdAdd size={18} /></button>
+              </div>
+              <div className="space-y-2">
+                {categories.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-gray-50">
+                    {editingCat?.id === c.id ? (
+                      <>
+                        <input className="erp-input flex-1 py-1" value={editingCat.name} onChange={e => setEditingCat({ ...editingCat, name: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter') saveEdit('categories', c.id, editingCat.name); if (e.key === 'Escape') setEditingCat(null); }}
+                          autoFocus />
+                        <button onClick={() => saveEdit('categories', c.id, editingCat.name)} className="erp-btn erp-btn-primary py-1 px-2 text-xs">حفظ</button>
+                        <button onClick={() => setEditingCat(null)} className="erp-btn erp-btn-secondary py-1 px-2 text-xs">إلغاء</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm font-medium">{c.name}</span>
+                        <button onClick={() => setEditingCat({ id: c.id, name: c.name })} className="text-blue-500 hover:text-blue-700 p-1"><MdEdit size={16} /></button>
+                        <button onClick={() => handleDelete('categories', c.id)} className="text-red-500 hover:text-red-700 p-1"><MdDelete size={16} /></button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {categories.length === 0 && <p className="text-sm text-gray-400 text-center py-4">لا توجد أقسام</p>}
+              </div>
+            </div>
+
+            {/* Types */}
+            <div>
+              <h2 className="text-lg font-bold text-gray-700 mb-4">الأنواع</h2>
+              <div className="flex gap-2 mb-4">
+                <input className="erp-input flex-1" placeholder="اسم النوع الجديد" value={newTypeName} onChange={e => setNewTypeName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd('item-types', newTypeName, setNewTypeName)} />
+                <button onClick={() => handleAdd('item-types', newTypeName, setNewTypeName)} className="erp-btn erp-btn-primary px-3"><MdAdd size={18} /></button>
+              </div>
+              <div className="space-y-2">
+                {types.map(t => (
+                  <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-gray-50">
+                    {editingType?.id === t.id ? (
+                      <>
+                        <input className="erp-input flex-1 py-1" value={editingType.name} onChange={e => setEditingType({ ...editingType, name: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter') saveEdit('item-types', t.id, editingType.name); if (e.key === 'Escape') setEditingType(null); }}
+                          autoFocus />
+                        <button onClick={() => saveEdit('item-types', t.id, editingType.name)} className="erp-btn erp-btn-primary py-1 px-2 text-xs">حفظ</button>
+                        <button onClick={() => setEditingType(null)} className="erp-btn erp-btn-secondary py-1 px-2 text-xs">إلغاء</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm font-medium">{t.name}</span>
+                        <button onClick={() => setEditingType({ id: t.id, name: t.name })} className="text-blue-500 hover:text-blue-700 p-1"><MdEdit size={16} /></button>
+                        <button onClick={() => handleDelete('item-types', t.id)} className="text-red-500 hover:text-red-700 p-1"><MdDelete size={16} /></button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {types.length === 0 && <p className="text-sm text-gray-400 text-center py-4">لا توجد أنواع</p>}
+              </div>
+            </div>
           </div>
         )}
 

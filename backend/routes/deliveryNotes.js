@@ -21,8 +21,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { items, linked_orders, ...data } = req.body;
-    const count = await DeliveryNote.count();
-    data.note_no = count + 1;
+    const max = await DeliveryNote.max('id') || 0;
+    data.note_no = max + 1;
     const note = await DeliveryNote.create(data);
     if (items?.length) await DeliveryNoteItem.bulkCreate(items.map(i => ({ ...i, note_id: note.id })));
     if (linked_orders?.length) {

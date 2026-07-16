@@ -207,6 +207,20 @@ router.post('/categories', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const c = await require('../models').Category.findByPk(req.params.id);
+    if (!c) return res.status(404).json({ error: 'غير موجود' });
+    await c.update(req.body);
+    res.json(c);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/categories/:id', async (req, res) => {
+  try { await require('../models').Category.destroy({ where: { id: req.params.id } }); res.json({ message: 'تم الحذف' }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/item-types', async (req, res) => {
   try { res.json(await ItemType.findAll({ order: [['id', 'ASC']] })); }
   catch (err) { res.status(500).json({ error: err.message }); }
@@ -215,6 +229,15 @@ router.get('/item-types', async (req, res) => {
 router.post('/item-types', async (req, res) => {
   try { res.status(201).json(await ItemType.create(req.body)); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/item-types/:id', async (req, res) => {
+  try {
+    const t = await ItemType.findByPk(req.params.id);
+    if (!t) return res.status(404).json({ error: 'غير موجود' });
+    await t.update(req.body);
+    res.json(t);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/item-types/:id', async (req, res) => {

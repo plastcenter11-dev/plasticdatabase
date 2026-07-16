@@ -18,8 +18,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { items, ...data } = req.body;
-    const count = await SalesOrder.count();
-    data.order_no = `SO-${String(count + 1).padStart(6, '0')}`;
+    const max = await SalesOrder.max('id') || 0;
+    data.order_no = `SO-${String(max + 1).padStart(6, '0')}`;
     const calcItemTotal = i => Number(i.quantity) * Number(i.price) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
     data.total = items.reduce((s, i) => s + calcItemTotal(i), 0);
     const order = await SalesOrder.create(data);

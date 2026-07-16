@@ -20,8 +20,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { items, ...data } = req.body;
-    const count = await SalesInvoice.count();
-    data.invoice_no = data.invoice_no || `SI-${String(count + 1).padStart(6, '0')}`;
+    const max = await SalesInvoice.max('id') || 0;
+    data.invoice_no = data.invoice_no || `SI-${String(max + 1).padStart(6, '0')}`;
     const inv = await SalesInvoice.create(data);
     if (items?.length) await SalesInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })));
     res.status(201).json(await SalesInvoice.findByPk(inv.id, { include: [{ model: SalesInvoiceItem, as: 'items' }] }));
@@ -48,11 +48,28 @@ router.post('/:id/post', async (req, res) => {
     if (!inv) return res.status(404).json({ error: 'غير موجود' });
     if (inv.status === 'posted') return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' });
 
+    // Check stock availability before posting
+    if (inv.warehouse_id) {
+      for (const item of (inv.items || [])) {
+        const fullItem = await Item.findByPk(item.item_id);
+        if (!fullItem?.is_stockable) continue;
+        const qty = Number(item.quantity || 0);
+        if (qty <= 0) continue;
+        const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id } });
+        const available = stock ? Number(stock.quantity) : 0;
+        if (available < qty) {
+          return res.status(400).json({ error: `الكمية المتاحة من "${fullItem.name}" (${available}) أقل من الكمية المطلوبة (${qty})` });
+        }
+      }
+    }
+
     await inv.update({ status: 'posted' });
 
     // Decrement stock for each item
     if (inv.warehouse_id) {
       for (const item of (inv.items || [])) {
+        const fullItem = await Item.findByPk(item.item_id);
+        if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         if (qty <= 0) continue;
         const [stock] = await Stock.findOrCreate({

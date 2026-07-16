@@ -20,8 +20,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { items, ...data } = req.body;
-    const count = await PurchaseInvoice.count();
-    data.invoice_no = data.invoice_no || `PI-${String(count + 1).padStart(6, '0')}`;
+    if (!data.supplier_id) return res.status(400).json({ error: 'المورد مطلوب' });
+    const max = await PurchaseInvoice.max('id') || 0;
+    data.invoice_no = data.invoice_no || `PI-${String(max + 1).padStart(6, '0')}`;
     const inv = await PurchaseInvoice.create(data);
     if (items?.length) await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })));
     res.status(201).json(await PurchaseInvoice.findByPk(inv.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }] }));
@@ -60,9 +61,9 @@ router.post('/:id/post', async (req, res) => {
     // If paid > 0, create a cash payment record
     const paidAmt = Number(inv.paid || 0);
     if (paidAmt > 0) {
-      const count = await CashPayment.count();
+      const cpMax = await CashPayment.max('id') || 0;
       await CashPayment.create({
-        payment_no: `CP-${String(count + 1).padStart(6, '0')}`,
+        payment_no: `CP-${String(cpMax + 1).padStart(6, '0')}`,
         date: inv.date,
         supplier_id: inv.supplier_id,
         amount: paidAmt,
@@ -74,6 +75,8 @@ router.post('/:id/post', async (req, res) => {
     // Increment stock for each item
     if (inv.warehouse_id) {
       for (const item of (inv.items || [])) {
+        const fullItem = await Item.findByPk(item.item_id);
+        if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         const wt = Number(item.weight || 0);
         if (qty <= 0 && wt <= 0) continue;

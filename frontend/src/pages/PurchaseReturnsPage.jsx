@@ -4,7 +4,7 @@ import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 
-const emptyItem = { item_id: '', name: '', quantity: '', price: '', total: 0 };
+const emptyItem = { item_id: '', name: '', quantity: '', weight: '', price: '', total: 0 };
 
 export default function PurchaseReturnsPage() {
   const [returns, setReturns] = useState([]);
@@ -12,7 +12,7 @@ export default function PurchaseReturnsPage() {
   const [purchaseInvoices, setPurchaseInvoices] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
 
   const loadData = async () => {
     try {
@@ -28,7 +28,7 @@ export default function PurchaseReturnsPage() {
   });
 
   const handleSupplierChange = async (supplierId) => {
-    setForm({ ...form, supplier_id: supplierId, invoice_id: '', items: [{ ...emptyItem }] });
+    setForm({ ...form, supplier_id: supplierId, invoice_id: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
     if (supplierId) {
       try {
         const { data } = await api.get(`/purchase-invoices/supplier/${supplierId}`);
@@ -40,21 +40,32 @@ export default function PurchaseReturnsPage() {
   const handleInvoiceChange = (invoiceId) => {
     const inv = purchaseInvoices.find(i => i.id === Number(invoiceId));
     if (inv) {
-      const items = (inv.items || []).map(i => ({
-        item_id: i.item_id, name: i.Item?.name || '-', quantity: '', price: Number(i.price), total: 0, max_qty: Number(i.quantity),
+      const mapped = (inv.items || []).map(i => ({
+        item_id: i.item_id,
+        name: i.Item?.name || '-',
+        quantity: Number(i.quantity) || 0,
+        weight: Number(i.weight) || 0,
+        price: Number(i.price),
+        max_qty: Number(i.quantity),
+        max_weight: Number(i.weight) || 0,
+        total: (Number(i.weight) || 0) * Number(i.price),
       }));
-      setForm({ ...form, invoice_id: invoiceId, items });
-    } else { setForm({ ...form, invoice_id: invoiceId, items: [{ ...emptyItem }] }); }
+      const items = mapped.length > 0 ? mapped : [{ ...emptyItem }];
+      setForm({ ...form, invoice_id: invoiceId, items, invoice_tax_rate: Number(inv.tax_rate) || 0, invoice_discount: Number(inv.discount) || 0, invoice_subtotal: Number(inv.subtotal) || 0 });
+    } else { setForm({ ...form, invoice_id: invoiceId, items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); }
   };
 
   const updateItem = (idx, field, value) => {
     const items = [...form.items];
     items[idx] = { ...items[idx], [field]: value };
-    items[idx].total = (Number(items[idx].quantity) || 0) * (Number(items[idx].price) || 0);
+    items[idx].total = (Number(items[idx].weight) || 0) * (Number(items[idx].price) || 0);
     setForm({ ...form, items });
   };
 
-  const calcTotal = () => form.items.reduce((sum, i) => sum + (i.total || 0), 0);
+  const calcSubtotal = () => form.items.reduce((sum, i) => sum + (i.total || 0), 0);
+  const calcProportionalDiscount = () => form.invoice_subtotal > 0 ? form.invoice_discount * (calcSubtotal() / form.invoice_subtotal) : 0;
+  const calcTax = () => (calcSubtotal() - calcProportionalDiscount()) * (form.invoice_tax_rate / 100);
+  const calcTotal = () => calcSubtotal() - calcProportionalDiscount() + calcTax();
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -65,7 +76,7 @@ export default function PurchaseReturnsPage() {
       await api.post('/returns/purchase', {
         supplier_id: Number(form.supplier_id), invoice_id: form.invoice_id ? Number(form.invoice_id) : null,
         date: form.date, reason: form.reason,
-        items: validItems.map(i => ({ item_id: i.item_id, quantity: Number(i.quantity), price: Number(i.price) }))
+        items: validItems.map(i => ({ item_id: i.item_id, quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price) }))
       });
       toast.success('تم تسجيل مرتجع المشتريات');
       setShowModal(false); loadData();
@@ -82,7 +93,7 @@ export default function PurchaseReturnsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">مرتجع مشتريات</h1>
-        <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }] }); setPurchaseInvoices([]); setShowModal(true); }}
+        <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>
       </div>
 
@@ -121,18 +132,27 @@ export default function PurchaseReturnsPage() {
             <div>
               <label className="form-label mb-2">الأصناف المرتجعة</label>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>العدد المشتراة</th><th>كمية المرتجع *</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+                <thead><tr><th>الصنف</th><th>الوزن المشترى</th><th>العدد المشترى</th><th>الوزن المرتجع</th><th>العدد المرتجع</th><th>السعر</th><th>الإجمالي</th></tr></thead>
                 <tbody>{form.items.map((item, idx) => (
                   <tr key={idx}>
                     <td className="font-medium">{item.name || '—'}</td>
+                    <td className="text-gray-500">{Number(item.max_weight || 0).toLocaleString()} كجم</td>
                     <td className="text-gray-500">{item.max_qty || '-'}</td>
-                    <td><input type="number" min="0" className="erp-input py-1 w-24" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
+                    <td><input type="number" step="0.01" min="0" className="erp-input py-1 w-24" value={item.weight} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
+                    <td><input type="number" min="0" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
                     <td>{Number(item.price || 0).toLocaleString()} ج.م</td>
                     <td className="font-bold">{(item.total || 0).toLocaleString()} ج.م</td>
                   </tr>
                 ))}</tbody>
               </table>
-              <div className="text-left mt-2 text-lg font-bold text-red-600">إجمالي المرتجع: {calcTotal().toLocaleString()} ج.م</div>
+              {(form.invoice_discount > 0 || form.invoice_tax_rate > 0) && (
+                <div className="flex gap-6 justify-end text-sm border-t pt-3 mt-2">
+                  <span>إجمالي قبل الخصم: <strong>{calcSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                  {form.invoice_discount > 0 && <span className="text-red-500">الخصم: <strong>- {calcProportionalDiscount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>}
+                  {form.invoice_tax_rate > 0 && <span className="text-green-600">الضريبة ({form.invoice_tax_rate}%): <strong>+ {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>}
+                </div>
+              )}
+              <div className="text-left mt-2 text-lg font-bold text-red-600">إجمالي المرتجع: {calcTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
