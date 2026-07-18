@@ -124,6 +124,7 @@ const SalesInvoice = sequelize.define('SalesInvoice', {
 
 const SalesInvoiceItem = sequelize.define('SalesInvoiceItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   discount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
@@ -154,12 +155,16 @@ const PurchaseReturn = sequelize.define('PurchaseReturn', {
   return_no: { type: DataTypes.STRING, allowNull: false, unique: true },
   date: { type: DataTypes.DATEONLY, allowNull: false },
   reason: { type: DataTypes.STRING, defaultValue: '' },
+  tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  tax_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 
 const PurchaseReturnItem = sequelize.define('PurchaseReturnItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  discount: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 
@@ -167,12 +172,16 @@ const SalesReturn = sequelize.define('SalesReturn', {
   return_no: { type: DataTypes.STRING, allowNull: false, unique: true },
   date: { type: DataTypes.DATEONLY, allowNull: false },
   reason: { type: DataTypes.STRING, defaultValue: '' },
+  tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  tax_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 
 const SalesReturnItem = sequelize.define('SalesReturnItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  discount: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 

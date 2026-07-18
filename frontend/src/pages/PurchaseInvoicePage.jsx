@@ -44,16 +44,17 @@ export default function PurchaseInvoicePage() {
   const lineDiscount = (i) => (Number(i.weight) || 0) * (Number(i.price) || 0) * (Number(i.discount || 0) / 100);
   const calcGross = () => form.items.reduce((sum, i) => sum + (Number(i.weight) || 0) * (Number(i.price) || 0), 0);
   const calcSubtotal = () => form.items.reduce((sum, i) => sum + ((Number(i.weight) || 0) * (Number(i.price) || 0) - lineDiscount(i)), 0);
-  const calcTax = () => (calcSubtotal() - Number(form.discount || 0)) * (Number(form.tax_rate) || 0) / 100;
-  const calcTotal = () => calcSubtotal() - Number(form.discount || 0) + calcTax();
+  const calcDiscountAmount = () => calcSubtotal() * (Number(form.discount || 0) / 100);
+  const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
+  const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
-    const subtotal = calcSubtotal(), disc = Number(form.discount || 0), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
+    const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
-      supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, subtotal, discount: disc, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
+      supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
       items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
     };
     try {
@@ -67,7 +68,7 @@ export default function PurchaseInvoicePage() {
     setEditing(inv);
     setForm({
       supplier_id: String(inv.supplier_id), warehouse_id: String(inv.warehouse_id || ''), date: inv.date,
-      discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid,
+      discount: Number(inv.subtotal) > 0 ? Math.round((Number(inv.discount) / Number(inv.subtotal)) * 10000) / 100 : 0, tax_rate: inv.tax_rate, paid: inv.paid,
       items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
     setShowModal(true);
@@ -164,17 +165,24 @@ export default function PurchaseInvoicePage() {
               </table>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <div><label className="form-label">خصم الفاتورة</label><input type="number" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
+              <div><label className="form-label">خصم الفاتورة %</label><input type="number" min="0" max="100" step="0.01" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
               <div><label className="form-label">نسبة الضريبة %</label><input type="number" className="erp-input" value={form.tax_rate} onChange={e => setForm({ ...form, tax_rate: e.target.value })} /></div>
               <div><label className="form-label">المدفوع</label><input type="number" className="erp-input" value={form.paid} onChange={e => setForm({ ...form, paid: e.target.value })} /></div>
               <div className="flex flex-col justify-end gap-1">
-                <p className="text-lg font-bold text-primary">{Math.round(calcTotal()).toLocaleString()} ج.م</p>
+                {(Number(form.discount) > 0 || Number(form.tax_rate) > 0) && (
+                  <div className="text-xs text-gray-500 mb-1 space-y-0.5">
+                    {Number(form.discount) > 0 && <div className="text-red-500">خصم ({form.discount}%): - {calcDiscountAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                    {Number(form.tax_rate) > 0 && <div className="text-green-600">ضريبة ({form.tax_rate}%): + {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                  </div>
+                )}
+                <p className="text-lg font-bold text-primary">{calcTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</p>
               </div>
             </div>
             <div className="flex gap-6 justify-end text-sm border-t pt-3">
-              <span>إجمالي قبل الخصم: <strong>{calcGross().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-              <span className="text-red-500">المخصوم: <strong>- {(calcGross() - calcSubtotal() + Number(form.discount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>
-              <span className="text-green-600">الضريبة: <strong>+ {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>
+              <span>إجمالي الأصناف (قبل خصم الأصناف): <strong>{calcGross().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              {(calcGross() - calcSubtotal()) > 0 && <span className="text-orange-500">خصم الأصناف: <strong>- {(calcGross() - calcSubtotal()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>}
+              {Number(form.discount) > 0 && <span className="text-red-500">خصم الفاتورة: <strong>- {calcDiscountAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>}
+              {Number(form.tax_rate) > 0 && <span className="text-green-600">الضريبة ({form.tax_rate}%): <strong>+ {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>}
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>

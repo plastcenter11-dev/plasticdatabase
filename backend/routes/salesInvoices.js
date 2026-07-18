@@ -72,14 +72,15 @@ router.post('/:id/post', async (req, res) => {
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         if (qty <= 0) continue;
+        const wt = Number(item.weight || 0);
         const [stock] = await Stock.findOrCreate({
           where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
           defaults: { quantity: 0, weight: 0 },
         });
-        await stock.update({ quantity: Number(stock.quantity) - qty });
+        await stock.update({ quantity: Number(stock.quantity) - qty, weight: Number(stock.weight || 0) - wt });
         await StockMovement.create({
           item_id: item.item_id, warehouse_id: inv.warehouse_id,
-          movement_type: 'فاتورة بيع', quantity: qty,
+          movement_type: 'فاتورة بيع', quantity: qty, weight: wt,
           unit_price: Number(item.price || 0), date: inv.date,
           description: `فاتورة بيع ${inv.invoice_no}`, reference: inv.invoice_no,
         });

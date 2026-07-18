@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Customer, SalesInvoice, CashReceipt, sequelize } = require('../models');
+const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, Item, CashReceipt, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
@@ -64,11 +64,21 @@ router.delete('/:id', async (req, res) => {
 
 router.get('/:id/statement', async (req, res) => {
   try {
-    const invoices = await SalesInvoice.findAll({ where: { customer_id: req.params.id, status: 'posted' }, order: [['date', 'ASC']] });
+    const invoices = await SalesInvoice.findAll({
+      where: { customer_id: req.params.id, status: 'posted' },
+      include: [{ model: SalesInvoiceItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code'] }] }],
+      order: [['date', 'ASC']],
+    });
     const receipts = await CashReceipt.findAll({ where: { customer_id: req.params.id }, order: [['date', 'ASC']] });
+    const returns = await SalesReturn.findAll({
+      where: { customer_id: req.params.id },
+      include: [{ model: SalesReturnItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code'] }] }],
+      order: [['date', 'ASC']],
+    });
     const movements = [
-      ...invoices.map(i => ({ date: i.date, type: 'فاتورة بيع', reference: i.invoice_no, debit: Number(i.total), credit: 0, invoice_id: i.id })),
+      ...invoices.map(i => ({ date: i.date, type: 'فاتورة بيع', reference: i.invoice_no, debit: Number(i.total), credit: 0, invoice_id: i.id, items: i.items, subtotal: Number(i.subtotal || 0), discount: Number(i.discount || 0), tax_rate: Number(i.tax_rate || 0), tax_amount: Number(i.tax_amount || 0) })),
       ...receipts.map(r => ({ date: r.date, type: 'تحصيل', reference: r.receipt_no, debit: 0, credit: Number(r.amount) })),
+      ...returns.map(r => ({ date: r.date, type: 'مرتجع بيع', reference: r.return_no, debit: 0, credit: Number(r.total), items: r.items, subtotal: Number(r.total) - Number(r.tax_amount || 0), discount: 0, tax_rate: Number(r.tax_rate || 0), tax_amount: Number(r.tax_amount || 0) })),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = 0;
     movements.forEach(m => { balance += m.debit - m.credit; m.balance = balance; });

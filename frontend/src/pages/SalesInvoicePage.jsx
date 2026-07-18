@@ -4,7 +4,7 @@ import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
 
-const emptyItem = { item_id: '', quantity: '', price: '', discount: 0 };
+const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 
 export default function SalesInvoicePage() {
   const [invoices, setInvoices] = useState([]);
@@ -41,19 +41,22 @@ export default function SalesInvoicePage() {
   const addFormItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
-  const calcSubtotal = () => form.items.reduce((sum, i) => sum + ((Number(i.quantity) || 0) * (Number(i.price) || 0) - Number(i.discount || 0)), 0);
-  const calcTax = () => (calcSubtotal() - Number(form.discount || 0)) * (Number(form.tax_rate) || 0) / 100;
-  const calcTotal = () => calcSubtotal() - Number(form.discount || 0) + calcTax();
+  const lineDiscount = (i) => (Number(i.weight) || 0) * (Number(i.price) || 0) * (Number(i.discount || 0) / 100);
+  const calcGross = () => form.items.reduce((sum, i) => sum + (Number(i.weight) || 0) * (Number(i.price) || 0), 0);
+  const calcSubtotal = () => form.items.reduce((sum, i) => sum + ((Number(i.weight) || 0) * (Number(i.price) || 0) - lineDiscount(i)), 0);
+  const calcDiscountAmount = () => calcSubtotal() * (Number(form.discount || 0) / 100);
+  const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
+  const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
-    const subtotal = calcSubtotal(), disc = Number(form.discount || 0), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
+    const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
       customer_id: Number(form.customer_id), employee_id: Number(form.employee_id) || null, date: form.date,
-      subtotal, discount: disc, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
-      items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.quantity) * Number(i.price) - Number(i.discount || 0) }))
+      subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
+      items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
     };
     try {
       if (editing) { await api.put(`/sales-invoices/${editing.id}`, payload); toast.success('تم تحديث الفاتورة'); }
@@ -66,8 +69,8 @@ export default function SalesInvoicePage() {
     setEditing(inv);
     setForm({
       customer_id: String(inv.customer_id), employee_id: String(inv.employee_id || ''),
-      date: inv.date, discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid,
-      items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, price: i.price, discount: i.discount || 0 })),
+      date: inv.date, discount: Number(inv.subtotal) > 0 ? Math.round((Number(inv.discount) / Number(inv.subtotal)) * 10000) / 100 : 0, tax_rate: inv.tax_rate, paid: inv.paid,
+      items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
     setShowModal(true);
   };
@@ -167,25 +170,36 @@ export default function SalesInvoicePage() {
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>خصم</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>خصم %</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>{form.items.map((item, idx) => {
-                  const lineTotal = (Number(item.quantity) || 0) * (Number(item.price) || 0) - Number(item.discount || 0);
+                  const wt = Number(item.weight) || 0, pr = Number(item.price) || 0;
+                  const lineTotal = wt * pr * (1 - (Number(item.discount || 0) / 100));
                   return (<tr key={idx}>
                     <td><select className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></td>
+                    <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>
-                    <td><input type="number" className="erp-input py-1 w-20" value={item.discount} onChange={e => updateFormItem(idx, 'discount', e.target.value)} /></td>
-                    <td className="font-bold">{lineTotal.toLocaleString()}</td>
+                    <td><input type="number" className="erp-input py-1 w-16" value={item.discount} onChange={e => updateFormItem(idx, 'discount', e.target.value)} /></td>
+                    <td className="font-bold">{lineTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                     <td>{form.items.length > 1 && <button type="button" onClick={() => removeFormItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>);
                 })}</tbody>
               </table>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <div><label className="form-label">خصم الفاتورة</label><input type="number" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
+              <div><label className="form-label">خصم الفاتورة %</label><input type="number" min="0" max="100" step="0.01" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
               <div><label className="form-label">نسبة الضريبة %</label><input type="number" className="erp-input" value={form.tax_rate} onChange={e => setForm({ ...form, tax_rate: e.target.value })} /></div>
               <div><label className="form-label">المدفوع</label><input type="number" className="erp-input" value={form.paid} onChange={e => setForm({ ...form, paid: e.target.value })} /></div>
-              <div className="flex flex-col justify-end"><p className="text-lg font-bold text-primary">{Math.round(calcTotal()).toLocaleString()} ج.م</p></div>
+              <div className="flex flex-col justify-end">
+                {(calcGross() - calcSubtotal() > 0 || Number(form.discount) > 0 || Number(form.tax_rate) > 0) && (
+                  <div className="text-xs text-gray-500 mb-1 space-y-0.5">
+                    {(calcGross() - calcSubtotal()) > 0 && <div className="text-orange-500">خصم الأصناف: - {(calcGross() - calcSubtotal()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                    {Number(form.discount) > 0 && <div className="text-red-500">خصم الفاتورة ({form.discount}%): - {calcDiscountAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                    {Number(form.tax_rate) > 0 && <div className="text-green-600">ضريبة ({form.tax_rate}%): + {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                  </div>
+                )}
+                <p className="text-lg font-bold text-primary">{calcTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</p>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>

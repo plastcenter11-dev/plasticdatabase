@@ -34,8 +34,8 @@ export default function ItemsPage() {
   });
 
   const generateCode = () => {
-    const count = items.length + 1;
-    return `ITM-${String(count).padStart(4, '0')}`;
+    const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
+    return `ITM-${String(maxId + 1).padStart(4, '0')}`;
   };
 
   const openAdd = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
