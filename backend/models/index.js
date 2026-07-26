@@ -28,6 +28,7 @@ const Item = sequelize.define('Item', {
   name: { type: DataTypes.STRING, allowNull: false },
   unit: { type: DataTypes.STRING, defaultValue: 'كيلو' },
   purchase_price: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  sale_price: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   reorder_level: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   width: { type: DataTypes.DECIMAL(10, 2), defaultValue: null },
   is_stockable: { type: DataTypes.BOOLEAN, defaultValue: true },

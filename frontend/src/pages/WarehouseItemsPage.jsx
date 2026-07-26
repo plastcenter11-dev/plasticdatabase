@@ -135,7 +135,8 @@ export default function WarehouseItemsPage() {
               <th>العدد</th>
               <th>الوزن (كجم)</th>
               <th>الوحدة</th>
-              <th>سعر التكلفة</th>
+              <th>سعر الشراء</th>
+              <th>سعر البيع</th>
               <th>القيمة الإجمالية</th>
             </tr>
           </thead>
@@ -163,6 +164,7 @@ export default function WarehouseItemsPage() {
                 </td>
                 <td className="text-gray-500">{item.unit}</td>
                 <td className="text-gray-600">{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>
+                <td className="text-gray-600">{Number(item.sale_price || 0) > 0 ? Number(item.sale_price).toLocaleString() + ' ج.م' : '—'}</td>
                 <td className="font-bold text-primary">{getValue(item) > 0 ? getValue(item).toLocaleString() + ' ج.م' : '—'}</td>
               </tr>
             ))}

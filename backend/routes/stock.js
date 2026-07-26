@@ -93,7 +93,7 @@ router.get('/balances', async (req, res) => {
 router.get('/items-stock', async (req, res) => {
   try {
     const [items, stockRecords, warehouses] = await Promise.all([
-      Item.findAll({ where: { is_stockable: true }, attributes: ['id', 'code', 'name', 'unit', 'reorder_level', 'purchase_price', 'category_id', 'type_id'], include: [{ model: Category, attributes: ['id', 'name'] }, { model: ItemType, attributes: ['id', 'name'] }], order: [['code', 'ASC']] }),
+      Item.findAll({ where: { is_stockable: true }, attributes: ['id', 'code', 'name', 'unit', 'reorder_level', 'purchase_price', 'sale_price', 'category_id', 'type_id'], include: [{ model: Category, attributes: ['id', 'name'] }, { model: ItemType, attributes: ['id', 'name'] }], order: [['code', 'ASC']] }),
       Stock.findAll({ include: [{ model: Warehouse, attributes: ['id', 'name'] }] }),
       Warehouse.findAll({ attributes: ['id', 'name'] }),
     ]);
@@ -111,7 +111,7 @@ router.get('/items-stock', async (req, res) => {
       }).filter(s => s.quantity !== 0 || s.weight !== 0); // skip warehouses with no stock
       const totalQty = itemStocks.reduce((sum, s) => sum + s.quantity, 0);
       const totalWeight = itemStocks.reduce((sum, s) => sum + s.weight, 0);
-      return { item_id: item.id, item_code: item.code, item_name: item.name, unit: item.unit, reorder_level: item.reorder_level, purchase_price: item.purchase_price, category_name: item.Category?.name || null, type_name: item.ItemType?.name || null, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
+      return { item_id: item.id, item_code: item.code, item_name: item.name, unit: item.unit, reorder_level: item.reorder_level, purchase_price: item.purchase_price, sale_price: item.sale_price, category_name: item.Category?.name || null, type_name: item.ItemType?.name || null, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
     });
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
