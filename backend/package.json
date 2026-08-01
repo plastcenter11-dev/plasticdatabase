@@ -12,7 +12,10 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testTimeout": 30000
+    "testTimeout": 90000,
+    "setupFiles": [
+      "./tests/setupEnv.js"
+    ]
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement } = require('../models');
+const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, sequelize } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
@@ -43,32 +43,43 @@ router.put('/:id', async (req, res) => {
 });
 
 router.post('/:id/post', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }] });
-    if (!inv) return res.status(404).json({ error: 'غير موجود' });
-    if (inv.status === 'posted') return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' });
+    const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }], transaction: t });
+    if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
 
     // Check stock availability before posting
     if (inv.warehouse_id) {
       for (const item of (inv.items || [])) {
-        const fullItem = await Item.findByPk(item.item_id);
+        const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         if (qty <= 0) continue;
-        const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id } });
+        const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id }, transaction: t });
         const available = stock ? Number(stock.quantity) : 0;
         if (available < qty) {
+          await t.rollback();
           return res.status(400).json({ error: `الكمية المتاحة من "${fullItem.name}" (${available}) أقل من الكمية المطلوبة (${qty})` });
         }
       }
     }
 
-    await inv.update({ status: 'posted' });
+    await inv.update({ status: 'posted' }, { transaction: t });
+
+    // Update customer balance by the unpaid remainder of the invoice
+    if (inv.customer_id) {
+      const customer = await Customer.findByPk(inv.customer_id, { transaction: t });
+      if (customer) {
+        const remaining = Number(inv.remaining != null ? inv.remaining : Number(inv.total || 0) - Number(inv.paid || 0));
+        await customer.update({ balance: Number(customer.balance || 0) + remaining }, { transaction: t });
+      }
+    }
 
     // Decrement stock for each item
     if (inv.warehouse_id) {
       for (const item of (inv.items || [])) {
-        const fullItem = await Item.findByPk(item.item_id);
+        const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         if (qty <= 0) continue;
@@ -76,26 +87,29 @@ router.post('/:id/post', async (req, res) => {
         const [stock] = await Stock.findOrCreate({
           where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
           defaults: { quantity: 0, weight: 0 },
+          transaction: t,
         });
-        await stock.update({ quantity: Number(stock.quantity) - qty, weight: Number(stock.weight || 0) - wt });
-        await fullItem.update({ sale_price: Number(item.price || 0) });
+        await stock.update({ quantity: Number(stock.quantity) - qty, weight: Number(stock.weight || 0) - wt }, { transaction: t });
+        if (Number(item.price || 0) > 0) await fullItem.update({ sale_price: Number(item.price) }, { transaction: t });
         await StockMovement.create({
           item_id: item.item_id, warehouse_id: inv.warehouse_id,
           movement_type: 'فاتورة بيع', quantity: qty, weight: wt,
           unit_price: Number(item.price || 0), date: inv.date,
           description: `فاتورة بيع ${inv.invoice_no}`, reference: inv.invoice_no,
-        });
+        }, { transaction: t });
       }
     }
 
+    await t.commit();
     res.json({ message: 'تم الترحيل' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const inv = await SalesInvoice.findByPk(req.params.id);
     if (!inv) return res.status(404).json({ error: 'غير موجود' });
+    if (inv.status === 'posted') return res.status(400).json({ error: 'لا يمكن حذف فاتورة مرحّلة' });
     await inv.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(500).json({ error: err.message }); }

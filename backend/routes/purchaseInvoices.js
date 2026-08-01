@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { PurchaseInvoice, PurchaseInvoiceItem, Supplier, Item, Stock, StockMovement, CashPayment } = require('../models');
+const { PurchaseInvoice, PurchaseInvoiceItem, Supplier, Item, Stock, StockMovement, CashPayment, sequelize } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
@@ -44,24 +44,25 @@ router.put('/:id', async (req, res) => {
 });
 
 router.post('/:id/post', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const inv = await PurchaseInvoice.findByPk(req.params.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }] });
-    if (!inv) return res.status(404).json({ error: 'غير موجود' });
-    if (inv.status === 'posted') return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' });
+    const inv = await PurchaseInvoice.findByPk(req.params.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }], transaction: t });
+    if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
 
-    await inv.update({ status: 'posted' });
+    await inv.update({ status: 'posted' }, { transaction: t });
 
     // Update supplier balance: add remaining (total - paid) to balance
     const remaining = Number(inv.total || 0) - Number(inv.paid || 0);
-    const supplier = await Supplier.findByPk(inv.supplier_id);
+    const supplier = await Supplier.findByPk(inv.supplier_id, { transaction: t });
     if (supplier) {
-      await supplier.update({ balance: Number(supplier.balance || 0) + remaining });
+      await supplier.update({ balance: Number(supplier.balance || 0) + remaining }, { transaction: t });
     }
 
     // If paid > 0, create a cash payment record
     const paidAmt = Number(inv.paid || 0);
     if (paidAmt > 0) {
-      const cpMax = await CashPayment.max('id') || 0;
+      const cpMax = await CashPayment.max('id', { transaction: t }) || 0;
       await CashPayment.create({
         payment_no: `CP-${String(cpMax + 1).padStart(6, '0')}`,
         date: inv.date,
@@ -69,13 +70,13 @@ router.post('/:id/post', async (req, res) => {
         amount: paidAmt,
         payment_method: 'نقدي',
         notes: `دفعة فاتورة شراء ${inv.invoice_no}`,
-      });
+      }, { transaction: t });
     }
 
     // Increment stock for each item
     if (inv.warehouse_id) {
       for (const item of (inv.items || [])) {
-        const fullItem = await Item.findByPk(item.item_id);
+        const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         const wt = Number(item.weight || 0);
@@ -83,26 +84,29 @@ router.post('/:id/post', async (req, res) => {
         const [stock] = await Stock.findOrCreate({
           where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
           defaults: { quantity: 0, weight: 0 },
+          transaction: t,
         });
-        await stock.update({ quantity: Number(stock.quantity) + qty, weight: Number(stock.weight || 0) + wt });
-        await fullItem.update({ purchase_price: Number(item.price || 0) });
+        await stock.update({ quantity: Number(stock.quantity) + qty, weight: Number(stock.weight || 0) + wt }, { transaction: t });
+        if (Number(item.price || 0) > 0) await fullItem.update({ purchase_price: Number(item.price) }, { transaction: t });
         await StockMovement.create({
           item_id: item.item_id, warehouse_id: inv.warehouse_id,
           movement_type: 'فاتورة شراء', quantity: qty, weight: wt,
           unit_price: Number(item.price || 0), date: inv.date,
           description: `فاتورة شراء ${inv.invoice_no}`, reference: inv.invoice_no,
-        });
+        }, { transaction: t });
       }
     }
 
+    await t.commit();
     res.json({ message: 'تم الترحيل' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const inv = await PurchaseInvoice.findByPk(req.params.id);
     if (!inv) return res.status(404).json({ error: 'غير موجود' });
+    if (inv.status === 'posted') return res.status(400).json({ error: 'لا يمكن حذف فاتورة مرحّلة' });
     await inv.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(500).json({ error: err.message }); }

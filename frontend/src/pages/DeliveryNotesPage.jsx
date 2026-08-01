@@ -53,11 +53,12 @@ export default function DeliveryNotesPage() {
   const [customers, setCustomers] = useState([]);
   const [allItems, setAllItems] = useState([]);
   const [salesOrders, setSalesOrders] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
 
   const loadData = async () => {
     try {
-      const [n, c, it] = await Promise.all([api.get('/delivery-notes'), api.get('/customers'), api.get('/items')]);
-      setNotes(n.data); setCustomers(c.data); setAllItems(it.data);
+      const [n, c, it, wh] = await Promise.all([api.get('/delivery-notes'), api.get('/customers'), api.get('/items'), api.get('/warehouses')]);
+      setNotes(n.data); setCustomers(c.data); setAllItems(it.data); setWarehouses(wh.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -67,6 +68,7 @@ export default function DeliveryNotesPage() {
   const [editing, setEditing] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(null);
   const [invoiceNo, setInvoiceNo] = useState('');
+  const [invoiceWarehouseId, setInvoiceWarehouseId] = useState('');
   const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] });
 
   useEffect(() => {
@@ -186,14 +188,17 @@ export default function DeliveryNotesPage() {
   };
 
   const openInvoiceModal = (id) => {
+    const note = notes.find(n => n.id === id);
     setShowInvoiceModal(id);
     setInvoiceNo('');
+    setInvoiceWarehouseId(note?.warehouse_id ? String(note.warehouse_id) : '');
   };
 
   const handleDeliver = async () => {
     if (!invoiceNo.trim()) return toast.error('أدخل رقم الفاتورة');
+    if (!invoiceWarehouseId) return toast.error('اختر المخزن');
     try {
-      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, { invoice_no: invoiceNo.trim() });
+      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, { invoice_no: invoiceNo.trim(), warehouse_id: Number(invoiceWarehouseId) });
       toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
       setShowInvoiceModal(null); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
@@ -249,7 +254,7 @@ export default function DeliveryNotesPage() {
       </div>
       <div class="customer">اسم العميل : <strong>${cust}</strong></div>
       <table>
-        <thead><tr><th class="qty-col">العدد</th><th>البيان</th></tr></thead>
+        <thead><tr><th class="qty-col">الوزن</th><th>البيان</th></tr></thead>
         <tbody>
           ${(note.items || []).map(item => {
             const name = item.Item?.name || item.item_name || '';
@@ -467,7 +472,14 @@ export default function DeliveryNotesPage() {
           <div className="space-y-4">
             <div>
               <label className="form-label">رقم الفاتورة *</label>
-              <input className="erp-input" required autoFocus value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+              <input className="erp-input text-left" dir="ltr" required autoFocus value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+            </div>
+            <div>
+              <label className="form-label">المخزن *</label>
+              <select className="erp-input" required value={invoiceWarehouseId} onChange={e => setInvoiceWarehouseId(e.target.value)}>
+                <option value="">— اختر —</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button onClick={() => setShowInvoiceModal(null)} className="erp-btn erp-btn-secondary">إلغاء</button>

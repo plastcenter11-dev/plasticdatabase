@@ -11,17 +11,18 @@ export default function SalesInvoicePage() {
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [form, setForm] = useState({ customer_id: '', employee_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] });
 
   const loadData = async () => {
     try {
-      const [inv, c, e, it] = await Promise.all([api.get('/sales-invoices'), api.get('/customers'), api.get('/employees'), api.get('/items')]);
-      setInvoices(inv.data); setCustomers(c.data); setEmployees(e.data); setItems(it.data);
+      const [inv, c, e, it, wh] = await Promise.all([api.get('/sales-invoices'), api.get('/customers'), api.get('/employees'), api.get('/items'), api.get('/warehouses')]);
+      setInvoices(inv.data); setCustomers(c.data); setEmployees(e.data); setItems(it.data); setWarehouses(wh.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -54,7 +55,7 @@ export default function SalesInvoicePage() {
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
-      customer_id: Number(form.customer_id), employee_id: Number(form.employee_id) || null, date: form.date,
+      customer_id: Number(form.customer_id), employee_id: Number(form.employee_id) || null, warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date,
       subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
       items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
     };
@@ -68,7 +69,7 @@ export default function SalesInvoicePage() {
   const openEdit = (inv) => {
     setEditing(inv);
     setForm({
-      customer_id: String(inv.customer_id), employee_id: String(inv.employee_id || ''),
+      customer_id: String(inv.customer_id), employee_id: String(inv.employee_id || ''), warehouse_id: String(inv.warehouse_id || ''),
       date: inv.date, discount: Number(inv.subtotal) > 0 ? Math.round((Number(inv.discount) / Number(inv.subtotal)) * 10000) / 100 : 0, tax_rate: inv.tax_rate, paid: inv.paid,
       items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
@@ -120,7 +121,7 @@ export default function SalesInvoicePage() {
         <h1 className="text-xl font-bold text-gray-800">فواتير بيع</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>
+          <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>
         </div>
       </div>
 
@@ -162,9 +163,10 @@ export default function SalesInvoicePage() {
       {showModal && (
         <Modal title={editing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">
           <form onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div><label className="form-label">العميل *</label><select className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}><option value="">— اختر —</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
               <div><label className="form-label">المندوب</label><select className="erp-input" value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}><option value="">— بدون —</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.commission_rate}%)</option>)}</select></div>
+              <div><label className="form-label">المخزن</label><select className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>

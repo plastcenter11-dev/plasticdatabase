@@ -159,6 +159,7 @@ const PurchaseReturn = sequelize.define('PurchaseReturn', {
   tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
   tax_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  warehouse_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const PurchaseReturnItem = sequelize.define('PurchaseReturnItem', {
@@ -176,6 +177,7 @@ const SalesReturn = sequelize.define('SalesReturn', {
   tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
   tax_amount: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  warehouse_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const SalesReturnItem = sequelize.define('SalesReturnItem', {
@@ -318,12 +320,14 @@ PurchaseInvoice.hasMany(PurchaseInvoiceItem, { foreignKey: 'invoice_id', as: 'it
 
 PurchaseReturn.belongsTo(Supplier, { foreignKey: 'supplier_id' });
 PurchaseReturn.belongsTo(PurchaseInvoice, { foreignKey: 'invoice_id', allowNull: true });
+PurchaseReturn.belongsTo(Warehouse, { foreignKey: 'warehouse_id', allowNull: true });
 PurchaseReturnItem.belongsTo(PurchaseReturn, { foreignKey: 'return_id', onDelete: 'CASCADE' });
 PurchaseReturnItem.belongsTo(Item, { foreignKey: 'item_id', onDelete: 'CASCADE' });
 PurchaseReturn.hasMany(PurchaseReturnItem, { foreignKey: 'return_id', as: 'items' });
 
 SalesReturn.belongsTo(Customer, { foreignKey: 'customer_id' });
 SalesReturn.belongsTo(SalesInvoice, { foreignKey: 'invoice_id', allowNull: true });
+SalesReturn.belongsTo(Warehouse, { foreignKey: 'warehouse_id', allowNull: true });
 SalesReturnItem.belongsTo(SalesReturn, { foreignKey: 'return_id', onDelete: 'CASCADE' });
 SalesReturnItem.belongsTo(Item, { foreignKey: 'item_id', onDelete: 'CASCADE' });
 SalesReturn.hasMany(SalesReturnItem, { foreignKey: 'return_id', as: 'items' });

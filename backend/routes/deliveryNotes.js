@@ -53,7 +53,8 @@ router.post('/:id/deliver', async (req, res) => {
     if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'تم ترحيل هذا الإذن مسبقاً' }); }
 
-    const { invoice_no } = req.body;
+    const { invoice_no, warehouse_id } = req.body;
+    const effectiveWarehouseId = warehouse_id ? Number(warehouse_id) : note.warehouse_id;
 
     // Get prices from linked sales order items
     const linkedOrders = await DeliveryNoteOrder.findAll({ where: { note_id: note.id }, transaction: t });
@@ -80,7 +81,7 @@ router.post('/:id/deliver', async (req, res) => {
 
     const inv = await SalesInvoice.create({
       invoice_no: invoiceNumber, date: note.date, customer_id: note.customer_id,
-      delivery_note_id: note.id, status: 'posted',
+      delivery_note_id: note.id, warehouse_id: effectiveWarehouseId, status: 'posted',
       subtotal, tax_amount: taxTotal, total, remaining: total,
     }, { transaction: t });
 
@@ -94,26 +95,29 @@ router.post('/:id/deliver', async (req, res) => {
     }
 
     // Decrement stock for each delivered item
-    if (note.warehouse_id) {
+    if (effectiveWarehouseId) {
       for (const item of items) {
-        const qty = Number(item.net_weight || item.gross_weight || item.quantity || 0);
-        if (qty <= 0) continue;
+        const weight = Number(item.net_weight || item.gross_weight || 0);
+        const rollCount = Number(item.roll_count || 0);
+        if (weight <= 0 && rollCount <= 0) continue;
+        const price = priceMap[item.item_id] || 0;
         const [stock] = await Stock.findOrCreate({
-          where: { item_id: item.item_id, warehouse_id: note.warehouse_id },
+          where: { item_id: item.item_id, warehouse_id: effectiveWarehouseId },
           defaults: { quantity: 0, weight: 0 },
           transaction: t,
         });
-        await stock.update({ quantity: Number(stock.quantity) - qty }, { transaction: t });
+        await stock.update({ quantity: Number(stock.quantity) - rollCount, weight: Number(stock.weight || 0) - weight }, { transaction: t });
+        if (price > 0) await Item.update({ sale_price: price }, { where: { id: item.item_id }, transaction: t });
         await StockMovement.create({
-          item_id: item.item_id, warehouse_id: note.warehouse_id,
-          movement_type: 'فاتورة بيع', quantity: qty,
-          unit_price: 0, date: note.date,
+          item_id: item.item_id, warehouse_id: effectiveWarehouseId,
+          movement_type: 'فاتورة بيع', quantity: rollCount, weight,
+          unit_price: price, date: note.date,
           description: `إذن تسليم رقم ${note.note_no}`, reference: String(note.note_no),
         }, { transaction: t });
       }
     }
 
-    await note.update({ status: 'delivered', invoice_no: invoiceNumber }, { transaction: t });
+    await note.update({ status: 'delivered', invoice_no: invoiceNumber, warehouse_id: effectiveWarehouseId }, { transaction: t });
     await t.commit();
 
     res.json({ message: 'تم الترحيل', invoice_id: inv.id, invoice_no: invoiceNumber });

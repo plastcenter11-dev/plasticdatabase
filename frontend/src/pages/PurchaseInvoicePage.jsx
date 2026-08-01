@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
@@ -95,6 +95,22 @@ export default function PurchaseInvoicePage() {
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
+  const handlePrint = (inv) => {
+    const sup = inv.Supplier?.name || '-';
+    const invItems = inv.items || [];
+    const printContent = `<html dir="rtl"><head><title>فاتورة ${inv.invoice_no}</title>
+    <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:22px;text-align:center}
+    .info{display:flex;justify-content:space-between;margin:20px 0;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #333;padding:8px;text-align:right}
+    th{background:#f0f0f0}.totals{margin-top:15px;text-align:left;font-size:14px}.totals div{margin:4px 0}.total-line{font-size:18px;font-weight:bold}</style></head><body>
+    <h1>فاتورة شراء</h1>
+    <div class="info"><span>المورد: <strong>${sup}</strong></span><span>التاريخ: ${inv.date}</span></div>
+    <table><thead><tr><th>#</th><th>الصنف</th><th>العدد</th><th>السعر</th><th>الخصم</th><th>الإجمالي</th></tr></thead>
+    <tbody>${invItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.Item?.name || '-'}</td><td>${Number(item.quantity).toLocaleString()}</td><td>${item.price}</td><td>${item.discount}</td><td>${Number(item.total).toLocaleString()}</td></tr>`).join('')}</tbody></table>
+    <div class="totals"><div class="total-line">الإجمالي: ${Number(inv.total).toLocaleString()} ج.م</div></div></body></html>`;
+    const win = window.open('', '_blank'); win.document.write(printContent); win.document.close(); win.print();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -129,6 +145,7 @@ export default function PurchaseInvoicePage() {
                   <div className="flex gap-1">
                     {inv.status === 'draft' && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
                     {inv.status === 'draft' && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
                     <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
                   </div>
                 </td>

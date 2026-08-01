@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType } = require('../models');
+const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType, sequelize } = require('../models');
 
 // Stock Adjustments
 router.get('/adjustments', async (req, res) => {
@@ -137,18 +137,33 @@ router.post('/transfers', async (req, res) => {
 });
 
 router.post('/transfers/:id/confirm', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const transfer = await WarehouseTransfer.findByPk(req.params.id, { include: [{ model: WarehouseTransferItem, as: 'items' }] });
-    if (!transfer) return res.status(404).json({ error: 'غير موجود' });
+    const transfer = await WarehouseTransfer.findByPk(req.params.id, { include: [{ model: WarehouseTransferItem, as: 'items' }], transaction: t });
+    if (!transfer) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (transfer.status === 'confirmed') { await t.rollback(); return res.status(400).json({ error: 'التحويل مؤكد مسبقاً' }); }
+
     for (const item of transfer.items) {
-      let [fromStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, defaults: { quantity: 0, weight: 0 } });
-      let [toStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.to_warehouse_id }, defaults: { quantity: 0, weight: 0 } });
-      await fromStock.update({ quantity: Number(fromStock.quantity) - Number(item.quantity), weight: Number(fromStock.weight) - Number(item.weight || 0) });
-      await toStock.update({ quantity: Number(toStock.quantity) + Number(item.quantity), weight: Number(toStock.weight) + Number(item.weight || 0) });
+      const fromStock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, transaction: t });
+      const availableQty = fromStock ? Number(fromStock.quantity) : 0;
+      const availableWt = fromStock ? Number(fromStock.weight || 0) : 0;
+      if (availableQty < Number(item.quantity || 0) || availableWt < Number(item.weight || 0)) {
+        await t.rollback();
+        const fullItem = await Item.findByPk(item.item_id);
+        return res.status(400).json({ error: `الكمية المتاحة من "${fullItem?.name || item.item_id}" غير كافية للتحويل` });
+      }
     }
-    await transfer.update({ status: 'confirmed' });
+
+    for (const item of transfer.items) {
+      const [fromStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const [toStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.to_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      await fromStock.update({ quantity: Number(fromStock.quantity) - Number(item.quantity), weight: Number(fromStock.weight) - Number(item.weight || 0) }, { transaction: t });
+      await toStock.update({ quantity: Number(toStock.quantity) + Number(item.quantity), weight: Number(toStock.weight) + Number(item.weight || 0) }, { transaction: t });
+    }
+    await transfer.update({ status: 'confirmed' }, { transaction: t });
+    await t.commit();
     res.json({ message: 'تم التأكيد' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 // Item Assembly
