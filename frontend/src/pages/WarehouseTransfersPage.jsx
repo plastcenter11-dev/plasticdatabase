@@ -3,8 +3,10 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 export default function WarehouseTransfersPage() {
+  const { can } = useAuth();
   const [transfers, setTransfers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
@@ -47,7 +49,7 @@ export default function WarehouseTransfersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تحويلات مخازن</h1>
-        <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: new Date().toISOString().split('T')[0], items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>
+        {can('stock', 'create') && <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: new Date().toISOString().split('T')[0], items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -64,7 +66,7 @@ export default function WarehouseTransfersPage() {
                 <td>{t.status === 'pending' ? <span className="badge badge-yellow">قيد التنفيذ</span> : <span className="badge badge-green">تم</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    {t.status === 'pending' && <button onClick={() => handleConfirm(t.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> تأكيد</button>}
+                    {t.status === 'pending' && can('stock', 'edit') && <button onClick={() => handleConfirm(t.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> تأكيد</button>}
                   </div>
                 </td>
               </tr>

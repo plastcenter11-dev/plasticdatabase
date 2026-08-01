@@ -13,107 +13,107 @@ const menuGroups = [
   {
     label: 'المخازن', icon: MdWarehouse,
     items: [
-      { path: '/items', label: 'تعريف أصناف', icon: MdInventory },
-      { path: '/items-non-stock', label: 'تعريف صنف لا مخزني', icon: MdInventory },
-      { path: '/opening-inventory', label: 'جرد أول المدة', icon: MdAssignment },
-      { path: '/stock-adjustments', label: 'جرد', icon: MdBuild },
-      { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping },
-      { path: '/stock-receive', label: 'إضافة للمخزن', icon: MdLocalShipping },
-      { path: '/warehouse-transfers', label: 'تحويلات مخازن', icon: MdLocalShipping },
-      { path: '/item-assembly', label: 'تركيب صنف', icon: MdBuild },
-      { path: '/reorder-level', label: 'أمر حد الطلب', icon: MdAssignment },
-      { path: '/warehouse-items', label: 'مخزن لأصناف', icon: MdWarehouse },
-      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart },
-      { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart },
-      { path: '/item-inquiry', label: 'استعلام عن صنف', icon: MdInventory },
+      { path: '/items', label: 'تعريف أصناف', icon: MdInventory, module: 'items' },
+      { path: '/items-non-stock', label: 'تعريف صنف لا مخزني', icon: MdInventory, module: 'items' },
+      { path: '/opening-inventory', label: 'جرد أول المدة', icon: MdAssignment, module: 'stock' },
+      { path: '/stock-adjustments', label: 'جرد', icon: MdBuild, module: 'stock' },
+      { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping, module: 'stock' },
+      { path: '/stock-receive', label: 'إضافة للمخزن', icon: MdLocalShipping, module: 'stock' },
+      { path: '/warehouse-transfers', label: 'تحويلات مخازن', icon: MdLocalShipping, module: 'stock' },
+      { path: '/item-assembly', label: 'تركيب صنف', icon: MdBuild, module: 'stock' },
+      { path: '/reorder-level', label: 'أمر حد الطلب', icon: MdAssignment, module: 'stock' },
+      { path: '/warehouse-items', label: 'مخزن لأصناف', icon: MdWarehouse, module: 'stock' },
+      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart, module: 'stock' },
+      { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
+      { path: '/item-inquiry', label: 'استعلام عن صنف', icon: MdInventory, module: 'stock' },
     ]
   },
   {
     label: 'المبيعات', icon: MdReceipt,
     items: [
-      { path: '/sales-orders', label: 'طلبيات البيع', icon: MdAssignment },
-      { path: '/delivery-notes', label: 'إذون التسليم', icon: MdLocalShipping },
-      { path: '/sales-invoices', label: 'فواتير بيع', icon: MdReceipt },
-      { path: '/sales-returns', label: 'مرتجع مبيعات', icon: MdTrendingDown },
+      { path: '/sales-orders', label: 'طلبيات البيع', icon: MdAssignment, module: 'sales_orders' },
+      { path: '/delivery-notes', label: 'إذون التسليم', icon: MdLocalShipping, module: 'delivery_notes' },
+      { path: '/sales-invoices', label: 'فواتير بيع', icon: MdReceipt, module: 'sales_invoices' },
+      { path: '/sales-returns', label: 'مرتجع مبيعات', icon: MdTrendingDown, module: 'sales_invoices' },
     ]
   },
   {
     label: 'المشتريات', icon: MdShoppingCart,
     items: [
-      { path: '/purchase-invoices', label: 'فاتورة شراء', icon: MdShoppingCart },
-      { path: '/purchase-returns', label: 'مرتجع مشتريات', icon: MdTrendingDown },
+      { path: '/purchase-invoices', label: 'فاتورة شراء', icon: MdShoppingCart, module: 'purchase_invoices' },
+      { path: '/purchase-returns', label: 'مرتجع مشتريات', icon: MdTrendingDown, module: 'purchase_invoices' },
     ]
   },
   {
     label: 'الحسابات', icon: MdPeople,
     items: [
-      { path: '/customers', label: 'تعريف عملاء', icon: MdPeople },
-      { path: '/suppliers', label: 'تعريف موردين', icon: MdPeople },
-      { path: '/opening-balances', label: 'الأرصدة الافتتاحية', icon: MdAccountBalance },
-      { path: '/reports/customer-statement', label: 'كشف حساب', icon: MdBarChart },
-      { path: '/reports/supplier-statement', label: 'كشف حساب م', icon: MdBarChart },
-      { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart },
-      { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart },
-      { path: '/customer-credit-limits', label: 'حدود الائتمان العملاء', icon: MdPeople },
+      { path: '/customers', label: 'تعريف عملاء', icon: MdPeople, module: 'customers' },
+      { path: '/suppliers', label: 'تعريف موردين', icon: MdPeople, module: 'suppliers' },
+      { path: '/opening-balances', label: 'الأرصدة الافتتاحية', icon: MdAccountBalance, module: 'financial_years' },
+      { path: '/reports/customer-statement', label: 'كشف حساب', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/supplier-statement', label: 'كشف حساب م', icon: MdBarChart, module: 'suppliers' },
+      { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
+      { path: '/customer-credit-limits', label: 'حدود الائتمان العملاء', icon: MdPeople, module: 'customers' },
     ]
   },
   {
     label: 'أوراق مالية', icon: MdAccountBalance,
     items: [
-      { path: '/cash-receipts', label: 'حركات تحصيل نقدية', icon: MdPayment },
-      { path: '/cash-payments', label: 'حركات دفع نقدية', icon: MdPayment },
-      { path: '/checks', label: 'شيكات - قبض', icon: MdAccountBalance },
-      { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdAccountBalance },
+      { path: '/cash-receipts', label: 'حركات تحصيل نقدية', icon: MdPayment, module: 'cash_receipts' },
+      { path: '/cash-payments', label: 'حركات دفع نقدية', icon: MdPayment, module: 'cash_payments' },
+      { path: '/checks', label: 'شيكات - قبض', icon: MdAccountBalance, module: 'checks' },
+      { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdAccountBalance, module: 'checks' },
     ]
   },
   {
     label: 'قيود و مصروفات', icon: MdAttachMoney,
     items: [
-      { path: '/expenses', label: 'مصروفات', icon: MdAttachMoney },
-      { path: '/other-income', label: 'إيرادات أخرى', icon: MdAttachMoney },
-      { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart },
+      { path: '/expenses', label: 'مصروفات', icon: MdAttachMoney, module: 'expenses' },
+      { path: '/other-income', label: 'إيرادات أخرى', icon: MdAttachMoney, module: 'other_income' },
+      { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart, module: 'expenses' },
     ]
   },
   {
     label: 'موظفين', icon: MdPersonSearch,
     items: [
-      { path: '/employees', label: 'تعريف موظفين', icon: MdPersonSearch },
-      { path: '/employee-commissions', label: 'عمولة مندوب - صنف', icon: MdAttachMoney },
+      { path: '/employees', label: 'تعريف موظفين', icon: MdPersonSearch, module: 'employees' },
+      { path: '/employee-commissions', label: 'عمولة مندوب - صنف', icon: MdAttachMoney, module: 'employees' },
     ]
   },
   {
     label: 'تعريفات أساسية', icon: MdBuild,
     items: [
-      { path: '/warehouses', label: 'تعريف مخزن', icon: MdWarehouse },
-      { path: '/document-cycle', label: 'إعدادات الدورة المستندية', icon: MdAssignment },
+      { path: '/warehouses', label: 'تعريف مخزن', icon: MdWarehouse, module: 'warehouses' },
+      { path: '/document-cycle', label: 'إعدادات الدورة المستندية', icon: MdAssignment, adminOnly: true },
     ]
   },
   {
     label: 'التقارير', icon: MdBarChart,
     items: [
-      { path: '/reports/customer-statement', label: 'كشف حساب عميل', icon: MdBarChart },
-      { path: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: MdBarChart },
-      { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart },
-      { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart },
-      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart },
-      { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart },
-      { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart },
-      { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdBarChart },
+      { path: '/reports/customer-statement', label: 'كشف حساب عميل', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: MdBarChart, module: 'suppliers' },
+      { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
+      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart, module: 'stock' },
+      { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
+      { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart, module: 'expenses' },
+      { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdBarChart, module: 'checks' },
     ]
   },
   {
     label: 'الإعدادات', icon: MdSettings,
     items: [
-      { path: '/settings/options', label: 'خيارات', icon: MdSettings },
-      { path: '/users', label: 'حقوق المستخدمين', icon: MdPeople },
-      { path: '/settings/record-protection', label: 'حماية السجلات', icon: MdSettings },
+      { path: '/settings/options', label: 'خيارات', icon: MdSettings, adminOnly: true },
+      { path: '/users', label: 'حقوق المستخدمين', icon: MdPeople, adminOnly: true },
+      { path: '/settings/record-protection', label: 'حماية السجلات', icon: MdSettings, adminOnly: true },
       { path: '/settings/change-password', label: 'تغيير كلمة المرور', icon: MdSettings },
-      { path: '/settings/unlock-records', label: 'إلغاء حماية السجلات', icon: MdSettings },
-      { path: '/settings/backup', label: 'النسخة الاحتياطية', icon: MdSettings },
-      { path: '/settings/reset-balances', label: 'إعادة ضبط الأرصدة', icon: MdSettings },
-      { path: '/settings/item-setup', label: 'ضبط بيان الأصناف', icon: MdSettings },
-      { path: '/settings/company', label: 'بيانات المنشأة', icon: MdSettings },
-      { path: '/financial-years', label: 'السنوات المالية', icon: MdCalendarMonth },
+      { path: '/settings/unlock-records', label: 'إلغاء حماية السجلات', icon: MdSettings, adminOnly: true },
+      { path: '/settings/backup', label: 'النسخة الاحتياطية', icon: MdSettings, adminOnly: true },
+      { path: '/settings/reset-balances', label: 'إعادة ضبط الأرصدة', icon: MdSettings, adminOnly: true },
+      { path: '/settings/item-setup', label: 'ضبط بيان الأصناف', icon: MdSettings, adminOnly: true },
+      { path: '/settings/company', label: 'بيانات المنشأة', icon: MdSettings, adminOnly: true },
+      { path: '/financial-years', label: 'السنوات المالية', icon: MdCalendarMonth, module: 'financial_years' },
     ]
   },
 ];
@@ -171,10 +171,20 @@ function Dropdown({ group, openMenu, setOpenMenu }) {
 
 export default function Layout() {
   const [openMenu, setOpenMenu] = useState(null);
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, can } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  const itemVisible = (item) => {
+    if (item.adminOnly) return isAdmin();
+    if (!item.module) return true;
+    return can(item.module, 'view');
+  };
+
+  const visibleGroups = menuGroups
+    .map((group) => group.items ? { ...group, items: group.items.filter(itemVisible) } : group)
+    .filter((group) => !group.items || group.items.length > 0);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -194,7 +204,8 @@ export default function Layout() {
 
         {/* Menu tabs */}
         <nav className="flex items-center gap-1 px-5 py-1.5 overflow-visible flex-wrap">
-          {menuGroups.map((group) =>
+          {visibleGroups
+            .map((group) =>
             group.path ? (
               <NavLink
                 key={group.label}
@@ -221,12 +232,12 @@ export default function Layout() {
         <aside className="w-48 bg-[#e2e7ed] border-l border-gray-300 no-print flex flex-col py-4 gap-0.5 overflow-y-auto order-first">
           <p className="px-4 text-xs text-gray-400 font-medium mb-2 pb-2 border-b border-gray-100">اختصارات</p>
           {[
-            { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping },
-            { path: '/stock-receive', label: 'إضافة للمخزن', icon: MdLocalShipping },
-            { path: '/warehouse-items', label: 'مخزن الأصناف', icon: MdWarehouse },
-            { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart },
-            { path: '/delivery-notes', label: 'إذن تسليم', icon: MdAssignment },
-          ].map(item => (
+            { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping, module: 'stock' },
+            { path: '/stock-receive', label: 'إضافة للمخزن', icon: MdLocalShipping, module: 'stock' },
+            { path: '/warehouse-items', label: 'مخزن الأصناف', icon: MdWarehouse, module: 'stock' },
+            { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
+            { path: '/delivery-notes', label: 'إذن تسليم', icon: MdAssignment, module: 'delivery_notes' },
+          ].filter(itemVisible).map(item => (
             <NavLink
               key={item.path}
               to={item.path}

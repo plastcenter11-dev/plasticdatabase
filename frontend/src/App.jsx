@@ -60,6 +60,16 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+function AdminRoute({ children }) {
+  const { isAdmin } = useAuth();
+  return isAdmin() ? children : <Navigate to="/" />;
+}
+
+function ModuleRoute({ module, children }) {
+  const { can } = useAuth();
+  return can(module, 'view') ? children : <Navigate to="/" />;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
 
@@ -71,74 +81,74 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
 
         {/* المخازن */}
-        <Route path="items" element={<ItemsPage />} />
-        <Route path="items-non-stock" element={<NonStockItemsPage />} />
-        <Route path="opening-inventory" element={<OpeningInventoryPage />} />
-        <Route path="stock-adjustments" element={<StockAdjustmentsPage />} />
-        <Route path="stock-issue" element={<StockAdjustmentsPage />} />
-        <Route path="stock-receive" element={<StockAdjustmentsPage />} />
-        <Route path="warehouse-transfers" element={<WarehouseTransfersPage />} />
-        <Route path="item-assembly" element={<ItemAssemblyPage />} />
-        <Route path="reorder-level" element={<ReorderOrderPage />} />
-        <Route path="warehouse-items" element={<WarehouseItemsPage />} />
-        <Route path="item-inquiry" element={<ItemInquiryPage />} />
+        <Route path="items" element={<ModuleRoute module="items"><ItemsPage /></ModuleRoute>} />
+        <Route path="items-non-stock" element={<ModuleRoute module="items"><NonStockItemsPage /></ModuleRoute>} />
+        <Route path="opening-inventory" element={<ModuleRoute module="stock"><OpeningInventoryPage /></ModuleRoute>} />
+        <Route path="stock-adjustments" element={<ModuleRoute module="stock"><StockAdjustmentsPage /></ModuleRoute>} />
+        <Route path="stock-issue" element={<ModuleRoute module="stock"><StockAdjustmentsPage /></ModuleRoute>} />
+        <Route path="stock-receive" element={<ModuleRoute module="stock"><StockAdjustmentsPage /></ModuleRoute>} />
+        <Route path="warehouse-transfers" element={<ModuleRoute module="stock"><WarehouseTransfersPage /></ModuleRoute>} />
+        <Route path="item-assembly" element={<ModuleRoute module="stock"><ItemAssemblyPage /></ModuleRoute>} />
+        <Route path="reorder-level" element={<ModuleRoute module="stock"><ReorderOrderPage /></ModuleRoute>} />
+        <Route path="warehouse-items" element={<ModuleRoute module="stock"><WarehouseItemsPage /></ModuleRoute>} />
+        <Route path="item-inquiry" element={<ModuleRoute module="stock"><ItemInquiryPage /></ModuleRoute>} />
 
         {/* المبيعات */}
-        <Route path="sales-orders" element={<SalesOrdersPage />} />
-        <Route path="delivery-notes" element={<DeliveryNotesPage />} />
-        <Route path="sales-invoices" element={<SalesInvoicePage />} />
-        <Route path="sales-returns" element={<SalesReturnsPage />} />
+        <Route path="sales-orders" element={<ModuleRoute module="sales_orders"><SalesOrdersPage /></ModuleRoute>} />
+        <Route path="delivery-notes" element={<ModuleRoute module="delivery_notes"><DeliveryNotesPage /></ModuleRoute>} />
+        <Route path="sales-invoices" element={<ModuleRoute module="sales_invoices"><SalesInvoicePage /></ModuleRoute>} />
+        <Route path="sales-returns" element={<ModuleRoute module="sales_invoices"><SalesReturnsPage /></ModuleRoute>} />
 
         {/* المشتريات */}
-        <Route path="purchase-invoices" element={<PurchaseInvoicePage />} />
-        <Route path="purchase-returns" element={<PurchaseReturnsPage />} />
+        <Route path="purchase-invoices" element={<ModuleRoute module="purchase_invoices"><PurchaseInvoicePage /></ModuleRoute>} />
+        <Route path="purchase-returns" element={<ModuleRoute module="purchase_invoices"><PurchaseReturnsPage /></ModuleRoute>} />
 
         {/* الحسابات */}
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="suppliers" element={<SuppliersPage />} />
-        <Route path="opening-balances" element={<OpeningBalancesPage />} />
-        <Route path="customer-credit-limits" element={<CustomerCreditPage />} />
-        <Route path="reports/customer-statement" element={<CustomerStatementPage />} />
-        <Route path="reports/customer-statement-summary" element={<CustomerStatementPage />} />
-        <Route path="reports/supplier-statement" element={<SupplierStatementPage />} />
-        <Route path="reports/customers" element={<CustomerSummaryPage />} />
-        <Route path="reports/suppliers" element={<SupplierSummaryPage />} />
+        <Route path="customers" element={<ModuleRoute module="customers"><CustomersPage /></ModuleRoute>} />
+        <Route path="suppliers" element={<ModuleRoute module="suppliers"><SuppliersPage /></ModuleRoute>} />
+        <Route path="opening-balances" element={<ModuleRoute module="financial_years"><OpeningBalancesPage /></ModuleRoute>} />
+        <Route path="customer-credit-limits" element={<ModuleRoute module="customers"><CustomerCreditPage /></ModuleRoute>} />
+        <Route path="reports/customer-statement" element={<ModuleRoute module="customers"><CustomerStatementPage /></ModuleRoute>} />
+        <Route path="reports/customer-statement-summary" element={<ModuleRoute module="customers"><CustomerStatementPage /></ModuleRoute>} />
+        <Route path="reports/supplier-statement" element={<ModuleRoute module="suppliers"><SupplierStatementPage /></ModuleRoute>} />
+        <Route path="reports/customers" element={<ModuleRoute module="customers"><CustomerSummaryPage /></ModuleRoute>} />
+        <Route path="reports/suppliers" element={<ModuleRoute module="suppliers"><SupplierSummaryPage /></ModuleRoute>} />
 
         {/* أوراق مالية */}
-        <Route path="cash-receipts" element={<CashReceiptsPage />} />
-        <Route path="cash-payments" element={<CashPaymentsPage />} />
-        <Route path="checks" element={<ChecksPage />} />
-        <Route path="reports/overdue-checks" element={<OverdueChecksPage />} />
+        <Route path="cash-receipts" element={<ModuleRoute module="cash_receipts"><CashReceiptsPage /></ModuleRoute>} />
+        <Route path="cash-payments" element={<ModuleRoute module="cash_payments"><CashPaymentsPage /></ModuleRoute>} />
+        <Route path="checks" element={<ModuleRoute module="checks"><ChecksPage /></ModuleRoute>} />
+        <Route path="reports/overdue-checks" element={<ModuleRoute module="checks"><OverdueChecksPage /></ModuleRoute>} />
 
         {/* قيود و مصروفات */}
-        <Route path="expenses" element={<ExpensesPage />} />
-        <Route path="other-income" element={<OtherIncomePage />} />
-        <Route path="reports/expenses" element={<ExpensesReportPage />} />
+        <Route path="expenses" element={<ModuleRoute module="expenses"><ExpensesPage /></ModuleRoute>} />
+        <Route path="other-income" element={<ModuleRoute module="other_income"><OtherIncomePage /></ModuleRoute>} />
+        <Route path="reports/expenses" element={<ModuleRoute module="expenses"><ExpensesReportPage /></ModuleRoute>} />
 
         {/* موظفين */}
-        <Route path="employees" element={<EmployeesPage />} />
-        <Route path="employee-commissions" element={<CommissionsPage />} />
+        <Route path="employees" element={<ModuleRoute module="employees"><EmployeesPage /></ModuleRoute>} />
+        <Route path="employee-commissions" element={<ModuleRoute module="employees"><CommissionsPage /></ModuleRoute>} />
 
         {/* تعريفات أساسية */}
-        <Route path="warehouses" element={<WarehousesPage />} />
-        <Route path="document-cycle" element={<DocumentCyclePage />} />
+        <Route path="warehouses" element={<ModuleRoute module="warehouses"><WarehousesPage /></ModuleRoute>} />
+        <Route path="document-cycle" element={<AdminRoute><DocumentCyclePage /></AdminRoute>} />
 
         {/* التقارير */}
-        <Route path="reports/item-movement" element={<ItemMovementPage />} />
-        <Route path="reports/reorder" element={<ReorderReportPage />} />
+        <Route path="reports/item-movement" element={<ModuleRoute module="stock"><ItemMovementPage /></ModuleRoute>} />
+        <Route path="reports/reorder" element={<ModuleRoute module="stock"><ReorderReportPage /></ModuleRoute>} />
 
-        {/* الإعدادات */}
-        <Route path="settings/options" element={<SettingsPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="settings/record-protection" element={<SettingsPage />} />
+        {/* الإعدادات — كل شيء إداري ما عدا تغيير كلمة المرور للأدمن فقط */}
+        <Route path="settings/options" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="settings/record-protection" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/change-password" element={<SettingsPage />} />
-        <Route path="settings/unlock-records" element={<SettingsPage />} />
-        <Route path="settings/backup" element={<SettingsPage />} />
-        <Route path="settings/reset-balances" element={<SettingsPage />} />
-        <Route path="settings/item-setup" element={<SettingsPage />} />
-        <Route path="settings/company" element={<SettingsPage />} />
-        <Route path="financial-years" element={<FinancialYearsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/unlock-records" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="settings/backup" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="settings/reset-balances" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="settings/item-setup" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="settings/company" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="financial-years" element={<ModuleRoute module="financial_years"><FinancialYearsPage /></ModuleRoute>} />
+        <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       </Route>
     </Routes>
   );

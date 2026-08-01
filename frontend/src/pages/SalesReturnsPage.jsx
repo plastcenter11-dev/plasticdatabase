@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
 
 export default function SalesReturnsPage() {
+  const { can } = useAuth();
   const [returns, setReturns] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [salesInvoices, setSalesInvoices] = useState([]);
@@ -100,7 +102,7 @@ export default function SalesReturnsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مرتجع مبيعات</h1>
-        <button onClick={() => { setForm({ customer_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>
+        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -123,7 +125,7 @@ export default function SalesReturnsPage() {
                 <td className="text-sm text-blue-600 font-mono">{r.SalesInvoice?.invoice_no || (r.invoice_id ? `#${r.invoice_id}` : '-')}</td>
                 <td className="font-bold text-red-600">{Number(r.total).toLocaleString()} ج.م</td>
                 <td className="text-sm text-gray-500">{r.reason || '-'}</td>
-                <td onClick={e => e.stopPropagation()}><button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                <td onClick={e => e.stopPropagation()}>{can('sales_invoices', 'delete') && <button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
               </tr>,
               expanded.has(r.id) && (r.items || []).length > 0 && (
                 <tr key={`sub-${r.id}`}>

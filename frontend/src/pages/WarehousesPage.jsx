@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { name: '', location: '' };
 
 export default function WarehousesPage() {
+  const { can } = useAuth();
   const [warehouses, setWarehouses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -37,7 +39,7 @@ export default function WarehousesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">تعريف مخزن</h1>
-        <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مخزن</button>
+        {can('warehouses', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مخزن</button>}
       </div>
       <div className="page-card">
         <div className="overflow-hidden rounded-lg border border-gray-100">
@@ -52,8 +54,8 @@ export default function WarehousesPage() {
                 <td className="text-sm text-gray-500">{w.location || '-'}</td>
                 <td>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditing(w); setForm({ name: w.name, location: w.location || '' }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(w.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('warehouses', 'edit') && <button onClick={() => { setEditing(w); setForm({ name: w.name, location: w.location || '' }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('warehouses', 'delete') && <button onClick={() => handleDelete(w.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

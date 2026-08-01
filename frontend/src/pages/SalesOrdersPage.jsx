@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch, MdLocalShipping } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', quantity: '', price: '', tax_rate: '' };
 const emptyCash = { enabled: false, amount: '', payment_method: 'نقدي', notes: '' };
@@ -12,6 +13,7 @@ const emptyCheck = { enabled: false, check_no: '', amount: '', due_date: '', ban
 export default function SalesOrdersPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { can } = useAuth();
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
@@ -102,7 +104,7 @@ export default function SalesOrdersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">طلبيات البيع</h1>
-        <button onClick={() => { setEditing(null); setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] }); setCashForm({ ...emptyCash }); setCheckForm({ ...emptyCheck }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> طلبية جديدة</button>
+        {can('sales_orders', 'create') && <button onClick={() => { setEditing(null); setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], items: [{ ...emptyItem }] }); setCashForm({ ...emptyCash }); setCheckForm({ ...emptyCheck }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> طلبية جديدة</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -131,8 +133,8 @@ export default function SalesOrdersPage() {
                         <MdLocalShipping size={14} /> إذن تسليم
                       </button>
                     )}
-                    <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, price: i.price, tax_rate: i.tax_rate || '' })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(o.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('sales_orders', 'edit') && <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, price: i.price, tax_rate: i.tax_rate || '' })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('sales_orders', 'delete') && <button onClick={() => handleDelete(o.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { code: '', name: '', unit: 'خدمة', purchase_price: '', sell_price: '', category_id: '', is_stockable: false };
 
 export default function NonStockItemsPage() {
+  const { can } = useAuth();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
@@ -53,7 +55,7 @@ export default function NonStockItemsPage() {
           <h1 className="text-xl font-bold text-gray-800">الأصناف غير المخزنية</h1>
           <p className="text-sm text-gray-500 mt-0.5">خدمات، رسوم، مصروفات — لا يتم تتبعها في المخزون</p>
         </div>
-        <button onClick={openNew} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> صنف جديد</button>
+        {can('items', 'create') && <button onClick={openNew} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> صنف جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -76,8 +78,8 @@ export default function NonStockItemsPage() {
                 <td>{Number(item.sell_price || 0).toLocaleString()} ج.م</td>
                 <td><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{categories.find(c => c.id === item.category_id)?.name || '—'}</span></td>
                 <td className="flex gap-1">
-                  <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                  <button onClick={() => handleDelete(item.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                  {can('items', 'edit') && <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                  {can('items', 'delete') && <button onClick={() => handleDelete(item.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                 </td>
               </tr>
             ))}

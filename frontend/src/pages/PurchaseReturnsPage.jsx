@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdPrint, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', name: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
 
 export default function PurchaseReturnsPage() {
+  const { can } = useAuth();
   const [returns, setReturns] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchaseInvoices, setPurchaseInvoices] = useState([]);
@@ -106,8 +108,8 @@ export default function PurchaseReturnsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">مرتجع مشتريات</h1>
-        <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
-          className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>
+        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
+          className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
       <div className="page-card">
@@ -126,7 +128,7 @@ export default function PurchaseReturnsPage() {
                   <td className="text-sm text-blue-600 font-mono">{r.PurchaseInvoice?.invoice_no || (r.invoice_id ? `#${r.invoice_id}` : '-')}</td>
                   <td className="font-bold text-red-600">{Number(r.total).toLocaleString()} ج.م</td>
                   <td className="text-sm text-gray-500">{r.reason || '-'}</td>
-                  <td onClick={e => e.stopPropagation()}><button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                  <td onClick={e => e.stopPropagation()}>{can('purchase_invoices', 'delete') && <button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
                 </tr>,
                 expanded.has(r.id) && (r.items || []).length > 0 && (
                   <tr key={`sub-${r.id}`}>

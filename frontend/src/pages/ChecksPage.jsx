@@ -4,11 +4,13 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel, MdShoppingCart } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { check_no: '', party_type: 'customer', party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] };
 
 export default function ChecksPage() {
   const navigate = useNavigate();
+  const { can } = useAuth();
   const [checks, setChecks] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
@@ -75,7 +77,7 @@ export default function ChecksPage() {
         <h1 className="text-xl font-bold text-gray-800">شيكات - قبض</h1>
         <div className="flex gap-2">
           <button onClick={() => navigate('/sales-orders', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> طلبية بيع جديدة</button>
-          <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>
+          {can('checks', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>}
         </div>
       </div>
 
@@ -114,13 +116,13 @@ export default function ChecksPage() {
                 <td>{statusBadge(ch)}</td>
                 <td>
                   <div className="flex gap-1">
-                    {ch.status === 'pending' && (
+                    {ch.status === 'pending' && can('checks', 'edit') && (
                       <>
                         <button onClick={() => handleCollect(ch.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs" title="تحصيل"><MdCheckCircle size={14} /></button>
                         <button onClick={() => handleBounce(ch.id)} className="erp-btn erp-btn-warning py-1 px-2 text-xs" title="مرتجع"><MdCancel size={14} /></button>
                       </>
                     )}
-                    <button onClick={() => handleDelete(ch.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('checks', 'delete') && <button onClick={() => handleDelete(ch.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

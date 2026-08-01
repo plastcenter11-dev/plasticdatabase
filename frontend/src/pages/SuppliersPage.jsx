@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { name: '', phone: '', address: '', is_active: true };
 
 export default function SuppliersPage() {
+  const { can } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -42,7 +44,7 @@ export default function SuppliersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تعريف موردين</h1>
-        <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مورد</button>
+        {can('suppliers', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مورد</button>}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -70,8 +72,8 @@ export default function SuppliersPage() {
                 <td>{s.is_active ? <span className="badge badge-green">نشط</span> : <span className="badge badge-gray">غير نشط</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEditing(s); setForm({ name: s.name, phone: s.phone || '', address: s.address || '', is_active: s.is_active }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(s.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('suppliers', 'edit') && <button onClick={() => { setEditing(s); setForm({ name: s.name, phone: s.phone || '', address: s.address || '', is_active: s.is_active }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('suppliers', 'delete') && <button onClick={() => handleDelete(s.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

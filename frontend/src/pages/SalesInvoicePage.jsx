@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 
 export default function SalesInvoicePage() {
+  const { can } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -120,8 +122,8 @@ export default function SalesInvoicePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">فواتير بيع</h1>
         <div className="flex gap-2">
-          {selectedIds.length > 0 && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>
+          {selectedIds.length > 0 && can('sales_invoices', 'delete') && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
+          {can('sales_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
         </div>
       </div>
 
@@ -148,10 +150,10 @@ export default function SalesInvoicePage() {
                 <td>{inv.status === 'draft' ? <span className="badge badge-yellow">مسودة</span> : <span className="badge badge-green">مرحّلة</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    {inv.status === 'draft' && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
-                    {inv.status === 'draft' && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {inv.status === 'draft' && can('sales_invoices', 'edit') && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
+                    {inv.status === 'draft' && can('sales_invoices', 'edit') && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
-                    <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('sales_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

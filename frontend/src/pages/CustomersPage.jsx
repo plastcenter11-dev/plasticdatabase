@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { name: '', phone: '', address: '', credit_limit: '', is_active: true };
 
 export default function CustomersPage() {
+  const { can } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -50,7 +52,7 @@ export default function CustomersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تعريف عملاء</h1>
-        <button onClick={openAdd} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة عميل</button>
+        {can('customers', 'create') && <button onClick={openAdd} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة عميل</button>}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -80,8 +82,8 @@ export default function CustomersPage() {
                 <td>{c.is_active ? <span className="badge badge-green">نشط</span> : <span className="badge badge-gray">غير نشط</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(c)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(c.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('customers', 'edit') && <button onClick={() => openEdit(c)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('customers', 'delete') && <button onClick={() => handleDelete(c.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { code: '', name: '', category_id: '', type_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '', width: '', is_stockable: true };
 
 export default function ItemsPage() {
+  const { can } = useAuth();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [types, setTypes] = useState([]);
@@ -76,9 +78,11 @@ export default function ItemsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">تعريف أصناف</h1>
-        <button onClick={openAdd} className="erp-btn erp-btn-primary flex items-center gap-1">
-          <MdAdd size={20} /> إضافة صنف
-        </button>
+        {can('items', 'create') && (
+          <button onClick={openAdd} className="erp-btn erp-btn-primary flex items-center gap-1">
+            <MdAdd size={20} /> إضافة صنف
+          </button>
+        )}
       </div>
 
       <div className="page-card">
@@ -114,8 +118,8 @@ export default function ItemsPage() {
                 <td>{item.ItemType?.name ? <span className="badge badge-blue">{item.ItemType.name}</span> : <span className="text-gray-400 text-xs">—</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(item.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('items', 'edit') && <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('items', 'delete') && <button onClick={() => handleDelete(item.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

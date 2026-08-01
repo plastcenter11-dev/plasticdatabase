@@ -3,8 +3,10 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 export default function ItemAssemblyPage() {
+  const { can } = useAuth();
   const [assemblies, setAssemblies] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
@@ -46,7 +48,7 @@ export default function ItemAssemblyPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تركيب صنف</h1>
-        <button onClick={() => { setForm({ assembled_item_id: '', assembled_qty: '', assembled_weight: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>
+        {can('stock', 'create') && <button onClick={() => { setForm({ assembled_item_id: '', assembled_qty: '', assembled_weight: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>}
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">

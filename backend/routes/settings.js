@@ -29,13 +29,13 @@ const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Suppl
 } = require('../models');
 const { adminOnly } = require('../middleware/auth');
 
-// Users
-router.get('/users', async (req, res) => {
+// Users (admin only — user accounts and permissions must not be viewable/editable by non-admins)
+router.get('/users', adminOnly, async (req, res) => {
   try { res.json(await User.findAll({ attributes: { exclude: ['password'] }, order: [['id', 'ASC']] })); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/users', async (req, res) => {
+router.post('/users', adminOnly, async (req, res) => {
   try {
     req.body.password = await bcrypt.hash(req.body.password, 10);
     const user = await User.create(req.body);
@@ -44,7 +44,7 @@ router.post('/users', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: 'غير موجود' });
@@ -55,7 +55,7 @@ router.put('/users/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: 'غير موجود' });
@@ -187,7 +187,7 @@ router.get('/settings', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/settings', async (req, res) => {
+router.put('/settings', adminOnly, async (req, res) => {
   try {
     for (const [key, value] of Object.entries(req.body)) {
       await Settings.upsert({ key, value });
@@ -246,7 +246,7 @@ router.delete('/item-types/:id', async (req, res) => {
 });
 
 // Restore — import .sql file via mysql
-router.post('/backup/restore', upload.single('file'), async (req, res) => {
+router.post('/backup/restore', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'لم يتم رفع أي ملف' });
   const mysql = findMysqlBin('mysql.exe');
   const { DB_HOST, DB_USER, DB_PASS, DB_NAME } = process.env;
@@ -284,7 +284,7 @@ router.post('/backup/restore', upload.single('file'), async (req, res) => {
 });
 
 // Backup — SQL dump via mysqldump
-router.get('/backup/sql', async (req, res) => {
+router.get('/backup/sql', adminOnly, async (req, res) => {
   const mysqldump = findMysqlBin('mysqldump.exe');
   const { DB_HOST, DB_USER, DB_PASS, DB_NAME } = process.env;
   const date = new Date().toISOString().split('T')[0];
@@ -312,7 +312,7 @@ router.get('/backup/sql', async (req, res) => {
 });
 
 // Backup — export all tables as JSON
-router.get('/backup', async (req, res) => {
+router.get('/backup', adminOnly, async (req, res) => {
   try {
     const safe = m => m ? m.findAll() : Promise.resolve([]);
     const [

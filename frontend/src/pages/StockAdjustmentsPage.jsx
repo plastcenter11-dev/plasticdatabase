@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdEdit, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { movement_type: 'إضافة', warehouse_id: '', item_id: '', quantity: '', weight: '', unit_price: '', date: new Date().toISOString().split('T')[0], description: '' };
 
@@ -12,6 +13,7 @@ export default function StockAdjustmentsPage() {
   const defaultType = location.pathname === '/stock-issue' ? 'صرف' : location.pathname === '/stock-receive' ? 'إضافة' : 'إضافة';
   const pageTitle = location.pathname === '/stock-issue' ? 'صرف من المخزن' : location.pathname === '/stock-receive' ? 'إضافة للمخزن' : 'تسوية المخزون (جرد / صرف / إضافة)';
 
+  const { can } = useAuth();
   const [adjustments, setAdjustments] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
@@ -73,7 +75,7 @@ export default function StockAdjustmentsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">{pageTitle}</h1>
-        <button onClick={() => { setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>
+        {can('stock', 'create') && <button onClick={() => { setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>}
       </div>
 
       <div className="page-card">
@@ -106,8 +108,8 @@ export default function StockAdjustmentsPage() {
                   <td>{Number(a.unit_price).toLocaleString()}</td>
                   <td className="text-sm text-gray-500">{a.description}</td>
                   <td className="flex gap-1">
-                    <button onClick={() => openEdit(a)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    <button onClick={() => handleDelete(a.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
+                    {can('stock', 'edit') && <button onClick={() => openEdit(a)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('stock', 'delete') && <button onClick={() => handleDelete(a.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </td>
                 </tr>
               ))}

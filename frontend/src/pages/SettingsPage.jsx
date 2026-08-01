@@ -5,8 +5,8 @@ import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('company');
+  const { user, isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState(isAdmin() ? 'company' : 'password');
   const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '' });
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [categories, setCategories] = useState([]);
@@ -69,16 +69,17 @@ export default function SettingsPage() {
   const savePassword = async () => {
     if (pwForm.newPw !== pwForm.confirm) return toast.error('كلمات المرور غير متطابقة');
     if (!pwForm.newPw) return toast.error('أدخل كلمة المرور الجديدة');
+    if (!pwForm.current) return toast.error('أدخل كلمة المرور الحالية');
     try {
-      await api.put(`/users/${user.id}`, { password: pwForm.newPw });
+      await api.post('/auth/change-password', { current_password: pwForm.current, new_password: pwForm.newPw });
       toast.success('تم تغيير كلمة المرور');
       setPwForm({ current: '', newPw: '', confirm: '' });
-    } catch { toast.error('خطأ في تغيير كلمة المرور'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في تغيير كلمة المرور'); }
   };
 
   useEffect(() => { if (activeTab === 'lookups') loadLookups(); }, [activeTab]);
 
-  const tabs = [
+  const allTabs = [
     { key: 'company', label: 'بيانات المنشأة', icon: MdBusiness },
     { key: 'options', label: 'خيارات', icon: MdTune },
     { key: 'lookups', label: 'الأقسام والأنواع', icon: MdInventory },
@@ -89,6 +90,8 @@ export default function SettingsPage() {
     { key: 'reset', label: 'إعادة ضبط الأرصدة', icon: MdRefresh },
     { key: 'items-setup', label: 'ضبط بيان الأصناف', icon: MdInventory },
   ];
+  // Every settings tab except "change password" is admin-only.
+  const tabs = isAdmin() ? allTabs : allTabs.filter(t => t.key === 'password');
 
   return (
     <div className="space-y-4">
@@ -202,6 +205,7 @@ export default function SettingsPage() {
         {activeTab === 'password' && (
           <div className="space-y-4 max-w-sm">
             <h2 className="text-lg font-bold text-gray-700">تغيير كلمة المرور</h2>
+            <div><label className="form-label">كلمة المرور الحالية</label><input type="password" className="erp-input" value={pwForm.current} onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))} /></div>
             <div><label className="form-label">كلمة المرور الجديدة</label><input type="password" className="erp-input" value={pwForm.newPw} onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))} /></div>
             <div><label className="form-label">تأكيد كلمة المرور</label><input type="password" className="erp-input" value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} /></div>
             <button onClick={savePassword} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> تغيير</button>

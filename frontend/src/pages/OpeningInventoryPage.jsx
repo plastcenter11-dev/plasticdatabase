@@ -2,8 +2,10 @@
 import { toast } from 'react-toastify';
 import { MdSave, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 export default function OpeningInventoryPage() {
+  const { can } = useAuth();
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseId, setWarehouseId] = useState('');
@@ -78,9 +80,11 @@ export default function OpeningInventoryPage() {
           <h1 className="text-xl font-bold text-gray-800">جرد أول المدة</h1>
           <p className="text-sm text-gray-500 mt-0.5">إدخال الأرصدة الافتتاحية للمخزون عند بدء النظام</p>
         </div>
-        <button onClick={handleSave} disabled={saving || rows.length === 0} className="erp-btn erp-btn-primary flex items-center gap-2 disabled:opacity-50">
-          <MdSave size={20} />{saving ? 'جاري الحفظ...' : 'حفظ الجرد'}
-        </button>
+        {can('stock', 'create') && (
+          <button onClick={handleSave} disabled={saving || rows.length === 0} className="erp-btn erp-btn-primary flex items-center gap-2 disabled:opacity-50">
+            <MdSave size={20} />{saving ? 'جاري الحفظ...' : 'حفظ الجرد'}
+          </button>
+        )}
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">

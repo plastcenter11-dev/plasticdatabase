@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { supplier_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashPaymentsPage() {
+  const { can } = useAuth();
   const [payments, setPayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState('');
@@ -48,7 +50,7 @@ export default function CashPaymentsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">حركات دفع نقدية</h1>
-        <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> دفع جديد</button>
+        {can('cash_payments', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> دفع جديد</button>}
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
@@ -74,7 +76,7 @@ export default function CashPaymentsPage() {
                 <td className="font-bold text-danger">{Number(p.amount).toLocaleString()} ج.م</td>
                 <td><span className="badge badge-blue">{p.payment_method}</span></td>
                 <td className="text-sm text-gray-500">{p.notes}</td>
-                <td><button onClick={() => handleDelete(p.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                <td>{can('cash_payments', 'delete') && <button onClick={() => handleDelete(p.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
               </tr>
             ))}
           </tbody>

@@ -3,11 +3,13 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const expenseCategories = ['إيجار', 'كهرباء ومياه', 'رواتب', 'صيانة', 'مواصلات', 'مستلزمات مكتبية', 'أخرى'];
 const emptyForm = { date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'أخرى' };
 
 export default function ExpensesPage() {
+  const { can } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -48,7 +50,7 @@ export default function ExpensesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مصروفات</h1>
-        <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مصروف جديد</button>
+        {can('expenses', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مصروف جديد</button>}
       </div>
 
       <div className="stat-card max-w-xs">
@@ -79,7 +81,7 @@ export default function ExpensesPage() {
                 <td className="font-medium">{e.description}</td>
                 <td><span className="badge badge-yellow">{e.category}</span></td>
                 <td className="font-bold text-danger">{Number(e.amount).toLocaleString()} ج.م</td>
-                <td><button onClick={() => handleDelete(e.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                <td>{can('expenses', 'delete') && <button onClick={() => handleDelete(e.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
               </tr>
             ))}
           </tbody>

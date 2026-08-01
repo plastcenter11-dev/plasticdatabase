@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { MdWarning, MdPrint, MdShoppingCart, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 export default function ReorderOrderPage() {
+  const { can } = useAuth();
   const [stockData, setStockData] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [selected, setSelected] = useState({});
@@ -127,14 +129,16 @@ export default function ReorderOrderPage() {
               <button onClick={allSelected ? clearAll : selectAll} className="erp-btn erp-btn-outline text-sm">
                 {allSelected ? 'إلغاء الكل' : 'تحديد الكل'}
               </button>
-              <button
-                onClick={createPurchaseOrder}
-                disabled={creating || selectedItems.length === 0}
-                className="erp-btn erp-btn-primary flex items-center gap-1 disabled:opacity-50"
-              >
-                <MdShoppingCart size={18} />
-                {creating ? 'جاري الإنشاء...' : `إنشاء طلب شراء (${selectedItems.length})`}
-              </button>
+              {can('purchase_invoices', 'create') && (
+                <button
+                  onClick={createPurchaseOrder}
+                  disabled={creating || selectedItems.length === 0}
+                  className="erp-btn erp-btn-primary flex items-center gap-1 disabled:opacity-50"
+                >
+                  <MdShoppingCart size={18} />
+                  {creating ? 'جاري الإنشاء...' : `إنشاء طلب شراء (${selectedItems.length})`}
+                </button>
+              )}
             </div>
           </div>
         </div>

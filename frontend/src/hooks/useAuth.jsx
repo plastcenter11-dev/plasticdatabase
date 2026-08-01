@@ -22,8 +22,17 @@ export function AuthProvider({ children }) {
 
   const isAdmin = () => user?.role === 'admin';
 
+  const ALWAYS_VIEWABLE_MODULES = new Set(['items', 'customers', 'suppliers', 'warehouses']);
+
+  const can = (module, action) => {
+    if (user?.role === 'admin') return true;
+    if (action === 'view' && ALWAYS_VIEWABLE_MODULES.has(module)) return true;
+    const perms = user?.permissions?.[module];
+    return Array.isArray(perms) && perms.includes(action);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, can }}>
       {children}
     </AuthContext.Provider>
   );

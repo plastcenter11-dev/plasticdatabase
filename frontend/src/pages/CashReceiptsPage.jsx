@@ -4,11 +4,13 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch, MdShoppingCart } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashReceiptsPage() {
   const navigate = useNavigate();
+  const { can } = useAuth();
   const [receipts, setReceipts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
@@ -52,7 +54,7 @@ export default function CashReceiptsPage() {
         <h1 className="text-xl font-bold text-gray-800">حركات تحصيل نقدية</h1>
         <div className="flex gap-2">
           <button onClick={() => navigate('/sales-orders', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> طلبية بيع جديدة</button>
-          <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>
+          {can('cash_receipts', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>}
         </div>
       </div>
 
@@ -79,7 +81,7 @@ export default function CashReceiptsPage() {
                 <td className="font-bold text-success">{Number(r.amount).toLocaleString()} ج.م</td>
                 <td><span className="badge badge-blue">{r.payment_method}</span></td>
                 <td className="text-sm text-gray-500">{r.notes}</td>
-                <td><button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                <td>{can('cash_receipts', 'delete') && <button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
               </tr>
             ))}
           </tbody>

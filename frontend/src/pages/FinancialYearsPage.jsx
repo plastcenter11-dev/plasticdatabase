@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete, MdLock, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { name: '', start_date: '', end_date: '' };
 
 export default function FinancialYearsPage() {
+  const { can } = useAuth();
   const [years, setYears] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -63,11 +65,11 @@ export default function FinancialYearsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">السنوات المالية</h1>
         <div className="flex gap-2">
-          {activeYear && inactiveYears.length > 0 && (
+          {activeYear && inactiveYears.length > 0 && can('financial_years', 'edit') && (
             <button onClick={() => { setCloseForm({ next_year_id: '' }); setShowCloseModal(true); }}
               className="erp-btn erp-btn-danger flex items-center gap-1"><MdLock size={18} /> إقفال السنة الحالية</button>
           )}
-          <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة سنة</button>
+          {can('financial_years', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة سنة</button>}
         </div>
       </div>
 
@@ -101,9 +103,9 @@ export default function FinancialYearsPage() {
                 <td>{y.is_active ? <span className="badge badge-green font-bold">نشطة</span> : y.is_closed ? <span className="badge badge-gray">مقفولة</span> : <span className="badge badge-yellow">غير نشطة</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    {!y.is_active && <button onClick={() => handleActivate(y.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs">إعادة تنشيط</button>}
-                    <button onClick={() => { setEditing(y); setForm({ name: y.name, start_date: y.start_date, end_date: y.end_date }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
-                    {!y.is_active && <button onClick={() => handleDelete(y.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
+                    {!y.is_active && can('financial_years', 'edit') && <button onClick={() => handleActivate(y.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs">إعادة تنشيط</button>}
+                    {can('financial_years', 'edit') && <button onClick={() => { setEditing(y); setForm({ name: y.name, start_date: y.start_date, end_date: y.end_date }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {!y.is_active && can('financial_years', 'delete') && <button onClick={() => handleDelete(y.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

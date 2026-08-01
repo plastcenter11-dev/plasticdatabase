@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '' };
 
@@ -49,6 +50,7 @@ function numberToArabicWords(num) {
 
 export default function DeliveryNotesPage() {
   const location = useLocation();
+  const { can } = useAuth();
   const [notes, setNotes] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [allItems, setAllItems] = useState([]);
@@ -254,7 +256,7 @@ export default function DeliveryNotesPage() {
       </div>
       <div class="customer">اسم العميل : <strong>${cust}</strong></div>
       <table>
-        <thead><tr><th class="qty-col">الوزن</th><th>البيان</th></tr></thead>
+        <thead><tr><th class="qty-col">الوزن الصافي</th><th>البيان</th></tr></thead>
         <tbody>
           ${(note.items || []).map(item => {
             const name = item.Item?.name || item.item_name || '';
@@ -297,8 +299,8 @@ export default function DeliveryNotesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">إذون التسليم</h1>
-        <button onClick={() => { setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] }); setShowModal(true); }}
-          className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إذن تسليم جديد</button>
+        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] }); setShowModal(true); }}
+          className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إذن تسليم جديد</button>}
       </div>
 
       <div className="page-card">
@@ -334,15 +336,15 @@ export default function DeliveryNotesPage() {
                   <td>{n.status === 'pending' ? <span className="badge badge-yellow">معلق</span> : <span className="badge badge-green">تم التسليم</span>}</td>
                   <td>
                     <div className="flex gap-1">
-                      {n.status === 'pending' && (
+                      {n.status === 'pending' && can('delivery_notes', 'edit') && (
                         <button onClick={() => openInvoiceModal(n.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdReceipt size={14} /> ترحيل</button>
                       )}
-                      {n.status === 'pending' && (
+                      {n.status === 'pending' && can('delivery_notes', 'edit') && (
                         <button onClick={() => openEdit(n)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>
                       )}
                       <button onClick={() => handlePrint(n, false)} className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1"><MdPrint size={14} /> طباعة</button>
                       <button onClick={() => handlePrint(n, true)} className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1 text-gray-400"><MdPrint size={14} /> هيدر</button>
-                      {n.status === 'pending' && (
+                      {n.status === 'pending' && can('delivery_notes', 'delete') && (
                         <button onClick={() => handleDelete(n.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>
                       )}
                     </div>

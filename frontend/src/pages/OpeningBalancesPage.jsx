@@ -3,10 +3,12 @@ import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { party_type: 'customer', party_id: '', debit: '', credit: '' };
 
 export default function OpeningBalancesPage() {
+  const { can } = useAuth();
   const [balances, setBalances] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -52,7 +54,7 @@ export default function OpeningBalancesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">الأرصدة الافتتاحية</h1>
-        <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> رصيد جديد</button>
+        {can('financial_years', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> رصيد جديد</button>}
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
@@ -77,7 +79,7 @@ export default function OpeningBalancesPage() {
                 <td className="font-medium">{getPartyName(b)}</td>
                 <td className="text-red-600 font-bold">{Number(b.debit) ? Number(b.debit).toLocaleString() + ' ج.م' : '-'}</td>
                 <td className="text-green-600 font-bold">{Number(b.credit) ? Number(b.credit).toLocaleString() + ' ج.م' : '-'}</td>
-                <td><button onClick={() => handleDelete(b.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button></td>
+                <td>{can('financial_years', 'delete') && <button onClick={() => handleDelete(b.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
               </tr>
             ))}
           </tbody>
