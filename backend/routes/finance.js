@@ -1,6 +1,15 @@
 const router = require('express').Router();
-const { CashReceipt, CashPayment, Check, Expense, OtherIncome, Customer, Supplier } = require('../models');
+const { CashReceipt, CashPayment, Check, Expense, OtherIncome, Customer, Supplier, sequelize } = require('../models');
 const { Op } = require('sequelize');
+
+// A check counts as an actual payment the moment it's registered, unless it bounced.
+async function applyCheckBalance(check, sign, t) {
+  if (check.status === 'bounced') return;
+  const Model = check.party_type === 'customer' ? Customer : Supplier;
+  const party = await Model.findByPk(check.party_id, { transaction: t });
+  if (!party) return;
+  await party.update({ balance: Number(party.balance) + sign * Number(check.amount) }, { transaction: t });
+}
 
 // Cash Receipts
 router.get('/cash-receipts', async (req, res) => {
@@ -68,26 +77,38 @@ router.get('/checks', async (req, res) => {
 });
 
 router.post('/checks', async (req, res) => {
-  try { res.status(201).json(await Check.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  const t = await sequelize.transaction();
+  try {
+    const c = await Check.create(req.body, { transaction: t });
+    await applyCheckBalance(c, -1, t);
+    await t.commit();
+    res.status(201).json(c);
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/checks/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const c = await Check.findByPk(req.params.id);
-    if (!c) return res.status(404).json({ error: 'غير موجود' });
-    await c.update(req.body);
+    const c = await Check.findByPk(req.params.id, { transaction: t });
+    if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    await applyCheckBalance(c, 1, t); // reverse old effect
+    await c.update(req.body, { transaction: t });
+    await applyCheckBalance(c, -1, t); // reapply with new status/amount/party
+    await t.commit();
     res.json(c);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/checks/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const c = await Check.findByPk(req.params.id);
-    if (!c) return res.status(404).json({ error: 'غير موجود' });
-    await c.destroy();
+    const c = await Check.findByPk(req.params.id, { transaction: t });
+    if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    await applyCheckBalance(c, 1, t);
+    await c.destroy({ transaction: t });
+    await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/checks/overdue', async (req, res) => {

@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, Item, CashReceipt, OpeningBalance, sequelize } = require('../models');
+const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, Item, CashReceipt, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
@@ -24,16 +24,20 @@ router.get('/', async (req, res) => {
     const [openingSums] = await sequelize.query(
       `SELECT party_id, COALESCE(SUM(debit),0) - COALESCE(SUM(credit),0) as total FROM opening_balances WHERE party_type='customer' AND party_id IN (${ids.join(',')}) GROUP BY party_id`
     );
+    const [checkSums] = await sequelize.query(
+      `SELECT party_id, COALESCE(SUM(amount),0) as total FROM checks WHERE party_type='customer' AND status != 'bounced' AND party_id IN (${ids.join(',')}) GROUP BY party_id`
+    );
 
-    const invMap = {}, recMap = {}, retMap = {}, openMap = {};
+    const invMap = {}, recMap = {}, retMap = {}, openMap = {}, checkMap = {};
     invoiceSums.forEach(r => { invMap[r.customer_id] = Number(r.total); });
     receiptSums.forEach(r => { recMap[r.customer_id] = Number(r.total); });
     returnSums.forEach(r => { retMap[r.customer_id] = Number(r.total); });
     openingSums.forEach(r => { openMap[r.party_id] = Number(r.total); });
+    checkSums.forEach(r => { checkMap[r.party_id] = Number(r.total); });
 
     const result = customers.map(c => ({
       ...c.toJSON(),
-      balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0) - (retMap[c.id] || 0) + (openMap[c.id] || 0)) * 100) / 100,
+      balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0) - (retMap[c.id] || 0) - (checkMap[c.id] || 0) + (openMap[c.id] || 0)) * 100) / 100,
     }));
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -85,10 +89,12 @@ router.get('/:id/statement', async (req, res) => {
     });
     const opening = await OpeningBalance.findAll({ where: { party_type: 'customer', party_id: req.params.id } });
     const openingTotal = opening.reduce((sum, o) => sum + Number(o.debit || 0) - Number(o.credit || 0), 0);
+    const checks = await Check.findAll({ where: { party_type: 'customer', party_id: req.params.id, status: { [Op.ne]: 'bounced' } }, order: [['date', 'ASC']] });
     const movements = [
       ...invoices.map(i => ({ date: i.date, type: 'فاتورة بيع', reference: i.invoice_no, debit: Number(i.total), credit: 0, invoice_id: i.id, items: i.items, subtotal: Number(i.subtotal || 0), discount: Number(i.discount || 0), tax_rate: Number(i.tax_rate || 0), tax_amount: Number(i.tax_amount || 0) })),
       ...receipts.map(r => ({ date: r.date, type: 'تحصيل', reference: r.receipt_no, debit: 0, credit: Number(r.amount) })),
       ...returns.map(r => ({ date: r.date, type: 'مرتجع بيع', reference: r.return_no, debit: 0, credit: Number(r.total), items: r.items, subtotal: Number(r.total) - Number(r.tax_amount || 0), discount: 0, tax_rate: Number(r.tax_rate || 0), tax_amount: Number(r.tax_amount || 0) })),
+      ...checks.map(c => ({ date: c.date, type: 'شيك', reference: c.check_no, debit: 0, credit: Number(c.amount) })),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = openingTotal;
     if (openingTotal) movements.unshift({ date: null, type: 'رصيد افتتاحي', reference: '-', debit: 0, credit: 0, balance: openingTotal, isOpening: true });
