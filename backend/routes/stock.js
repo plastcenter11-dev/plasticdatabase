@@ -11,68 +11,74 @@ router.get('/adjustments', async (req, res) => {
 });
 
 router.post('/adjustments', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { item_id, warehouse_id, quantity, weight, movement_type } = req.body;
-    const movement = await StockMovement.create(req.body);
-    let [stock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    const movement = await StockMovement.create(req.body, { transaction: t });
+    let [stock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     if (movement_type === 'إضافة') {
-      await stock.update({ quantity: Number(stock.quantity) + Number(quantity), weight: Number(stock.weight) + Number(weight || 0) });
+      await stock.update({ quantity: Number(stock.quantity) + Number(quantity), weight: Number(stock.weight) + Number(weight || 0) }, { transaction: t });
     } else if (movement_type === 'صرف') {
-      await stock.update({ quantity: Number(stock.quantity) - Number(quantity), weight: Number(stock.weight) - Number(weight || 0) });
+      await stock.update({ quantity: Number(stock.quantity) - Number(quantity), weight: Number(stock.weight) - Number(weight || 0) }, { transaction: t });
     } else {
-      await stock.update({ quantity: Number(quantity), weight: Number(weight || 0) });
+      await stock.update({ quantity: Number(quantity), weight: Number(weight || 0) }, { transaction: t });
     }
+    await t.commit();
     res.status(201).json(movement);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/adjustments/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const old = await StockMovement.findByPk(req.params.id);
-    if (!old) return res.status(404).json({ error: 'غير موجود' });
+    const old = await StockMovement.findByPk(req.params.id, { transaction: t });
+    if (!old) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
 
     // Reverse old movement effect on stock
-    const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     if (old.movement_type === 'إضافة') {
-      await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) });
+      await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) }, { transaction: t });
     } else if (old.movement_type === 'صرف') {
-      await oldStock.update({ quantity: Number(oldStock.quantity) + Number(old.quantity), weight: Number(oldStock.weight) + Number(old.weight || 0) });
+      await oldStock.update({ quantity: Number(oldStock.quantity) + Number(old.quantity), weight: Number(oldStock.weight) + Number(old.weight || 0) }, { transaction: t });
     }
 
     // Update the movement record
     const { item_id, warehouse_id, quantity, weight, movement_type } = req.body;
-    await old.update(req.body);
+    await old.update(req.body, { transaction: t });
 
     // Apply new movement effect on stock
-    const [newStock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    const [newStock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     if (movement_type === 'إضافة') {
-      await newStock.update({ quantity: Number(newStock.quantity) + Number(quantity), weight: Number(newStock.weight) + Number(weight || 0) });
+      await newStock.update({ quantity: Number(newStock.quantity) + Number(quantity), weight: Number(newStock.weight) + Number(weight || 0) }, { transaction: t });
     } else if (movement_type === 'صرف') {
-      await newStock.update({ quantity: Number(newStock.quantity) - Number(quantity), weight: Number(newStock.weight) - Number(weight || 0) });
+      await newStock.update({ quantity: Number(newStock.quantity) - Number(quantity), weight: Number(newStock.weight) - Number(weight || 0) }, { transaction: t });
     } else {
-      await newStock.update({ quantity: Number(quantity), weight: Number(weight || 0) });
+      await newStock.update({ quantity: Number(quantity), weight: Number(weight || 0) }, { transaction: t });
     }
 
+    await t.commit();
     res.json(old);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/adjustments/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const m = await StockMovement.findByPk(req.params.id);
-    if (!m) return res.status(404).json({ error: 'غير موجود' });
+    const m = await StockMovement.findByPk(req.params.id, { transaction: t });
+    if (!m) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
 
     // Reverse stock effect before deleting
-    const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 } });
+    const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     if (m.movement_type === 'إضافة') {
-      await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) });
+      await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) }, { transaction: t });
     } else if (m.movement_type === 'صرف') {
-      await stock.update({ quantity: Number(stock.quantity) + Number(m.quantity), weight: Number(stock.weight) + Number(m.weight || 0) });
+      await stock.update({ quantity: Number(stock.quantity) + Number(m.quantity), weight: Number(stock.weight) + Number(m.weight || 0) }, { transaction: t });
     }
 
-    await m.destroy();
+    await m.destroy({ transaction: t });
+    await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 // Item movements report
@@ -128,12 +134,14 @@ router.get('/transfers', async (req, res) => {
 });
 
 router.post('/transfers', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
-    const transfer = await WarehouseTransfer.create(data);
-    if (items?.length) await WarehouseTransferItem.bulkCreate(items.map(i => ({ ...i, transfer_id: transfer.id })));
+    const transfer = await WarehouseTransfer.create(data, { transaction: t });
+    if (items?.length) await WarehouseTransferItem.bulkCreate(items.map(i => ({ ...i, transfer_id: transfer.id })), { transaction: t });
+    await t.commit();
     res.status(201).json(await WarehouseTransfer.findByPk(transfer.id, { include: [{ model: WarehouseTransferItem, as: 'items' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/transfers/:id/confirm', async (req, res) => {
@@ -177,12 +185,14 @@ router.get('/assemblies', async (req, res) => {
 });
 
 router.post('/assemblies', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { components, ...data } = req.body;
-    const assembly = await ItemAssembly.create(data);
-    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })));
+    const assembly = await ItemAssembly.create(data, { transaction: t });
+    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
+    await t.commit();
     res.status(201).json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
