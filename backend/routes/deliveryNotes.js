@@ -68,8 +68,8 @@ router.post('/:id/deliver', async (req, res) => {
       if (oi.tax_rate) taxMap[oi.item_id] = Number(oi.tax_rate);
     });
 
-    const invCount = await SalesInvoice.count({ transaction: t });
-    const invoiceNumber = invoice_no || `SI-${String(invCount + 1).padStart(6, '0')}`;
+    const invMax = await SalesInvoice.max('id', { transaction: t }) || 0;
+    const invoiceNumber = invoice_no || `SI-${String(invMax + 1).padStart(6, '0')}`;
     const items = note.items || [];
     const invoiceItems = items.map(i => {
       const qty = Number(i.net_weight || i.gross_weight || 0);

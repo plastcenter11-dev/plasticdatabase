@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { SalesOrder, SalesOrderItem, Customer, Item } = require('../models');
+const { SalesOrder, SalesOrderItem, Customer, Item, sequelize } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
@@ -16,32 +16,36 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
     const max = await SalesOrder.max('id') || 0;
     data.order_no = `SO-${String(max + 1).padStart(6, '0')}`;
     const calcItemTotal = i => Number(i.quantity) * Number(i.price) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
     data.total = items.reduce((s, i) => s + calcItemTotal(i), 0);
-    const order = await SalesOrder.create(data);
-    if (items?.length) await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })));
+    const order = await SalesOrder.create(data, { transaction: t });
+    if (items?.length) await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })), { transaction: t });
+    await t.commit();
     res.status(201).json(await SalesOrder.findByPk(order.id, { include: [{ model: SalesOrderItem, as: 'items' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const order = await SalesOrder.findByPk(req.params.id);
-    if (!order) return res.status(404).json({ error: 'غير موجود' });
+    const order = await SalesOrder.findByPk(req.params.id, { transaction: t });
+    if (!order) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     const { items, ...data } = req.body;
     if (items) {
       const calcItemTotal = i => Number(i.quantity) * Number(i.price) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
       data.total = items.reduce((s, i) => s + calcItemTotal(i), 0);
-      await SalesOrderItem.destroy({ where: { order_id: order.id } });
-      await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })));
+      await SalesOrderItem.destroy({ where: { order_id: order.id }, transaction: t });
+      await SalesOrderItem.bulkCreate(items.map(i => ({ ...i, order_id: order.id, total: calcItemTotal(i) })), { transaction: t });
     }
-    await order.update(data);
+    await order.update(data, { transaction: t });
+    await t.commit();
     res.json(await SalesOrder.findByPk(order.id, { include: [{ model: SalesOrderItem, as: 'items' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {

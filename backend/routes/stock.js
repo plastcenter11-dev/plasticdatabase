@@ -188,8 +188,43 @@ router.post('/assemblies', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { components, ...data } = req.body;
+    const warehouseId = data.warehouse_id;
+
+    // Check available stock for every component before consuming anything
+    for (const c of (components || [])) {
+      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: warehouseId }, transaction: t });
+      const availableQty = stock ? Number(stock.quantity) : 0;
+      const availableWt = stock ? Number(stock.weight || 0) : 0;
+      if (availableQty < Number(c.quantity || 0) || availableWt < Number(c.weight || 0)) {
+        await t.rollback();
+        const item = await Item.findByPk(c.item_id);
+        return res.status(400).json({ error: `الكمية المتاحة من "${item?.name || c.item_id}" غير كافية للتركيب` });
+      }
+    }
+
     const assembly = await ItemAssembly.create(data, { transaction: t });
     if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
+
+    // Consume components from stock
+    for (const c of (components || [])) {
+      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: warehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
+      await StockMovement.create({
+        item_id: c.item_id, warehouse_id: warehouseId, movement_type: 'تركيب',
+        quantity: c.quantity, weight: c.weight || 0, date: data.date,
+        description: `مكون تركيب صنف رقم ${assembly.id}`, reference: String(assembly.id),
+      }, { transaction: t });
+    }
+
+    // Add the assembled item to stock
+    const [assembledStock] = await Stock.findOrCreate({ where: { item_id: data.assembled_item_id, warehouse_id: warehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    await assembledStock.update({ quantity: Number(assembledStock.quantity) + Number(data.assembled_qty || 0), weight: Number(assembledStock.weight || 0) + Number(data.assembled_weight || 0) }, { transaction: t });
+    await StockMovement.create({
+      item_id: data.assembled_item_id, warehouse_id: warehouseId, movement_type: 'تركيب',
+      quantity: data.assembled_qty, weight: data.assembled_weight || 0, date: data.date,
+      description: `ناتج تركيب رقم ${assembly.id}`, reference: String(assembly.id),
+    }, { transaction: t });
+
     await t.commit();
     res.status(201).json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
   } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
