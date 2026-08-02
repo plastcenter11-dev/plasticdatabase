@@ -18,29 +18,33 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
-    if (!data.supplier_id) return res.status(400).json({ error: 'المورد مطلوب' });
+    if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
     const max = await PurchaseInvoice.max('id') || 0;
     data.invoice_no = data.invoice_no || `PI-${String(max + 1).padStart(6, '0')}`;
-    const inv = await PurchaseInvoice.create(data);
-    if (items?.length) await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })));
+    const inv = await PurchaseInvoice.create(data, { transaction: t });
+    if (items?.length) await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
+    await t.commit();
     res.status(201).json(await PurchaseInvoice.findByPk(inv.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const inv = await PurchaseInvoice.findByPk(req.params.id);
-    if (!inv) return res.status(404).json({ error: 'غير موجود' });
+    const inv = await PurchaseInvoice.findByPk(req.params.id, { transaction: t });
+    if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     const { items, ...data } = req.body;
     if (items) {
-      await PurchaseInvoiceItem.destroy({ where: { invoice_id: inv.id } });
-      await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })));
+      await PurchaseInvoiceItem.destroy({ where: { invoice_id: inv.id }, transaction: t });
+      await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
     }
-    await inv.update(data);
+    await inv.update(data, { transaction: t });
+    await t.commit();
     res.json(await PurchaseInvoice.findByPk(inv.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:id/post', async (req, res) => {
