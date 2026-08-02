@@ -102,7 +102,7 @@ router.post('/:id/post', async (req, res) => {
 
     await t.commit();
     res.json({ message: 'تم الترحيل' });
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {

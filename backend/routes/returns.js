@@ -45,7 +45,7 @@ router.post('/purchase', async (req, res) => {
 
     await t.commit();
     res.status(201).json(await PurchaseReturn.findByPk(ret.id, { include: [{ model: PurchaseReturnItem, as: 'items' }] }));
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/purchase/:id', async (req, res) => {
@@ -74,7 +74,7 @@ router.delete('/purchase/:id', async (req, res) => {
     await r.destroy({ transaction: t });
     await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 // Sales Returns
@@ -121,7 +121,7 @@ router.post('/sales', async (req, res) => {
 
     await t.commit();
     res.status(201).json(await SalesReturn.findByPk(ret.id, { include: [{ model: SalesReturnItem, as: 'items' }] }));
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/sales/:id', async (req, res) => {
@@ -150,7 +150,7 @@ router.delete('/sales/:id', async (req, res) => {
     await r.destroy({ transaction: t });
     await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

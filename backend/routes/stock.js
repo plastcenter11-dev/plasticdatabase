@@ -163,7 +163,7 @@ router.post('/transfers/:id/confirm', async (req, res) => {
     await transfer.update({ status: 'confirmed' }, { transaction: t });
     await t.commit();
     res.json({ message: 'تم التأكيد' });
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 // Item Assembly

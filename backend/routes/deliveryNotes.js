@@ -121,7 +121,7 @@ router.post('/:id/deliver', async (req, res) => {
     await t.commit();
 
     res.json({ message: 'تم الترحيل', invoice_id: inv.id, invoice_no: invoiceNumber });
-  } catch (err) { await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
