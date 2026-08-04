@@ -28,14 +28,37 @@ export default function WarehouseItemsPage() {
     return true;
   });
 
-  // For display: if warehouse filter selected, show per-warehouse qty; else show totals
-  const getQty = (item) => {
-    if (!warehouseFilter) return { qty: item.total_quantity, weight: item.total_weight };
-    const wh = item.warehouses.find(w => w.warehouse_id === Number(warehouseFilter));
-    return { qty: wh ? wh.quantity : 0, weight: wh ? wh.weight : 0 };
-  };
-
-  const displayRows = filtered.map(item => ({ ...item, ...getQty(item) }));
+  // For display: if a specific warehouse is selected, show one row per item with that
+  // warehouse's qty. Otherwise, items stocked in more than one warehouse are split into
+  // one row per warehouse (stacked under the same item) so each balance is visible on
+  // its own; items in a single warehouse (or none) stay as a single row.
+  let displayRows;
+  if (warehouseFilter) {
+    displayRows = filtered.map(item => {
+      const wh = item.warehouses.find(w => w.warehouse_id === Number(warehouseFilter));
+      return { ...item, qty: wh ? wh.quantity : 0, weight: wh ? wh.weight : 0, warehouseName: null, isFirst: true, rowSpan: 1, key: String(item.item_id) };
+    });
+  } else {
+    displayRows = [];
+    filtered.forEach(item => {
+      if (item.warehouses.length > 1) {
+        item.warehouses.forEach((w, idx) => {
+          displayRows.push({
+            ...item, qty: w.quantity, weight: w.weight, warehouseName: w.warehouse_name,
+            isFirst: idx === 0, rowSpan: idx === 0 ? item.warehouses.length : 0,
+            key: `${item.item_id}-${w.warehouse_id}`,
+          });
+        });
+      } else {
+        displayRows.push({
+          ...item, qty: item.total_quantity, weight: item.total_weight,
+          warehouseName: item.warehouses[0]?.warehouse_name || '—',
+          isFirst: true, rowSpan: 1, key: String(item.item_id),
+        });
+      }
+    });
+  }
+  const itemCount = filtered.length;
 
   const getValue = (item) => Number(item.weight || 0) * Number(item.purchase_price || 0);
 
@@ -43,9 +66,10 @@ export default function WarehouseItemsPage() {
     const whName = warehouses.find(w => w.id === Number(warehouseFilter))?.name || 'كل المخازن';
     const totalValue = displayRows.reduce((s, r) => s + getValue(r), 0);
     const rows = displayRows.map(item => `<tr>
-      <td>${item.item_code || ''}</td>
-      <td>${item.item_name || ''}</td>
-      <td>${item.category_name || ''}</td>
+      <td>${item.isFirst ? (item.item_code || '') : ''}</td>
+      <td>${item.isFirst ? (item.item_name || '') : ''}</td>
+      <td>${item.isFirst ? (item.category_name || '') : ''}</td>
+      <td>${item.warehouseName || ''}</td>
       <td>${Number(item.qty).toLocaleString()}</td>
       <td>${Number(item.weight).toLocaleString()}</td>
       <td>${item.unit || ''}</td>
@@ -59,9 +83,9 @@ export default function WarehouseItemsPage() {
       .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}
       tfoot td{font-weight:bold;background:#f0f0f0}</style></head>
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
-      <table><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
+      <table><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>المخزن</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="6">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
+      <tfoot><tr><td colspan="7">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
       </table></body></html>`);
     win.document.close(); win.print();
   };
@@ -131,7 +155,7 @@ export default function WarehouseItemsPage() {
               <th>الكود</th>
               <th>الصنف</th>
               <th>القسم</th>
-              {!warehouseFilter && <th>المخازن</th>}
+              {!warehouseFilter && <th>المخزن</th>}
               <th>العدد</th>
               <th>الوزن (كجم)</th>
               <th>الوحدة</th>
@@ -142,19 +166,15 @@ export default function WarehouseItemsPage() {
           </thead>
           <tbody>
             {displayRows.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
+              <tr><td colSpan={warehouseFilter ? 9 : 10} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
             )}
             {displayRows.map((item) => (
-              <tr key={item.item_id} className={item.qty < 0 ? 'bg-red-50' : ''}>
-                <td className="font-mono text-sm text-gray-500">{item.item_code}</td>
-                <td className="font-medium">{item.item_name}</td>
-                <td className="text-sm text-gray-500">{item.category_name || '—'}</td>
+              <tr key={item.key} className={item.qty < 0 ? 'bg-red-50' : ''}>
+                {item.isFirst && <td className="font-mono text-sm text-gray-500" rowSpan={item.rowSpan}>{item.item_code}</td>}
+                {item.isFirst && <td className="font-medium" rowSpan={item.rowSpan}>{item.item_name}</td>}
+                {item.isFirst && <td className="text-sm text-gray-500" rowSpan={item.rowSpan}>{item.category_name || '—'}</td>}
                 {!warehouseFilter && (
-                  <td className="text-xs text-gray-400">
-                    {item.warehouses.length > 0
-                      ? item.warehouses.map(w => w.warehouse_name).join(' | ')
-                      : '—'}
-                  </td>
+                  <td className="text-xs text-gray-400">{item.warehouseName || '—'}</td>
                 )}
                 <td className={`font-bold ${item.qty < 0 ? 'text-red-600' : item.qty === 0 ? 'text-gray-400' : ''}`}>
                   {Number(item.qty).toLocaleString()}
@@ -172,7 +192,7 @@ export default function WarehouseItemsPage() {
           {displayRows.length > 0 && (
             <tfoot>
               <tr className="bg-gray-50 font-bold">
-                <td colSpan={warehouseFilter ? 3 : 4}>الإجمالي ({displayRows.length} صنف)</td>
+                <td colSpan={warehouseFilter ? 3 : 4}>الإجمالي ({itemCount} صنف)</td>
                 <td>{displayRows.reduce((s, r) => s + Number(r.qty), 0).toLocaleString()}</td>
                 <td>{displayRows.reduce((s, r) => s + Number(r.weight), 0).toLocaleString()}</td>
                 <td></td>
