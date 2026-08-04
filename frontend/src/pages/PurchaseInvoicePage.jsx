@@ -6,12 +6,14 @@ import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
+const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
 
 export default function PurchaseInvoicePage() {
   const { can } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -19,14 +21,40 @@ export default function PurchaseInvoicePage() {
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [form, setForm] = useState({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] });
+  const [newItemRowIdx, setNewItemRowIdx] = useState(null);
+  const [newItemForm, setNewItemForm] = useState(emptyNewItem);
 
   const loadData = async () => {
     try {
-      const [inv, s, it, wh] = await Promise.all([api.get('/purchase-invoices'), api.get('/suppliers'), api.get('/items'), api.get('/warehouses')]);
-      setInvoices(inv.data); setSuppliers(s.data); setItems(it.data); setWarehouses(wh.data);
+      const [inv, s, it, wh, cats] = await Promise.all([api.get('/purchase-invoices'), api.get('/suppliers'), api.get('/items'), api.get('/warehouses'), api.get('/categories')]);
+      setInvoices(inv.data); setSuppliers(s.data); setItems(it.data); setWarehouses(wh.data); setCategories(cats.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+
+  const openNewItem = (idx) => {
+    const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
+    setNewItemForm({ ...emptyNewItem, code: `ITM-${String(maxId + 1).padStart(4, '0')}` });
+    setNewItemRowIdx(idx);
+  };
+
+  const saveNewItem = async (e) => {
+    e.preventDefault();
+    if (!newItemForm.name.trim()) return toast.error('أدخل اسم الصنف');
+    try {
+      const payload = {
+        ...newItemForm,
+        purchase_price: Number(newItemForm.purchase_price || 0),
+        reorder_level: Number(newItemForm.reorder_level || 0),
+        category_id: newItemForm.category_id ? Number(newItemForm.category_id) : null,
+      };
+      const { data: created } = await api.post('/items', payload);
+      setItems(prev => [created, ...prev]);
+      updateFormItem(newItemRowIdx, 'item_id', String(created.id));
+      toast.success('تمت إضافة الصنف');
+      setNewItemRowIdx(null);
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في إضافة الصنف'); }
+  };
 
   const filtered = invoices.filter(inv => {
     const matchSearch = !search || inv.invoice_no?.includes(search) || inv.Supplier?.name?.includes(search);
@@ -172,7 +200,12 @@ export default function PurchaseInvoicePage() {
                 <tbody>{form.items.map((item, idx) => {
                   const lineTotal = (Number(item.weight) || 0) * (Number(item.price) || 0) * (1 - (Number(item.discount || 0) / 100));
                   return (<tr key={idx}>
-                    <td><select className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></td>
+                    <td>
+                      <div className="flex gap-1">
+                        <select className="erp-input py-1 flex-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select>
+                        <button type="button" title="صنف جديد" onClick={() => openNewItem(idx)} className="erp-btn erp-btn-outline px-2 text-sm font-bold">+</button>
+                      </div>
+                    </td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" placeholder="0.00" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" placeholder="0" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>
@@ -206,6 +239,27 @@ export default function PurchaseInvoicePage() {
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
               <button type="submit" className="erp-btn erp-btn-primary">حفظ</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {newItemRowIdx !== null && (
+        <Modal title="صنف جديد" onClose={() => setNewItemRowIdx(null)} width="max-w-md" zIndex={60}>
+          <form onSubmit={saveNewItem} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="form-label">الكود *</label><input className="erp-input" required value={newItemForm.code} onChange={e => setNewItemForm({ ...newItemForm, code: e.target.value })} /></div>
+              <div><label className="form-label">القسم</label><select className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            </div>
+            <div><label className="form-label">اسم الصنف *</label><input className="erp-input" required value={newItemForm.name} onChange={e => setNewItemForm({ ...newItemForm, name: e.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="form-label">الوحدة</label><select className="erp-input" value={newItemForm.unit} onChange={e => setNewItemForm({ ...newItemForm, unit: e.target.value })}><option value="كيلو">كيلو</option><option value="قطعة">قطعة</option><option value="-">-</option></select></div>
+              <div><label className="form-label">سعر الشراء</label><input type="number" step="0.01" className="erp-input" value={newItemForm.purchase_price} onChange={e => setNewItemForm({ ...newItemForm, purchase_price: e.target.value })} /></div>
+              <div><label className="form-label">حد الطلب</label><input type="number" className="erp-input" value={newItemForm.reorder_level} onChange={e => setNewItemForm({ ...newItemForm, reorder_level: e.target.value })} /></div>
+            </div>
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <button type="button" onClick={() => setNewItemRowIdx(null)} className="erp-btn erp-btn-secondary">إلغاء</button>
+              <button type="submit" className="erp-btn erp-btn-primary">حفظ واختيار</button>
             </div>
           </form>
         </Modal>
