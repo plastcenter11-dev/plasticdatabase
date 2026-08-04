@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
-import { MdAdd, MdDelete } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
@@ -11,6 +11,7 @@ export default function ItemAssemblyPage() {
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
   const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
   const [form, setForm] = useState(emptyForm);
 
@@ -34,23 +35,40 @@ export default function ItemAssemblyPage() {
     e.preventDefault();
     if (!form.assembled_item_id || !form.assembled_qty || !form.output_warehouse_id) return toast.error('أكمل البيانات');
     if (form.components.some(c => !c.item_id || !c.quantity || !c.warehouse_id)) return toast.error('أكمل بيانات المكونات (بما فيها المخزن لكل مكون)');
+    const payload = {
+      assembled_item_id: Number(form.assembled_item_id), assembled_qty: Number(form.assembled_qty),
+      assembled_weight: Number(form.assembled_weight || 0),
+      output_warehouse_id: Number(form.output_warehouse_id), date: form.date,
+      components: form.components.map(c => ({ item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
+    };
     try {
-      await api.post('/stock/assemblies', {
-        assembled_item_id: Number(form.assembled_item_id), assembled_qty: Number(form.assembled_qty),
-        assembled_weight: Number(form.assembled_weight || 0),
-        output_warehouse_id: Number(form.output_warehouse_id), date: form.date,
-        components: form.components.map(c => ({ item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
-      });
-      toast.success('تم تركيب الصنف');
-      setShowModal(false); loadData();
+      if (editing) { await api.put(`/stock/assemblies/${editing.id}`, payload); toast.success('تم تحديث التركيب'); }
+      else { await api.post('/stock/assemblies', payload); toast.success('تم تركيب الصنف'); }
+      setShowModal(false); setEditing(null); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
+  };
+
+  const openEdit = (a) => {
+    setEditing(a);
+    setForm({
+      assembled_item_id: String(a.assembled_item_id), assembled_qty: a.assembled_qty, assembled_weight: a.assembled_weight || '',
+      output_warehouse_id: String(a.output_warehouse_id || a.warehouse_id || ''), date: a.date,
+      components: (a.components || []).map(c => ({ item_id: String(c.item_id), warehouse_id: String(c.warehouse_id || ''), quantity: c.quantity, weight: c.weight || '' })),
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('حذف عملية التركيب؟ سيتم إرجاع المكونات وسحب الصنف المركّب من المخزون.')) return;
+    try { await api.delete(`/stock/assemblies/${id}`); toast.success('تم الحذف'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تركيب صنف</h1>
-        {can('stock', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>}
+        {can('stock', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>}
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
@@ -59,9 +77,9 @@ export default function ItemAssemblyPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>الوزن (كجم)</th><th>العدد</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - الوزن/العدد)</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>الوزن (كجم)</th><th>العدد</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - الوزن/العدد)</th><th>إجراءات</th></tr></thead>
           <tbody>
-            {assemblies.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
+            {assemblies.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
             {assemblies.map(a => (
               <tr key={a.id}>
                 <td>{a.date}</td>
@@ -70,6 +88,12 @@ export default function ItemAssemblyPage() {
                 <td className="font-bold">{Number(a.assembled_qty).toLocaleString()}</td>
                 <td className="text-sm">{a.outputWarehouse?.name || a.Warehouse?.name || '-'}</td>
                 <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.weight || 0).toLocaleString()} كجم ({Number(c.quantity).toLocaleString()})</div>)}</td>
+                <td>
+                  <div className="flex gap-1">
+                    {can('stock', 'edit') && <button onClick={() => openEdit(a)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('stock', 'delete') && <button onClick={() => handleDelete(a.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -77,7 +101,7 @@ export default function ItemAssemblyPage() {
       </div>
 
       {showModal && (
-        <Modal title="تركيب صنف جديد" onClose={() => setShowModal(false)} width="max-w-2xl">
+        <Modal title={editing ? 'تعديل تركيب' : 'تركيب صنف جديد'} onClose={() => { setShowModal(false); setEditing(null); }} width="max-w-2xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">الصنف المركّب *</label><select className="erp-input" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></div>
@@ -107,8 +131,8 @@ export default function ItemAssemblyPage() {
               </table>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
-              <button type="button" onClick={() => setShowModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
-              <button type="submit" className="erp-btn erp-btn-primary">تركيب</button>
+              <button type="button" onClick={() => { setShowModal(false); setEditing(null); }} className="erp-btn erp-btn-secondary">إلغاء</button>
+              <button type="submit" className="erp-btn erp-btn-primary">{editing ? 'حفظ التعديل' : 'تركيب'}</button>
             </div>
           </form>
         </Modal>

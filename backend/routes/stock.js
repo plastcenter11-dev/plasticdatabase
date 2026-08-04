@@ -240,4 +240,84 @@ router.post('/assemblies', async (req, res) => {
   } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
+// Reverse an assembly's stock effect: give back the components, take back the produced item
+async function reverseAssembly(assembly, components, t) {
+  const outputWarehouseId = assembly.output_warehouse_id || assembly.warehouse_id;
+  for (const c of components) {
+    const whId = c.warehouse_id || assembly.warehouse_id;
+    const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    await stock.update({ quantity: Number(stock.quantity) + Number(c.quantity || 0), weight: Number(stock.weight || 0) + Number(c.weight || 0) }, { transaction: t });
+  }
+  const [assembledStock] = await Stock.findOrCreate({ where: { item_id: assembly.assembled_item_id, warehouse_id: outputWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+  await assembledStock.update({ quantity: Number(assembledStock.quantity) - Number(assembly.assembled_qty || 0), weight: Number(assembledStock.weight || 0) - Number(assembly.assembled_weight || 0) }, { transaction: t });
+}
+
+router.put('/assemblies/:id', async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const assembly = await ItemAssembly.findByPk(req.params.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }], transaction: t });
+    if (!assembly) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+
+    // Reverse the old effect first
+    await reverseAssembly(assembly, assembly.components || [], t);
+
+    const { components, ...data } = req.body;
+    const outputWarehouseId = data.output_warehouse_id || data.warehouse_id;
+    const componentWarehouseId = (c) => c.warehouse_id || data.warehouse_id;
+
+    // Check available stock for every component (now that the old effect is reversed)
+    for (const c of (components || [])) {
+      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
+      const availableQty = stock ? Number(stock.quantity) : 0;
+      const availableWt = stock ? Number(stock.weight || 0) : 0;
+      if (availableQty < Number(c.quantity || 0) || availableWt < Number(c.weight || 0)) {
+        await t.rollback();
+        const item = await Item.findByPk(c.item_id);
+        return res.status(400).json({ error: `الكمية المتاحة من "${item?.name || c.item_id}" غير كافية للتركيب` });
+      }
+    }
+
+    await assembly.update(data, { transaction: t });
+    await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });
+    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
+
+    for (const c of (components || [])) {
+      const whId = componentWarehouseId(c);
+      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
+      await StockMovement.create({
+        item_id: c.item_id, warehouse_id: whId, movement_type: 'تركيب',
+        quantity: c.quantity, weight: c.weight || 0, date: data.date,
+        description: `مكون تركيب صنف رقم ${assembly.id} (تعديل)`, reference: String(assembly.id),
+      }, { transaction: t });
+    }
+
+    const [assembledStock] = await Stock.findOrCreate({ where: { item_id: data.assembled_item_id, warehouse_id: outputWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    await assembledStock.update({ quantity: Number(assembledStock.quantity) + Number(data.assembled_qty || 0), weight: Number(assembledStock.weight || 0) + Number(data.assembled_weight || 0) }, { transaction: t });
+    await StockMovement.create({
+      item_id: data.assembled_item_id, warehouse_id: outputWarehouseId, movement_type: 'تركيب',
+      quantity: data.assembled_qty, weight: data.assembled_weight || 0, date: data.date,
+      description: `ناتج تركيب رقم ${assembly.id} (تعديل)`, reference: String(assembly.id),
+    }, { transaction: t });
+
+    await t.commit();
+    res.json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/assemblies/:id', async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const assembly = await ItemAssembly.findByPk(req.params.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }], transaction: t });
+    if (!assembly) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+
+    await reverseAssembly(assembly, assembly.components || [], t);
+    await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });
+    await assembly.destroy({ transaction: t });
+
+    await t.commit();
+    res.json({ message: 'تم الحذف' });
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
