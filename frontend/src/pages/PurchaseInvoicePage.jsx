@@ -203,7 +203,7 @@ export default function PurchaseInvoicePage() {
                     <td>
                       <div className="flex gap-1">
                         <select className="erp-input py-1 flex-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select>
-                        <button type="button" title="صنف جديد" onClick={() => openNewItem(idx)} className="erp-btn erp-btn-outline px-2 text-sm font-bold">+</button>
+                        <button type="button" title="إضافة صنف جديد" onClick={() => openNewItem(idx)} className="erp-btn erp-btn-primary py-1 px-2 text-xs shrink-0 flex items-center gap-0.5 whitespace-nowrap"><MdAdd size={14} /> صنف جديد</button>
                       </div>
                     </td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" placeholder="0.00" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
