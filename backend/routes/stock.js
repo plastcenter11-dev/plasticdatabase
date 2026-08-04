@@ -182,7 +182,7 @@ router.get('/assemblies', async (req, res) => {
         { model: Item, as: 'assembledItem', attributes: ['id', 'code', 'name'] },
         Warehouse,
         { model: Warehouse, as: 'outputWarehouse' },
-        { model: ItemAssemblyComponent, as: 'components', include: [{ model: Item, attributes: ['id', 'code', 'name'] }] },
+        { model: ItemAssemblyComponent, as: 'components', include: [{ model: Item, attributes: ['id', 'code', 'name'] }, Warehouse] },
       ],
       order: [['id', 'DESC']],
     }));
@@ -193,12 +193,15 @@ router.post('/assemblies', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { components, ...data } = req.body;
-    const issueWarehouseId = data.warehouse_id;
     const outputWarehouseId = data.output_warehouse_id || data.warehouse_id;
+
+    // Each component can be issued from its own warehouse; fall back to the
+    // assembly-level warehouse_id for older clients that don't send one.
+    const componentWarehouseId = (c) => c.warehouse_id || data.warehouse_id;
 
     // Check available stock for every component before consuming anything
     for (const c of (components || [])) {
-      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: issueWarehouseId }, transaction: t });
+      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
       const availableQty = stock ? Number(stock.quantity) : 0;
       const availableWt = stock ? Number(stock.weight || 0) : 0;
       if (availableQty < Number(c.quantity || 0) || availableWt < Number(c.weight || 0)) {
@@ -211,12 +214,13 @@ router.post('/assemblies', async (req, res) => {
     const assembly = await ItemAssembly.create(data, { transaction: t });
     if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
 
-    // Consume components from the issue warehouse
+    // Consume components, each from its own warehouse
     for (const c of (components || [])) {
-      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: issueWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const whId = componentWarehouseId(c);
+      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
       await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
       await StockMovement.create({
-        item_id: c.item_id, warehouse_id: issueWarehouseId, movement_type: 'تركيب',
+        item_id: c.item_id, warehouse_id: whId, movement_type: 'تركيب',
         quantity: c.quantity, weight: c.weight || 0, date: data.date,
         description: `مكون تركيب صنف رقم ${assembly.id}`, reference: String(assembly.id),
       }, { transaction: t });

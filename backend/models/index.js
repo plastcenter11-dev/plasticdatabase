@@ -260,6 +260,7 @@ const ItemAssembly = sequelize.define('ItemAssembly', {
 const ItemAssemblyComponent = sequelize.define('ItemAssemblyComponent', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  warehouse_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const OpeningBalance = sequelize.define('OpeningBalance', {
@@ -355,6 +356,7 @@ ItemAssembly.belongsTo(Warehouse, { foreignKey: 'warehouse_id' });
 ItemAssembly.belongsTo(Warehouse, { as: 'outputWarehouse', foreignKey: 'output_warehouse_id' });
 ItemAssemblyComponent.belongsTo(ItemAssembly, { foreignKey: 'assembly_id', onDelete: 'CASCADE' });
 ItemAssemblyComponent.belongsTo(Item, { foreignKey: 'item_id', onDelete: 'CASCADE' });
+ItemAssemblyComponent.belongsTo(Warehouse, { foreignKey: 'warehouse_id' });
 ItemAssembly.hasMany(ItemAssemblyComponent, { foreignKey: 'assembly_id', as: 'components' });
 
 OpeningBalance.belongsTo(FinancialYear, { foreignKey: 'financial_year_id' });

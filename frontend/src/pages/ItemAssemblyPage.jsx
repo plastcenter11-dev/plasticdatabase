@@ -11,7 +11,7 @@ export default function ItemAssemblyPage() {
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', warehouse_id: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', quantity: '', weight: '' }] };
+  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
   const [form, setForm] = useState(emptyForm);
 
   const loadData = async () => {
@@ -27,19 +27,19 @@ export default function ItemAssemblyPage() {
     components[idx] = { ...components[idx], [field]: value };
     setForm({ ...form, components });
   };
-  const addComp = () => setForm({ ...form, components: [...form.components, { item_id: '', quantity: '', weight: '' }] });
+  const addComp = () => setForm({ ...form, components: [...form.components, { item_id: '', warehouse_id: '', quantity: '', weight: '' }] });
   const removeComp = (idx) => setForm({ ...form, components: form.components.filter((_, i) => i !== idx) });
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.assembled_item_id || !form.assembled_qty || !form.warehouse_id || !form.output_warehouse_id) return toast.error('أكمل البيانات');
-    if (form.components.some(c => !c.item_id || !c.quantity)) return toast.error('أكمل بيانات المكونات');
+    if (!form.assembled_item_id || !form.assembled_qty || !form.output_warehouse_id) return toast.error('أكمل البيانات');
+    if (form.components.some(c => !c.item_id || !c.quantity || !c.warehouse_id)) return toast.error('أكمل بيانات المكونات (بما فيها المخزن لكل مكون)');
     try {
       await api.post('/stock/assemblies', {
         assembled_item_id: Number(form.assembled_item_id), assembled_qty: Number(form.assembled_qty),
-        assembled_weight: Number(form.assembled_weight || 0), warehouse_id: Number(form.warehouse_id),
+        assembled_weight: Number(form.assembled_weight || 0),
         output_warehouse_id: Number(form.output_warehouse_id), date: form.date,
-        components: form.components.map(c => ({ item_id: Number(c.item_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
+        components: form.components.map(c => ({ item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
       });
       toast.success('تم تركيب الصنف');
       setShowModal(false); loadData();
@@ -59,18 +59,17 @@ export default function ItemAssemblyPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>العدد</th><th>الوزن (كجم)</th><th>مخزن الصرف</th><th>مخزن الإضافة</th><th>المكونات</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>العدد</th><th>الوزن (كجم)</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - العدد/الوزن)</th></tr></thead>
           <tbody>
-            {assemblies.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
+            {assemblies.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
             {assemblies.map(a => (
               <tr key={a.id}>
                 <td>{a.date}</td>
                 <td className="font-bold">{a.assembledItem?.name || '-'}</td>
                 <td className="font-bold">{Number(a.assembled_qty).toLocaleString()}</td>
                 <td>{Number(a.assembled_weight || 0).toLocaleString()}</td>
-                <td className="text-sm">{a.Warehouse?.name || '-'}</td>
                 <td className="text-sm">{a.outputWarehouse?.name || a.Warehouse?.name || '-'}</td>
-                <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'}: {Number(c.quantity).toLocaleString()} ({Number(c.weight || 0).toLocaleString()} كجم)</div>)}</td>
+                <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.quantity).toLocaleString()} ({Number(c.weight || 0).toLocaleString()} كجم)</div>)}</td>
               </tr>
             ))}
           </tbody>
@@ -88,18 +87,19 @@ export default function ItemAssemblyPage() {
               <div><label className="form-label">العدد *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
               <div><label className="form-label">الوزن (كجم)</label><input type="number" step="0.01" className="erp-input" value={form.assembled_weight} onChange={e => setForm({ ...form, assembled_weight: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">مخزن الصرف (المكونات) *</label><select className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
-              <div><label className="form-label">مخزن الإضافة (الصنف المركّب) *</label><select className="erp-input" required value={form.output_warehouse_id} onChange={e => setForm({ ...form, output_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
-            </div>
+            <div><label className="form-label">مخزن الإضافة (الصنف المركّب) *</label><select className="erp-input" required value={form.output_warehouse_id} onChange={e => setForm({ ...form, output_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
             <div>
-              <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">المكونات</label><button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button></div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label mb-0">المكونات (لكل مكون مخزن صرف مستقل)</label>
+                <button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button>
+              </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>العدد</th><th>الوزن (كجم)</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>مخزن الصرف</th><th>العدد</th><th>الوزن (كجم)</th><th></th></tr></thead>
                 <tbody>{form.components.map((comp, idx) => (
                   <tr key={idx}>
                     <td><select className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></td>
-                    <td><input type="number" className="erp-input py-1 w-24" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
+                    <td><select className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></td>
+                    <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
                     <td>{form.components.length > 1 && <button type="button" onClick={() => removeComp(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>
