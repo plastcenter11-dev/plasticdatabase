@@ -202,8 +202,8 @@ export default function PurchaseInvoicePage() {
                   return (<tr key={idx}>
                     <td>
                       <div className="flex gap-1">
-                        <select className="erp-input py-1 flex-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select>
-                        <button type="button" title="إضافة صنف جديد" onClick={() => openNewItem(idx)} className="erp-btn erp-btn-primary py-1 px-2 text-xs shrink-0 flex items-center gap-0.5 whitespace-nowrap"><MdAdd size={14} /> صنف جديد</button>
+                        <select className="erp-input py-1 flex-1 min-w-0" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select>
+                        <button type="button" title="إضافة صنف جديد" onClick={() => openNewItem(idx)} className="border border-primary text-primary hover:bg-primary/10 rounded py-1 px-1.5 shrink-0 flex items-center cursor-pointer"><MdAdd size={16} /></button>
                       </div>
                     </td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" placeholder="0.00" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
