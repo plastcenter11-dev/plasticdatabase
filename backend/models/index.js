@@ -254,6 +254,7 @@ const ItemAssembly = sequelize.define('ItemAssembly', {
   date: { type: DataTypes.DATEONLY, allowNull: false },
   assembled_qty: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   assembled_weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  output_warehouse_id: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const ItemAssemblyComponent = sequelize.define('ItemAssemblyComponent', {
@@ -351,6 +352,7 @@ WarehouseTransfer.hasMany(WarehouseTransferItem, { foreignKey: 'transfer_id', as
 
 ItemAssembly.belongsTo(Item, { as: 'assembledItem', foreignKey: 'assembled_item_id' });
 ItemAssembly.belongsTo(Warehouse, { foreignKey: 'warehouse_id' });
+ItemAssembly.belongsTo(Warehouse, { as: 'outputWarehouse', foreignKey: 'output_warehouse_id' });
 ItemAssemblyComponent.belongsTo(ItemAssembly, { foreignKey: 'assembly_id', onDelete: 'CASCADE' });
 ItemAssemblyComponent.belongsTo(Item, { foreignKey: 'item_id', onDelete: 'CASCADE' });
 ItemAssembly.hasMany(ItemAssemblyComponent, { foreignKey: 'assembly_id', as: 'components' });
