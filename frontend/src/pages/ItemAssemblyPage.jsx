@@ -59,17 +59,17 @@ export default function ItemAssemblyPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>العدد</th><th>الوزن (كجم)</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - العدد/الوزن)</th></tr></thead>
+          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>الوزن (كجم)</th><th>العدد</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - الوزن/العدد)</th></tr></thead>
           <tbody>
             {assemblies.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
             {assemblies.map(a => (
               <tr key={a.id}>
                 <td>{a.date}</td>
                 <td className="font-bold">{a.assembledItem?.name || '-'}</td>
-                <td className="font-bold">{Number(a.assembled_qty).toLocaleString()}</td>
                 <td>{Number(a.assembled_weight || 0).toLocaleString()}</td>
+                <td className="font-bold">{Number(a.assembled_qty).toLocaleString()}</td>
                 <td className="text-sm">{a.outputWarehouse?.name || a.Warehouse?.name || '-'}</td>
-                <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.quantity).toLocaleString()} ({Number(c.weight || 0).toLocaleString()} كجم)</div>)}</td>
+                <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.weight || 0).toLocaleString()} كجم ({Number(c.quantity).toLocaleString()})</div>)}</td>
               </tr>
             ))}
           </tbody>
@@ -84,8 +84,8 @@ export default function ItemAssemblyPage() {
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">العدد *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
               <div><label className="form-label">الوزن (كجم)</label><input type="number" step="0.01" className="erp-input" value={form.assembled_weight} onChange={e => setForm({ ...form, assembled_weight: e.target.value })} /></div>
+              <div><label className="form-label">العدد *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
             </div>
             <div><label className="form-label">مخزن الإضافة (الصنف المركّب) *</label><select className="erp-input" required value={form.output_warehouse_id} onChange={e => setForm({ ...form, output_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
             <div>
@@ -94,13 +94,13 @@ export default function ItemAssemblyPage() {
                 <button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button>
               </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>مخزن الصرف</th><th>العدد</th><th>الوزن (كجم)</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>مخزن الصرف</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
                 <tbody>{form.components.map((comp, idx) => (
                   <tr key={idx}>
                     <td><select className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></td>
                     <td><select className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></td>
-                    <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
+                    <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
                     <td>{form.components.length > 1 && <button type="button" onClick={() => removeComp(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>
                 ))}</tbody>
