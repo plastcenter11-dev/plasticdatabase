@@ -79,6 +79,8 @@ router.post('/:id/post', async (req, res) => {
 
     // Increment stock for each item
     if (inv.warehouse_id) {
+      // For allocating the invoice-level discount/tax down to each item's effective unit price
+      const grossTotal = (inv.items || []).reduce((s, it) => s + (Number(it.weight || 0) || Number(it.quantity || 0)) * Number(it.price || 0), 0);
       for (const item of (inv.items || [])) {
         const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
@@ -91,7 +93,18 @@ router.post('/:id/post', async (req, res) => {
           transaction: t,
         });
         await stock.update({ quantity: Number(stock.quantity) + qty, weight: Number(stock.weight || 0) + wt }, { transaction: t });
-        if (Number(item.price || 0) > 0) await fullItem.update({ purchase_price: Number(item.price) }, { transaction: t });
+
+        // Effective purchase price = item cost net of its own discount, plus its
+        // proportional share of the invoice-level discount and tax, per unit weight.
+        const unit = wt > 0 ? wt : qty;
+        if (unit > 0) {
+          const itemGross = unit * Number(item.price || 0);
+          const itemNet = Number(item.total || 0);
+          const taxShare = grossTotal > 0 ? Number(inv.tax_amount || 0) * (itemGross / grossTotal) : 0;
+          const discShare = Number(inv.subtotal || 0) > 0 ? Number(inv.discount || 0) * (itemNet / Number(inv.subtotal)) : 0;
+          const effectivePrice = (itemNet - discShare + taxShare) / unit;
+          if (effectivePrice > 0) await fullItem.update({ purchase_price: Math.round(effectivePrice * 100) / 100 }, { transaction: t });
+        }
         await StockMovement.create({
           item_id: item.item_id, warehouse_id: inv.warehouse_id,
           movement_type: 'فاتورة شراء', quantity: qty, weight: wt,
