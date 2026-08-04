@@ -20,8 +20,8 @@ router.get('/reports/reorder', async (req, res) => {
     });
     const below = items.filter(i => {
       if (!Number(i.reorder_level)) return false;
-      const totalQty = i.Stocks?.reduce((s, st) => s + Number(st.quantity), 0) || 0;
-      return totalQty <= Number(i.reorder_level);
+      const totalWeight = i.Stocks?.reduce((s, st) => s + Number(st.weight || 0), 0) || 0;
+      return totalWeight <= Number(i.reorder_level);
     });
     res.json(below);
   } catch (err) { res.status(500).json({ error: err.message }); }

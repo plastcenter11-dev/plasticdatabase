@@ -31,13 +31,13 @@ export default function ReorderReportPage() {
           <tbody>
             {belowReorder.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد أصناف تحت حد الطلب</td></tr>}
             {belowReorder.map(item => {
-              const totalQty = (item.Stocks || []).reduce((s, st) => s + Number(st.quantity), 0);
+              const totalWeight = (item.Stocks || []).reduce((s, st) => s + Number(st.weight || 0), 0);
               return (
                 <tr key={item.id} className="bg-red-50">
                   <td className="font-mono text-sm">{item.code}</td>
                   <td className="font-medium">{item.name}</td>
                   <td>{item.unit}</td>
-                  <td className="font-bold text-red-600">{totalQty.toLocaleString()}</td>
+                  <td className="font-bold text-red-600">{totalWeight.toLocaleString()}</td>
                   <td>{Number(item.reorder_level).toLocaleString()}</td>
                 </tr>
               );

@@ -28,7 +28,7 @@ export default function ReorderOrderPage() {
   }, []);
 
   const belowReorder = stockData.filter(i =>
-    Number(i.reorder_level) > 0 && Number(i.total_quantity) < Number(i.reorder_level)
+    Number(i.reorder_level) > 0 && Number(i.total_weight) < Number(i.reorder_level)
   );
 
   const toggleSelect = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
@@ -40,7 +40,7 @@ export default function ReorderOrderPage() {
   const clearAll = () => setSelected({});
 
   const selectedItems = belowReorder.filter(i => selected[i.item_id]);
-  const shortage = (item) => Math.max(0, Number(item.reorder_level) - Number(item.total_quantity));
+  const shortage = (item) => Math.max(0, Number(item.reorder_level) - Number(item.total_weight));
 
   const createPurchaseOrder = async () => {
     if (!supplierId) return toast.error('اختر المورد أولاً');
@@ -51,7 +51,8 @@ export default function ReorderOrderPage() {
       const today = new Date().toISOString().split('T')[0];
       const items = selectedItems.map(i => ({
         item_id: i.item_id,
-        quantity: shortage(i),
+        quantity: 1,
+        weight: shortage(i),
         price: Number(i.purchase_price || 0),
         total: shortage(i) * Number(i.purchase_price || 0),
       }));
@@ -78,7 +79,7 @@ export default function ReorderOrderPage() {
   const handlePrint = () => {
     const rows = belowReorder.map(i => `<tr>
       <td>${i.item_code}</td><td>${i.item_name}</td><td>${i.unit}</td>
-      <td>${Number(i.total_quantity).toLocaleString()}</td>
+      <td>${Number(i.total_weight).toLocaleString()}</td>
       <td>${Number(i.reorder_level).toLocaleString()}</td>
       <td style="color:red;font-weight:bold">${shortage(i).toLocaleString()}</td>
     </tr>`).join('');
@@ -162,7 +163,7 @@ export default function ReorderOrderPage() {
             {belowReorder.map(item => {
               const sh = shortage(item);
               const pct = Number(item.reorder_level) > 0
-                ? Math.round((Number(item.total_quantity) / Number(item.reorder_level)) * 100)
+                ? Math.round((Number(item.total_weight) / Number(item.reorder_level)) * 100)
                 : 100;
               return (
                 <tr key={item.item_id} className={selected[item.item_id] ? 'bg-primary/5' : ''}>
@@ -177,8 +178,8 @@ export default function ReorderOrderPage() {
                       <div className="w-16 bg-gray-200 rounded-full h-1.5">
                         <div className={`h-1.5 rounded-full ${pct < 30 ? 'bg-red-500' : pct < 70 ? 'bg-orange-400' : 'bg-green-500'}`} style={{ width: `${Math.min(100, pct)}%` }} />
                       </div>
-                      <span className={`font-bold ${Number(item.total_quantity) === 0 ? 'text-red-600' : 'text-orange-500'}`}>
-                        {Number(item.total_quantity).toLocaleString()}
+                      <span className={`font-bold ${Number(item.total_weight) === 0 ? 'text-red-600' : 'text-orange-500'}`}>
+                        {Number(item.total_weight).toLocaleString()}
                       </span>
                     </div>
                   </td>
