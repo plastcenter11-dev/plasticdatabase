@@ -10,6 +10,7 @@ export default function ItemAssemblyPage() {
   const [assemblies, setAssemblies] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
+  const [itemsStock, setItemsStock] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
@@ -17,11 +18,18 @@ export default function ItemAssemblyPage() {
 
   const loadData = async () => {
     try {
-      const [a, w, it] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items')]);
-      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data);
+      const [a, w, it, st] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
+      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data); setItemsStock(st.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+
+  const getStockByWarehouse = (itemId) => {
+    const s = itemsStock.find(r => r.item_id === Number(itemId));
+    const map = {};
+    (s?.warehouses || []).forEach(w => { map[w.warehouse_id] = w; });
+    return map;
+  };
 
   const updateComp = (idx, field, value) => {
     const components = [...form.components];
@@ -119,15 +127,18 @@ export default function ItemAssemblyPage() {
               </div>
               <table className="erp-table">
                 <thead><tr><th>الصنف</th><th>مخزن الصرف</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
-                <tbody>{form.components.map((comp, idx) => (
+                <tbody>{form.components.map((comp, idx) => {
+                  const stockByWh = getStockByWarehouse(comp.item_id);
+                  return (
                   <tr key={idx}>
                     <td><select className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></td>
-                    <td><select className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></td>
+                    <td><select className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => { const s = stockByWh[w.id]; const label = comp.item_id ? (s ? `${w.name} (رصيد: ${s.weight.toLocaleString()} كجم / ${s.quantity.toLocaleString()})` : `${w.name} (لا يوجد رصيد)`) : w.name; return <option key={w.id} value={w.id}>{label}</option>; })}</select></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
                     <td>{form.components.length > 1 && <button type="button" onClick={() => removeComp(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>
-                ))}</tbody>
+                  );
+                })}</tbody>
               </table>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
