@@ -3,6 +3,19 @@ import { useSearchParams } from 'react-router-dom';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 
+const INCOMING_TYPES = new Set(['إضافة', 'تحويل داخل', 'فاتورة شراء', 'مرتجع بيع']);
+const OUTGOING_TYPES = new Set(['صرف', 'تحويل خارج', 'فاتورة بيع', 'مرتجع شراء']);
+
+// 'تركيب' covers both a component being issued and the assembled item being
+// produced, distinguished only by the description text; 'تعديل جرد' sets an
+// absolute count rather than a delta, so it defaults to incoming.
+const isIncoming = (m) => {
+  if (INCOMING_TYPES.has(m.movement_type)) return true;
+  if (OUTGOING_TYPES.has(m.movement_type)) return false;
+  if (m.movement_type === 'تركيب') return (m.description || '').includes('ناتج');
+  return true;
+};
+
 export default function ItemMovementPage() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
@@ -41,30 +54,61 @@ export default function ItemMovementPage() {
       {itemId && (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="erp-table">
-            <thead><tr><th>التاريخ</th><th>نوع الحركة</th><th>المرجع</th><th>المخزن</th><th>الوزن</th><th>العدد</th><th>الوصف</th></tr></thead>
+            <thead>
+              <tr>
+                <th rowSpan={2}>التاريخ</th>
+                <th rowSpan={2}>نوع الحركة</th>
+                <th rowSpan={2}>المرجع</th>
+                <th rowSpan={2}>المخزن</th>
+                <th colSpan={2} className="text-center text-green-700">الوارد</th>
+                <th colSpan={2} className="text-center text-red-700">المنصرف</th>
+                <th rowSpan={2}>الوصف</th>
+              </tr>
+              <tr>
+                <th className="text-green-700">الوزن</th>
+                <th className="text-green-700">العدد</th>
+                <th className="text-red-700">الوزن</th>
+                <th className="text-red-700">العدد</th>
+              </tr>
+            </thead>
             <tbody>
-              {movements.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
-              {movements.map((m, i) => (
-                <tr key={i}>
-                  <td>{m.date}</td>
-                  <td><span className="badge badge-blue">{m.movement_type}</span></td>
-                  <td className="font-mono text-xs text-gray-500">{m.reference || '-'}</td>
-                  <td className="text-sm">{m.Warehouse?.name || '-'}</td>
-                  <td className="font-bold">{Number(m.weight).toLocaleString()} كجم</td>
-                  <td className="font-bold">{Number(m.quantity).toLocaleString()}</td>
-                  <td className="text-sm text-gray-500">{m.description}</td>
-                </tr>
-              ))}
+              {movements.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
+              {movements.map((m, i) => {
+                const incoming = isIncoming(m);
+                return (
+                  <tr key={i}>
+                    <td>{m.date}</td>
+                    <td><span className="badge badge-blue">{m.movement_type}</span></td>
+                    <td className="font-mono text-xs text-gray-500">{m.reference || '-'}</td>
+                    <td className="text-sm">{m.Warehouse?.name || '-'}</td>
+                    <td className="font-bold text-green-700">{incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
+                    <td className="font-bold text-green-700">{incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
+                    <td className="font-bold text-red-700">{!incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
+                    <td className="font-bold text-red-700">{!incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
+                    <td className="text-sm text-gray-500">{m.description}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             {movements.length > 0 && (() => {
-              const totalWeight = movements.reduce((s, m) => s + Number(m.weight || 0), 0);
-              const totalQty = movements.reduce((s, m) => s + Number(m.quantity || 0), 0);
+              const inWeight = movements.filter(isIncoming).reduce((s, m) => s + Number(m.weight || 0), 0);
+              const inQty = movements.filter(isIncoming).reduce((s, m) => s + Number(m.quantity || 0), 0);
+              const outWeight = movements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.weight || 0), 0);
+              const outQty = movements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.quantity || 0), 0);
               return (
                 <tfoot>
                   <tr className="bg-primary/10 font-bold text-primary border-t-2 border-primary/30">
-                    <td colSpan={4} className="text-right">الرصيد الإجمالي</td>
-                    <td>{totalWeight.toLocaleString()} كجم</td>
-                    <td>{totalQty.toLocaleString()}</td>
+                    <td colSpan={4} className="text-right">الإجمالي</td>
+                    <td className="text-green-700">{inWeight.toLocaleString()} كجم</td>
+                    <td className="text-green-700">{inQty.toLocaleString()}</td>
+                    <td className="text-red-700">{outWeight.toLocaleString()} كجم</td>
+                    <td className="text-red-700">{outQty.toLocaleString()}</td>
+                    <td></td>
+                  </tr>
+                  <tr className="bg-primary/20 font-bold text-primary">
+                    <td colSpan={4} className="text-right">الرصيد الصافي</td>
+                    <td colSpan={2}>{(inWeight - outWeight).toLocaleString()} كجم</td>
+                    <td colSpan={2}>{(inQty - outQty).toLocaleString()}</td>
                     <td></td>
                   </tr>
                 </tfoot>
