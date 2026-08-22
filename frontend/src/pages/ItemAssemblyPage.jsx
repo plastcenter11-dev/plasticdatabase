@@ -5,24 +5,53 @@ import { MdAdd, MdDelete, MdEdit } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
+const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
+
 export default function ItemAssemblyPage() {
   const { can } = useAuth();
   const [assemblies, setAssemblies] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [itemsStock, setItemsStock] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showNewItem, setShowNewItem] = useState(false);
+  const [newItemForm, setNewItemForm] = useState(emptyNewItem);
   const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
   const [form, setForm] = useState(emptyForm);
 
   const loadData = async () => {
     try {
-      const [a, w, it, st] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
-      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data); setItemsStock(st.data);
+      const [a, w, it, st, cats] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock'), api.get('/categories')]);
+      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data); setItemsStock(st.data); setCategories(cats.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+
+  const openNewItem = () => {
+    const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
+    setNewItemForm({ ...emptyNewItem, code: `ITM-${String(maxId + 1).padStart(4, '0')}` });
+    setShowNewItem(true);
+  };
+
+  const saveNewItem = async (e) => {
+    e.preventDefault();
+    if (!newItemForm.name.trim()) return toast.error('أدخل اسم الصنف');
+    try {
+      const payload = {
+        ...newItemForm,
+        purchase_price: Number(newItemForm.purchase_price || 0),
+        reorder_level: Number(newItemForm.reorder_level || 0),
+        category_id: newItemForm.category_id ? Number(newItemForm.category_id) : null,
+      };
+      const { data: created } = await api.post('/items', payload);
+      setItems(prev => [created, ...prev]);
+      setForm(f => ({ ...f, assembled_item_id: String(created.id) }));
+      toast.success('تمت إضافة الصنف');
+      setShowNewItem(false);
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في إضافة الصنف'); }
+  };
 
   const getStockByWarehouse = (itemId) => {
     const s = itemsStock.find(r => r.item_id === Number(itemId));
@@ -112,7 +141,13 @@ export default function ItemAssemblyPage() {
         <Modal title={editing ? 'تعديل تركيب' : 'تركيب صنف جديد'} onClose={() => { setShowModal(false); setEditing(null); }} width="max-w-2xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">الصنف المركّب *</label><select className="erp-input" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></div>
+              <div>
+                <label className="form-label">الصنف المركّب *</label>
+                <div className="flex gap-1">
+                  <select className="erp-input flex-1 min-w-0" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select>
+                  <button type="button" title="إضافة صنف جديد" onClick={openNewItem} className="border border-primary text-primary hover:bg-primary/10 rounded py-1 px-1.5 shrink-0 flex items-center gap-0.5 cursor-pointer text-[10px] leading-none whitespace-nowrap"><MdAdd size={12} /> صنف جديد</button>
+                </div>
+              </div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -144,6 +179,27 @@ export default function ItemAssemblyPage() {
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => { setShowModal(false); setEditing(null); }} className="erp-btn erp-btn-secondary">إلغاء</button>
               <button type="submit" className="erp-btn erp-btn-primary">{editing ? 'حفظ التعديل' : 'تركيب'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showNewItem && (
+        <Modal title="صنف جديد" onClose={() => setShowNewItem(false)} width="max-w-md" zIndex={60}>
+          <form onSubmit={saveNewItem} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="form-label">الكود *</label><input className="erp-input" required value={newItemForm.code} onChange={e => setNewItemForm({ ...newItemForm, code: e.target.value })} /></div>
+              <div><label className="form-label">القسم</label><select className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            </div>
+            <div><label className="form-label">اسم الصنف *</label><input className="erp-input" required value={newItemForm.name} onChange={e => setNewItemForm({ ...newItemForm, name: e.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="form-label">الوحدة</label><select className="erp-input" value={newItemForm.unit} onChange={e => setNewItemForm({ ...newItemForm, unit: e.target.value })}><option value="كيلو">كيلو</option><option value="قطعة">قطعة</option><option value="-">-</option></select></div>
+              <div><label className="form-label">سعر الشراء</label><input type="number" step="0.01" className="erp-input" value={newItemForm.purchase_price} onChange={e => setNewItemForm({ ...newItemForm, purchase_price: e.target.value })} /></div>
+              <div><label className="form-label">حد الطلب</label><input type="number" className="erp-input" value={newItemForm.reorder_level} onChange={e => setNewItemForm({ ...newItemForm, reorder_level: e.target.value })} /></div>
+            </div>
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <button type="button" onClick={() => setShowNewItem(false)} className="erp-btn erp-btn-secondary">إلغاء</button>
+              <button type="submit" className="erp-btn erp-btn-primary">حفظ واختيار</button>
             </div>
           </form>
         </Modal>
