@@ -281,6 +281,10 @@ router.put('/assemblies/:id', async (req, res) => {
     await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });
     if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
 
+    // The movement log for this assembly should reflect its current state only -
+    // drop the old entries instead of stacking new ones on top of them.
+    await StockMovement.destroy({ where: { reference: String(assembly.id), movement_type: 'تركيب' }, transaction: t });
+
     for (const c of (components || [])) {
       const whId = componentWarehouseId(c);
       const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
@@ -288,7 +292,7 @@ router.put('/assemblies/:id', async (req, res) => {
       await StockMovement.create({
         item_id: c.item_id, warehouse_id: whId, movement_type: 'تركيب',
         quantity: c.quantity, weight: c.weight || 0, date: data.date,
-        description: `مكون تركيب صنف رقم ${assembly.id} (تعديل)`, reference: String(assembly.id),
+        description: `مكون تركيب صنف رقم ${assembly.id}`, reference: String(assembly.id),
       }, { transaction: t });
     }
 
@@ -297,7 +301,7 @@ router.put('/assemblies/:id', async (req, res) => {
     await StockMovement.create({
       item_id: data.assembled_item_id, warehouse_id: outputWarehouseId, movement_type: 'تركيب',
       quantity: data.assembled_qty, weight: data.assembled_weight || 0, date: data.date,
-      description: `ناتج تركيب رقم ${assembly.id} (تعديل)`, reference: String(assembly.id),
+      description: `ناتج تركيب رقم ${assembly.id}`, reference: String(assembly.id),
     }, { transaction: t });
 
     await t.commit();
@@ -312,6 +316,7 @@ router.delete('/assemblies/:id', async (req, res) => {
     if (!assembly) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
 
     await reverseAssembly(assembly, assembly.components || [], t);
+    await StockMovement.destroy({ where: { reference: String(assembly.id), movement_type: 'تركيب' }, transaction: t });
     await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });
     await assembly.destroy({ transaction: t });
 
