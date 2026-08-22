@@ -84,7 +84,27 @@ router.delete('/adjustments/:id', async (req, res) => {
 // Item movements report
 router.get('/movements/:itemId', async (req, res) => {
   try {
-    res.json(await StockMovement.findAll({ where: { item_id: req.params.itemId }, include: [Warehouse], order: [['date', 'ASC'], ['id', 'ASC']] }));
+    const movements = await StockMovement.findAll({ where: { item_id: req.params.itemId }, include: [Warehouse], order: [['date', 'ASC'], ['id', 'ASC']] });
+
+    // For "تركيب" movements the reference is just the assembly's numeric id -
+    // look up the assembled item's name so it can be shown alongside it.
+    const assemblyIds = [...new Set(movements.filter(m => m.movement_type === 'تركيب').map(m => m.reference))];
+    let assemblyNameMap = {};
+    if (assemblyIds.length) {
+      const assemblies = await ItemAssembly.findAll({
+        where: { id: assemblyIds },
+        include: [{ model: Item, as: 'assembledItem', attributes: ['id', 'name'] }],
+      });
+      assemblyNameMap = Object.fromEntries(assemblies.map(a => [String(a.id), a.assembledItem?.name || '']));
+    }
+
+    res.json(movements.map(m => {
+      const json = m.toJSON();
+      if (m.movement_type === 'تركيب' && assemblyNameMap[m.reference]) {
+        json.assembly_item_name = assemblyNameMap[m.reference];
+      }
+      return json;
+    }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
