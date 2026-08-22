@@ -71,6 +71,7 @@ router.delete('/purchase/:id', async (req, res) => {
       if (supplier) await supplier.update({ balance: Number(supplier.balance || 0) + Number(r.total || 0) }, { transaction: t });
     }
 
+    await StockMovement.destroy({ where: { reference: r.return_no, movement_type: 'مرتجع شراء' }, transaction: t });
     await r.destroy({ transaction: t });
     await t.commit();
     res.json({ message: 'تم الحذف' });
@@ -147,6 +148,7 @@ router.delete('/sales/:id', async (req, res) => {
       if (customer) await customer.update({ balance: Number(customer.balance || 0) + Number(r.total || 0) }, { transaction: t });
     }
 
+    await StockMovement.destroy({ where: { reference: r.return_no, movement_type: 'مرتجع بيع' }, transaction: t });
     await r.destroy({ transaction: t });
     await t.commit();
     res.json({ message: 'تم الحذف' });
