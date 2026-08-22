@@ -79,16 +79,16 @@ export default function ItemMovementPage() {
                   <tr key={i}>
                     <td>{m.date}</td>
                     <td><span className="badge badge-blue">{m.movement_type}</span></td>
-                    <td className="font-mono text-xs text-gray-500">
-                      {m.reference || '-'}
-                      {m.assembly_item_name && <span className="text-gray-700 font-sans"> - {m.assembly_item_name}</span>}
-                    </td>
+                    <td className="font-mono text-xs text-gray-500">{m.reference || '-'}</td>
                     <td className="text-sm">{m.Warehouse?.name || '-'}</td>
                     <td className="font-bold text-green-700">{incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
                     <td className="font-bold text-green-700">{incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
                     <td className="font-bold text-red-700">{!incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
                     <td className="font-bold text-red-700">{!incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
-                    <td className="text-sm text-gray-500">{m.description}</td>
+                    <td className="text-sm text-gray-500">
+                      {m.description}
+                      {m.assembly_item_name && <span className="text-gray-400"> ({m.assembly_item_name})</span>}
+                    </td>
                   </tr>
                 );
               })}
