@@ -23,7 +23,6 @@ const menuGroups = [
       { path: '/item-assembly', label: 'تركيب صنف', icon: MdBuild, module: 'stock' },
       { path: '/reorder-level', label: 'أمر حد الطلب', icon: MdAssignment, module: 'stock' },
       { path: '/warehouse-items', label: 'مخزن لأصناف', icon: MdWarehouse, module: 'stock' },
-      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart, module: 'stock' },
       { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
       { path: '/item-inquiry', label: 'استعلام عن صنف', icon: MdInventory, module: 'stock' },
     ]
@@ -95,7 +94,6 @@ const menuGroups = [
       { path: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: MdBarChart, module: 'suppliers' },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
       { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
-      { path: '/reports/item-movement', label: 'حركة صنف', icon: MdBarChart, module: 'stock' },
       { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
       { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart, module: 'expenses' },
       { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdBarChart, module: 'checks' },

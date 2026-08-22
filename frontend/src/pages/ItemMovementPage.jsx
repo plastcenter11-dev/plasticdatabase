@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 
 export default function ItemMovementPage() {
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
-  const [itemId, setItemId] = useState('');
+  const [itemId, setItemId] = useState(searchParams.get('item_id') || '');
   const [movements, setMovements] = useState([]);
 
   useEffect(() => { api.get('/items').then(r => setItems(r.data)).catch(() => {}); }, []);
+
+  useEffect(() => {
+    const paramId = searchParams.get('item_id');
+    if (paramId) setItemId(paramId);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!itemId) { setMovements([]); return; }

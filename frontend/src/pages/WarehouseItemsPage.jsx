@@ -1,8 +1,10 @@
 ﻿import { useState, useEffect } from 'react';
-import { MdSearch, MdPrint } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
+import { MdSearch, MdPrint, MdBarChart } from 'react-icons/md';
 import api from '../api/axios';
 
 export default function WarehouseItemsPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -162,11 +164,12 @@ export default function WarehouseItemsPage() {
               <th>سعر الشراء</th>
               <th>سعر البيع</th>
               <th>القيمة الإجمالية</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {displayRows.length === 0 && (
-              <tr><td colSpan={warehouseFilter ? 9 : 10} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
+              <tr><td colSpan={warehouseFilter ? 10 : 11} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
             )}
             {displayRows.map((item) => (
               <tr key={item.key} className={item.qty < 0 ? 'bg-red-50' : ''}>
@@ -186,6 +189,18 @@ export default function WarehouseItemsPage() {
                 <td className="text-gray-600">{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>
                 <td className="text-gray-600">{Number(item.sale_price || 0) > 0 ? Number(item.sale_price).toLocaleString() + ' ج.م' : '—'}</td>
                 <td className="font-bold text-primary">{getValue(item) > 0 ? getValue(item).toLocaleString() + ' ج.م' : '—'}</td>
+                {item.isFirst && (
+                  <td rowSpan={item.rowSpan}>
+                    <button
+                      type="button"
+                      title="حركة الصنف"
+                      onClick={() => navigate(`/reports/item-movement?item_id=${item.item_id}`)}
+                      className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <MdBarChart size={14} /> حركة الصنف
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -198,6 +213,7 @@ export default function WarehouseItemsPage() {
                 <td></td>
                 <td></td>
                 <td className="text-primary">{displayRows.reduce((s, r) => s + getValue(r), 0).toLocaleString()} ج.م</td>
+                <td></td>
               </tr>
             </tfoot>
           )}
