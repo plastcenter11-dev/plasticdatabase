@@ -59,7 +59,14 @@ describe('POST /api/sales-invoices/:id/post', () => {
   });
 
   test('updates item sale_price on post', async () => {
-    const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload());
+    // Use a self-consistent, tax/discount-free line (weight x price = item.total,
+    // invoice subtotal = that total, no tax) so the effective-price formula in
+    // salesInvoices.js — which nets out discount and adds the item's tax share —
+    // reduces to a plain passthrough of the entered price.
+    const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
+      subtotal: 500, discount: 0, tax_rate: 0, tax_amount: 0, total: 500, remaining: 500,
+      items: [{ item_id: item.id, quantity: 1, weight: 10, price: 50, discount: 0, total: 500 }],
+    }));
     await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
     const updated = await Item.findByPk(item.id);
     expect(Number(updated.sale_price)).toBe(50);
