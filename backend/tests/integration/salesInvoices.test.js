@@ -81,9 +81,29 @@ describe('POST /api/sales-invoices/:id/post', () => {
     expect(r2.status).toBe(400);
   });
 
-  test('posting is rejected when stock is insufficient', async () => {
+  test('posting is rejected when available weight is insufficient, even if quantity is satisfiable', async () => {
+    // stock has 100 qty / 1000 kg available (see beforeEach) — 1 roll is fine on quantity,
+    // but 99999 kg is nowhere near available, so the weight-based check must reject it.
+    const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
+      items: [{ item_id: item.id, quantity: 1, weight: 99999, price: 50, discount: 0, total: 500 }],
+    }));
+    const r = await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
+    expect(r.status).toBe(400);
+  });
+
+  test('posting succeeds when weight is satisfiable even though quantity looks huge', async () => {
+    // Business rule: weight is the real unit of stock. 50kg out of 1000kg available
+    // must be allowed regardless of the (irrelevant) roll count.
     const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
       items: [{ item_id: item.id, quantity: 99999, weight: 50, price: 50, discount: 0, total: 500 }],
+    }));
+    const r = await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
+    expect(r.status).toBe(200);
+  });
+
+  test('posting is rejected on quantity when the item has no weight (falls back to quantity check)', async () => {
+    const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
+      items: [{ item_id: item.id, quantity: 99999, weight: 0, price: 50, discount: 0, total: 500 }],
     }));
     const r = await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
     expect(r.status).toBe(400);

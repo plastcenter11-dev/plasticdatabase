@@ -51,6 +51,27 @@ describe('POST /api/returns/purchase', () => {
   });
 });
 
+describe('POST /api/returns/purchase — server-side total (no total sent by client)', () => {
+  test('computes total from weight x price, not quantity x price, when weight is present', async () => {
+    // 5 rolls / 50kg at price 40: weight-based total = 50*40 = 2000, quantity-based would be 5*40 = 200.
+    const res = await request(app).post('/api/returns/purchase').set(auth()).send({
+      supplier_id: supplier.id, warehouse_id: warehouse.id, date: '2026-03-10', reason: 'test',
+      items: [{ item_id: item.id, quantity: 5, weight: 50, price: 40, discount: 0 }],
+    });
+    expect(res.status).toBe(201);
+    expect(Number(res.body.total)).toBe(2000);
+  });
+
+  test('falls back to quantity x price when weight is absent', async () => {
+    const res = await request(app).post('/api/returns/purchase').set(auth()).send({
+      supplier_id: supplier.id, warehouse_id: warehouse.id, date: '2026-03-10', reason: 'test',
+      items: [{ item_id: item.id, quantity: 5, price: 40, discount: 0 }],
+    });
+    expect(res.status).toBe(201);
+    expect(Number(res.body.total)).toBe(200);
+  });
+});
+
 describe('DELETE /api/returns/purchase/:id', () => {
   test('reverses stock and supplier balance', async () => {
     const res = await request(app).post('/api/returns/purchase').set(auth()).send({
@@ -76,6 +97,17 @@ describe('POST /api/returns/sales', () => {
     expect(Number(stock.quantity)).toBe(55);
     const cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(800);
+  });
+});
+
+describe('POST /api/returns/sales — server-side total (no total sent by client)', () => {
+  test('computes total from weight x price, not quantity x price, when weight is present', async () => {
+    const res = await request(app).post('/api/returns/sales').set(auth()).send({
+      customer_id: customer.id, warehouse_id: warehouse.id, date: '2026-03-10', reason: 'test',
+      items: [{ item_id: item.id, quantity: 5, weight: 50, price: 40, discount: 0 }],
+    });
+    expect(res.status).toBe(201);
+    expect(Number(res.body.total)).toBe(2000);
   });
 });
 
