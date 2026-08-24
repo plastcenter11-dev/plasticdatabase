@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -98,10 +99,10 @@ export default function OpeningBalancesPage() {
             </div>
             <div>
               <label className="form-label">{form.party_type === 'customer' ? 'العميل' : 'المورد'} *</label>
-              <select className="erp-input" required value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })}>
+              <SearchableSelect className="erp-input" required value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })}>
                 <option value="">— اختر —</option>
                 {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">مدين</label><input type="number" className="erp-input" value={form.debit} onChange={e => setForm({ ...form, debit: e.target.value })} /></div>

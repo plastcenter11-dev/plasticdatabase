@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -105,10 +106,10 @@ export default function NonStockItemsPage() {
               </div>
               <div>
                 <label className="form-label">التصنيف</label>
-                <select className="erp-input" value={form.category_id || ''} onChange={e => setForm(f => ({ ...f, category_id: e.target.value || null }))}>
+                <SearchableSelect className="erp-input" value={form.category_id || ''} onChange={e => setForm(f => ({ ...f, category_id: e.target.value || null }))}>
                   <option value="">— بدون تصنيف —</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div>
                 <label className="form-label">سعر الشراء</label>

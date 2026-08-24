@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -135,17 +136,17 @@ export default function StockAdjustmentsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">المخزن *</label>
-                <select className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}>
+                <SearchableSelect className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}>
                   <option value="">— اختر —</option>
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div>
                 <label className="form-label">الصنف *</label>
-                <select className="erp-input" required value={form.item_id} onChange={e => setForm({ ...form, item_id: e.target.value })}>
+                <SearchableSelect className="erp-input" required value={form.item_id} onChange={e => setForm({ ...form, item_id: e.target.value })}>
                   <option value="">— اختر —</option>
                   {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">

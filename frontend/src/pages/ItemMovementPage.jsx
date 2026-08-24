@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 
 const INCOMING_TYPES = new Set(['إضافة', 'تحويل داخل', 'فاتورة شراء', 'مرتجع بيع']);
 const OUTGOING_TYPES = new Set(['صرف', 'تحويل خارج', 'فاتورة بيع', 'مرتجع شراء']);
@@ -41,10 +42,10 @@ export default function ItemMovementPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[250px]">
           <label className="form-label">الصنف</label>
-          <select className="erp-input" value={itemId} onChange={e => setItemId(e.target.value)}>
+          <SearchableSelect className="erp-input" value={itemId} onChange={e => setItemId(e.target.value)}>
             <option value="">— اختر الصنف —</option>
             {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         {itemId && <button onClick={() => window.print()} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>}
       </div>

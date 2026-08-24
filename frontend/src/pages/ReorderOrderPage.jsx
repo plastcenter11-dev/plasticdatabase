@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { MdWarning, MdPrint, MdShoppingCart, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../hooks/useAuth';
 
 export default function ReorderOrderPage() {
@@ -115,16 +116,16 @@ export default function ReorderOrderPage() {
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="form-label">المورد لطلب الشراء</label>
-              <select className="erp-input" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+              <SearchableSelect className="erp-input" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
                 <option value="">— اختر مورد —</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label className="form-label">المخزن</label>
-              <select className="erp-input" value={warehouse} onChange={e => setWarehouse(e.target.value)}>
+              <SearchableSelect className="erp-input" value={warehouse} onChange={e => setWarehouse(e.target.value)}>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div className="flex gap-2">
               <button onClick={allSelected ? clearAll : selectAll} className="erp-btn erp-btn-outline text-sm">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -88,10 +89,10 @@ export default function CashPaymentsPage() {
           <form onSubmit={handleSave} className="space-y-3">
             <div>
               <label className="form-label">المورد *</label>
-              <select className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
+              <SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
                 <option value="">— اختر —</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>

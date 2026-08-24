@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function CustomerStatementPage() {
   const [customers, setCustomers] = useState([]);
@@ -49,10 +50,10 @@ export default function CustomerStatementPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[200px]">
           <label className="form-label">العميل</label>
-          <select className="erp-input" value={customerId} onChange={e => { setCustomerId(e.target.value); setExpanded(new Set()); }}>
+          <SearchableSelect className="erp-input" value={customerId} onChange={e => { setCustomerId(e.target.value); setExpanded(new Set()); }}>
             <option value="">— اختر العميل —</option>
             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         <div><label className="form-label">من</label><input type="date" className="erp-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
         <div><label className="form-label">إلى</label><input type="date" className="erp-input" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>

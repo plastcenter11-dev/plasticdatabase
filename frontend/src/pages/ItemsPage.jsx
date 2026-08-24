@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -91,10 +92,10 @@ export default function ItemsPage() {
             <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
             <input className="erp-input pr-10" placeholder="بحث بالاسم أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <select className="erp-input w-auto min-w-[150px]" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+          <SearchableSelect className="erp-input w-auto min-w-[150px]" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
             <option value="">كل الأقسام</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-100">
@@ -141,10 +142,10 @@ export default function ItemsPage() {
               <div>
                 <label className="form-label">القسم</label>
                 <div className="flex gap-1">
-                  <select className="erp-input flex-1" value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                  <SearchableSelect className="erp-input flex-1" value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
                     <option value="">— بدون قسم —</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  </SearchableSelect>
                   <button type="button" title="إضافة قسم جديد" onClick={async () => {
                     const name = window.prompt('اسم القسم الجديد:');
                     if (!name?.trim()) return;
@@ -161,10 +162,10 @@ export default function ItemsPage() {
               <div>
                 <label className="form-label">النوع</label>
                 <div className="flex gap-1">
-                  <select className="erp-input flex-1" value={form.type_id} onChange={e => setForm({ ...form, type_id: e.target.value })}>
+                  <SearchableSelect className="erp-input flex-1" value={form.type_id} onChange={e => setForm({ ...form, type_id: e.target.value })}>
                     <option value="">— بدون نوع —</option>
                     {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  </SearchableSelect>
                   <button type="button" title="إضافة نوع جديد" onClick={async () => {
                     const name = window.prompt('اسم النوع الجديد:');
                     if (!name?.trim()) return;

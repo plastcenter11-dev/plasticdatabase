@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdPrint, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function CommissionsPage() {
   const [employees, setEmployees] = useState([]);
@@ -65,10 +66,10 @@ export default function CommissionsPage() {
       <div className="bg-white rounded-xl shadow-sm p-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div><label className="form-label">المندوب</label>
-            <select className="erp-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)}>
+            <SearchableSelect className="erp-input" value={selectedEmp} onChange={e => setSelectedEmp(e.target.value)}>
               <option value="">الكل</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div><label className="form-label">من تاريخ</label><input type="date" className="erp-input" value={from} onChange={e => setFrom(e.target.value)} /></div>
           <div><label className="form-label">إلى تاريخ</label><input type="date" className="erp-input" value={to} onChange={e => setTo(e.target.value)} /></div>

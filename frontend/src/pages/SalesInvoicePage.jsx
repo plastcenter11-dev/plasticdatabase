@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -166,9 +167,9 @@ export default function SalesInvoicePage() {
         <Modal title={editing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-4 gap-3">
-              <div><label className="form-label">العميل *</label><select className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}><option value="">— اختر —</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-              <div><label className="form-label">المندوب</label><select className="erp-input" value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}><option value="">— بدون —</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.commission_rate}%)</option>)}</select></div>
-              <div><label className="form-label">المخزن</label><select className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+              <div><label className="form-label">العميل *</label><SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}><option value="">— اختر —</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></div>
+              <div><label className="form-label">المندوب</label><SearchableSelect className="erp-input" value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}><option value="">— بدون —</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.commission_rate}%)</option>)}</SearchableSelect></div>
+              <div><label className="form-label">المخزن</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>
@@ -179,7 +180,7 @@ export default function SalesInvoicePage() {
                   const wt = Number(item.weight) || 0, pr = Number(item.price) || 0;
                   const lineTotal = wt * pr * (1 - (Number(item.discount || 0) / 100));
                   return (<tr key={idx}>
-                    <td><select className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></td>
+                    <td><SearchableSelect className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</SearchableSelect></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>

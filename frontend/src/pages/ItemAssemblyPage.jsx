@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -144,7 +145,7 @@ export default function ItemAssemblyPage() {
               <div>
                 <label className="form-label">الصنف المركّب *</label>
                 <div className="flex gap-1">
-                  <select className="erp-input flex-1 min-w-0" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select>
+                  <SearchableSelect className="erp-input flex-1 min-w-0" required value={form.assembled_item_id} onChange={e => setForm({ ...form, assembled_item_id: e.target.value })}><option value="">— اختر —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</SearchableSelect>
                   <button type="button" title="إضافة صنف جديد" onClick={openNewItem} className="border border-primary text-primary hover:bg-primary/10 rounded py-1 px-1.5 shrink-0 flex items-center gap-0.5 cursor-pointer text-[10px] leading-none whitespace-nowrap"><MdAdd size={12} /> صنف جديد</button>
                 </div>
               </div>
@@ -154,7 +155,7 @@ export default function ItemAssemblyPage() {
               <div><label className="form-label">الوزن (كجم)</label><input type="number" step="0.01" className="erp-input" value={form.assembled_weight} onChange={e => setForm({ ...form, assembled_weight: e.target.value })} /></div>
               <div><label className="form-label">العدد *</label><input type="number" className="erp-input" required value={form.assembled_qty} onChange={e => setForm({ ...form, assembled_qty: e.target.value })} /></div>
             </div>
-            <div><label className="form-label">مخزن الإضافة (الصنف المركّب) *</label><select className="erp-input" required value={form.output_warehouse_id} onChange={e => setForm({ ...form, output_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+            <div><label className="form-label">مخزن الإضافة (الصنف المركّب) *</label><SearchableSelect className="erp-input" required value={form.output_warehouse_id} onChange={e => setForm({ ...form, output_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="form-label mb-0">المكونات (لكل مكون مخزن صرف مستقل)</label>
@@ -166,8 +167,8 @@ export default function ItemAssemblyPage() {
                   const stockByWh = getStockByWarehouse(comp.item_id);
                   return (
                   <tr key={idx}>
-                    <td><select className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</select></td>
-                    <td><select className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => { const s = stockByWh[w.id]; const label = comp.item_id ? (s ? `${w.name} (رصيد: ${s.weight.toLocaleString()} كجم / ${s.quantity.toLocaleString()})` : `${w.name} (لا يوجد رصيد)`) : w.name; return <option key={w.id} value={w.id}>{label}</option>; })}</select></td>
+                    <td><SearchableSelect className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</SearchableSelect></td>
+                    <td><SearchableSelect className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => { const s = stockByWh[w.id]; const label = comp.item_id ? (s ? `${w.name} (رصيد: ${s.weight.toLocaleString()} كجم / ${s.quantity.toLocaleString()})` : `${w.name} (لا يوجد رصيد)`) : w.name; return <option key={w.id} value={w.id}>{label}</option>; })}</SearchableSelect></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
                     <td>{form.components.length > 1 && <button type="button" onClick={() => removeComp(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
@@ -189,7 +190,7 @@ export default function ItemAssemblyPage() {
           <form onSubmit={saveNewItem} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">الكود *</label><input className="erp-input" required value={newItemForm.code} onChange={e => setNewItemForm({ ...newItemForm, code: e.target.value })} /></div>
-              <div><label className="form-label">القسم</label><select className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+              <div><label className="form-label">القسم</label><SearchableSelect className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></div>
             </div>
             <div><label className="form-label">اسم الصنف *</label><input className="erp-input" required value={newItemForm.name} onChange={e => setNewItemForm({ ...newItemForm, name: e.target.value })} /></div>
             <div className="grid grid-cols-3 gap-3">

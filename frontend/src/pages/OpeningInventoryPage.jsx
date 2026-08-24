@@ -2,6 +2,7 @@
 import { toast } from 'react-toastify';
 import { MdSave, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../hooks/useAuth';
 
 export default function OpeningInventoryPage() {
@@ -97,9 +98,9 @@ export default function OpeningInventoryPage() {
       <div className="bg-white rounded-xl shadow-sm p-4 flex flex-wrap gap-4 items-end">
         <div>
           <label className="form-label">المخزن</label>
-          <select className="erp-input" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+          <SearchableSelect className="erp-input" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         {rows.length > 0 && (
           <div className="flex gap-4 mr-auto text-sm text-gray-600">

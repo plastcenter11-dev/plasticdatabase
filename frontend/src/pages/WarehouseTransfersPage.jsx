@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -79,8 +80,8 @@ export default function WarehouseTransfersPage() {
         <Modal title="تحويل مخزن جديد" onClose={() => setShowModal(false)} width="max-w-2xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div><label className="form-label">من مخزن *</label><select className="erp-input" required value={form.from_warehouse_id} onChange={e => setForm({ ...form, from_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
-              <div><label className="form-label">إلى مخزن *</label><select className="erp-input" required value={form.to_warehouse_id} onChange={e => setForm({ ...form, to_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+              <div><label className="form-label">من مخزن *</label><SearchableSelect className="erp-input" required value={form.from_warehouse_id} onChange={e => setForm({ ...form, from_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
+              <div><label className="form-label">إلى مخزن *</label><SearchableSelect className="erp-input" required value={form.to_warehouse_id} onChange={e => setForm({ ...form, to_warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>
@@ -89,7 +90,7 @@ export default function WarehouseTransfersPage() {
                 <thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
                 <tbody>{form.items.map((item, idx) => (
                   <tr key={idx}>
-                    <td><select className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></td>
+                    <td><SearchableSelect className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</SearchableSelect></td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-24" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                     <td>{form.items.length > 1 && <button type="button" onClick={() => removeFormItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>

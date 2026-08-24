@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -159,17 +160,17 @@ export default function SalesReturnsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">العميل *</label>
-                <select className="erp-input" required value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)}>
+                <SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)}>
                   <option value="">— اختر العميل —</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div>
                 <label className="form-label">الفاتورة (اختياري)</label>
-                <select className="erp-input" value={form.invoice_id} onChange={e => handleInvoiceChange(e.target.value)}>
+                <SearchableSelect className="erp-input" value={form.invoice_id} onChange={e => handleInvoiceChange(e.target.value)}>
                   <option value="">— بدون فاتورة —</option>
                   {salesInvoices.map(i => <option key={i.id} value={i.id}>{i.invoice_no} — {Number(i.total).toLocaleString()} ج.م</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div>
                 <label className="form-label">التاريخ *</label>
@@ -211,10 +212,10 @@ export default function SalesReturnsPage() {
                       <td>
                         {form.invoice_id
                           ? <span className="font-medium">{items.find(m => m.id === Number(item.item_id))?.name || item.item_id}</span>
-                          : <select className="erp-input py-1" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
+                          : <SearchableSelect className="erp-input py-1" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
                               <option value="">اختر صنف</option>
                               {items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}
-                            </select>
+                            </SearchableSelect>
                         }
                       </td>
                       <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>

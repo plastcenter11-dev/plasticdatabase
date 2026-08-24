@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdEdit, MdDelete, MdLock, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -143,10 +144,10 @@ export default function FinancialYearsPage() {
             </div>
             <div>
               <label className="form-label">السنة المالية الجديدة *</label>
-              <select className="erp-input" value={closeForm.next_year_id} onChange={e => setCloseForm({ next_year_id: e.target.value })}>
+              <SearchableSelect className="erp-input" value={closeForm.next_year_id} onChange={e => setCloseForm({ next_year_id: e.target.value })}>
                 <option value="">— اختر السنة الجديدة —</option>
                 {inactiveYears.map(y => <option key={y.id} value={y.id}>{y.name} ({y.start_date} → {y.end_date})</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => setShowCloseModal(false)} className="erp-btn erp-btn-secondary">إلغاء</button>

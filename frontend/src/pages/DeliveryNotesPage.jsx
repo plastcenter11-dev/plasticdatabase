@@ -2,6 +2,7 @@
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -362,10 +363,10 @@ export default function DeliveryNotesPage() {
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="form-label">العميل *</label>
-                <select className="erp-input" required value={form.customer_id} onChange={e => { setForm({ ...form, customer_id: e.target.value, selected_orders: [], items: [{ ...emptyItem }] }); loadSalesOrders(e.target.value); }}>
+                <SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => { setForm({ ...form, customer_id: e.target.value, selected_orders: [], items: [{ ...emptyItem }] }); loadSalesOrders(e.target.value); }}>
                   <option value="">— اختر —</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                </SearchableSelect>
               </div>
               <div>
                 <label className="form-label">التاريخ *</label>
@@ -420,10 +421,10 @@ export default function DeliveryNotesPage() {
                       {item.source_order ? (
                         <input className="erp-input bg-gray-100" readOnly value={`${item.item_name} (${item.item_code})`} />
                       ) : (
-                        <select className="erp-input" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
+                        <SearchableSelect className="erp-input" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
                           <option value="">— اختر —</option>
                           {allItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}
-                        </select>
+                        </SearchableSelect>
                       )}
                     </div>
                     <div>
@@ -478,10 +479,10 @@ export default function DeliveryNotesPage() {
             </div>
             <div>
               <label className="form-label">المخزن *</label>
-              <select className="erp-input" required value={invoiceWarehouseId} onChange={e => setInvoiceWarehouseId(e.target.value)}>
+              <SearchableSelect className="erp-input" required value={invoiceWarehouseId} onChange={e => setInvoiceWarehouseId(e.target.value)}>
                 <option value="">— اختر —</option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button onClick={() => setShowInvoiceModal(null)} className="erp-btn erp-btn-secondary">إلغاء</button>

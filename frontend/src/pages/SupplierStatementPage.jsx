@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function SupplierStatementPage() {
   const [suppliers, setSuppliers] = useState([]);
@@ -49,10 +50,10 @@ export default function SupplierStatementPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[200px]">
           <label className="form-label">المورد</label>
-          <select className="erp-input" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+          <SearchableSelect className="erp-input" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
             <option value="">— اختر المورد —</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         <div><label className="form-label">من</label><input type="date" className="erp-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
         <div><label className="form-label">إلى</label><input type="date" className="erp-input" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>

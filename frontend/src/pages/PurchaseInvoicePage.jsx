@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -189,8 +190,8 @@ export default function PurchaseInvoicePage() {
         <Modal title={editing ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div><label className="form-label">المورد *</label><select className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}><option value="">— اختر —</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-              <div><label className="form-label">المخزن</label><select className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+              <div><label className="form-label">المورد *</label><SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}><option value="">— اختر —</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect></div>
+              <div><label className="form-label">المخزن</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>
@@ -202,7 +203,7 @@ export default function PurchaseInvoicePage() {
                   return (<tr key={idx}>
                     <td>
                       <div className="flex gap-1">
-                        <select className="erp-input py-1 flex-1 min-w-0" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select>
+                        <SearchableSelect className="erp-input py-1 flex-1 min-w-0" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</SearchableSelect>
                         <button type="button" title="إضافة صنف جديد" onClick={() => openNewItem(idx)} className="border border-primary text-primary hover:bg-primary/10 rounded py-1 px-1.5 shrink-0 flex items-center gap-0.5 cursor-pointer text-[10px] leading-none whitespace-nowrap"><MdAdd size={12} /> صنف جديد</button>
                       </div>
                     </td>
@@ -249,7 +250,7 @@ export default function PurchaseInvoicePage() {
           <form onSubmit={saveNewItem} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">الكود *</label><input className="erp-input" required value={newItemForm.code} onChange={e => setNewItemForm({ ...newItemForm, code: e.target.value })} /></div>
-              <div><label className="form-label">القسم</label><select className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+              <div><label className="form-label">القسم</label><SearchableSelect className="erp-input" value={newItemForm.category_id} onChange={e => setNewItemForm({ ...newItemForm, category_id: e.target.value })}><option value="">— بدون قسم —</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></div>
             </div>
             <div><label className="form-label">اسم الصنف *</label><input className="erp-input" required value={newItemForm.name} onChange={e => setNewItemForm({ ...newItemForm, name: e.target.value })} /></div>
             <div className="grid grid-cols-3 gap-3">

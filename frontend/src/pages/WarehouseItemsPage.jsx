@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { MdSearch, MdPrint, MdBarChart } from 'react-icons/md';
 import api from '../api/axios';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function WarehouseItemsPage() {
   const navigate = useNavigate();
@@ -102,10 +103,10 @@ export default function WarehouseItemsPage() {
       </div>
 
       <div className="flex gap-3 flex-wrap items-center">
-        <select className="erp-input w-auto min-w-[150px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
+        <SearchableSelect className="erp-input w-auto min-w-[150px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
           <option value="">كل المخازن</option>
           {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
+        </SearchableSelect>
         <div className="relative flex-1 min-w-[200px]">
           <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
           <input className="erp-input pr-10" placeholder="بحث باسم الصنف أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
