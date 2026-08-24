@@ -6,7 +6,7 @@ import { MdAdd, MdEdit, MdDelete, MdSearch, MdLocalShipping } from 'react-icons/
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyItem = { item_id: '', quantity: '', price: '', tax_rate: '' };
+const emptyItem = { item_id: '', quantity: '', weight: '', price: '', tax_rate: '' };
 const emptyCash = { enabled: false, amount: '', payment_method: 'نقدي', notes: '' };
 const emptyCheck = { enabled: false, check_no: '', amount: '', due_date: '', bank_name: '' };
 
@@ -66,7 +66,7 @@ export default function SalesOrdersPage() {
 
   const addFormItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
-  const calcItemTotal = (i) => Number(i.quantity || 0) * Number(i.price || 0) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
+  const calcItemTotal = (i) => (Number(i.weight || 0) || Number(i.quantity || 0)) * Number(i.price || 0) * (i.tax_rate ? 1 + Number(i.tax_rate) / 100 : 1);
   const calcTotal = () => form.items.reduce((sum, i) => sum + calcItemTotal(i), 0);
 
   const handleSave = async (e) => {
@@ -74,7 +74,7 @@ export default function SalesOrdersPage() {
     if (!form.customer_id) return toast.error('اختر العميل');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
     try {
-      const payload = { customer_id: Number(form.customer_id), date: form.date, items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), price: Number(i.price), tax_rate: i.tax_rate ? Number(i.tax_rate) : null })) };
+      const payload = { customer_id: Number(form.customer_id), date: form.date, items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), tax_rate: i.tax_rate ? Number(i.tax_rate) : null })) };
       if (editing) { await api.put(`/sales-orders/${editing.id}`, payload); toast.success('تم تحديث الطلبية'); }
       else {
         await api.post('/sales-orders', payload);
@@ -133,7 +133,7 @@ export default function SalesOrdersPage() {
                         <MdLocalShipping size={14} /> إذن تسليم
                       </button>
                     )}
-                    {can('sales_orders', 'edit') && <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, price: i.price, tax_rate: i.tax_rate || '' })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {can('sales_orders', 'edit') && <button onClick={() => { setEditing(o); setForm({ customer_id: o.customer_id, date: o.date, items: (o.items || []).map(i => ({ item_id: i.item_id, quantity: i.quantity, weight: i.weight || '', price: i.price, tax_rate: i.tax_rate || '' })) }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     {can('sales_orders', 'delete') && <button onClick={() => handleDelete(o.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
@@ -166,7 +166,7 @@ export default function SalesOrdersPage() {
                 <button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button>
               </div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الوزن</th><th>السعر</th><th>ضريبة</th><th>الإجمالي</th><th></th></tr></thead>
+                <thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>ضريبة</th><th>الإجمالي</th><th></th></tr></thead>
                 <tbody>
                   {form.items.map((item, idx) => (
                     <tr key={idx}>
@@ -176,7 +176,8 @@ export default function SalesOrdersPage() {
                           {items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}
                         </select>
                       </td>
-                      <td><input type="number" className="erp-input py-1 w-24" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
+                      <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
+                      <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                       <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={item.price} onChange={e => updateFormItem(idx, 'price', e.target.value)} /></td>
                       <td>
                         <div className="flex items-center gap-1">

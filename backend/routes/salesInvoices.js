@@ -59,12 +59,21 @@ router.post('/:id/post', async (req, res) => {
         const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
-        if (qty <= 0) continue;
+        const wt = Number(item.weight || 0);
+        if (qty <= 0 && wt <= 0) continue;
         const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id }, transaction: t });
-        const available = stock ? Number(stock.quantity) : 0;
-        if (available < qty) {
-          await t.rollback();
-          return res.status(400).json({ error: `الكمية المتاحة من "${fullItem.name}" (${available}) أقل من الكمية المطلوبة (${qty})` });
+        if (wt > 0) {
+          const availableWt = stock ? Number(stock.weight || 0) : 0;
+          if (availableWt < wt) {
+            await t.rollback();
+            return res.status(400).json({ error: `الوزن المتاح من "${fullItem.name}" (${availableWt} كجم) أقل من الوزن المطلوب (${wt} كجم)` });
+          }
+        } else if (qty > 0) {
+          const availableQty = stock ? Number(stock.quantity) : 0;
+          if (availableQty < qty) {
+            await t.rollback();
+            return res.status(400).json({ error: `الكمية المتاحة من "${fullItem.name}" (${availableQty}) أقل من الكمية المطلوبة (${qty})` });
+          }
         }
       }
     }

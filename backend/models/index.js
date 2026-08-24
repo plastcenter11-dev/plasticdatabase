@@ -80,6 +80,7 @@ const SalesOrder = sequelize.define('SalesOrder', {
 
 const SalesOrderItem = sequelize.define('SalesOrderItem', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   tax_rate: { type: DataTypes.DECIMAL(5, 2), defaultValue: null, allowNull: true },
   total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
