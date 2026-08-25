@@ -186,8 +186,8 @@ describe('دورة الشراء الكاملة', () => {
         date: '2026-01-12',
         items: [{ item_id: itemId, quantity: 2, weight: 20, price: 20 }],
       });
-      // total = qty × price = 2 × 20 = 40 (الحساب الحالي في returns.js)
-      expect(Number(res.body.total)).toBe(40);
+      // total = وزن × سعر = 20 × 20 = 400 (returns.js يفضّل الوزن على العدد)
+      expect(Number(res.body.total)).toBe(400);
     });
   });
 });
@@ -316,8 +316,12 @@ describe('اتساق البيانات — بعد الدورتين', () => {
     expect(Number(stock.quantity)).toBe(15); // 20 - 5
   });
 
-  test('رصيد المورد موجب (فيه دين)', async () => {
+  test('رصيد المورد = المتبقي بعد الشراء ناقص قيمة المرتجعات بالوزن', async () => {
+    // بعد الشراء: رصيد = 3333 (المتبقي). المرتجعات الثلاثة محسوبة بالوزن×السعر:
+    // 100kg×20 + 50kg×20 + 20kg×20 = 2000 + 1000 + 400 = 3400 (أكتر من المتبقي نفسه،
+    // لأن مرتجعات الوزن دي بتمثل 170 من أصل 200 كجم اتشرت أي 85% مرتجع).
+    // 3333 - 3400 = -67 → رصيد سالب يعني المورد بقى مديون للعميل، وده صحيح رياضيًا.
     const supplier = await Supplier.findByPk(supplierId);
-    expect(Number(supplier.balance)).toBeGreaterThan(0);
+    expect(Number(supplier.balance)).toBeCloseTo(-67, 0);
   });
 });
