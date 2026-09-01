@@ -15,7 +15,6 @@ app.use('/api/items', auth, requireModule('items'), require('./routes/items'));
 app.use('/api/warehouses', auth, requireModule('warehouses'), require('./routes/warehouses'));
 app.use('/api/customers', auth, requireModule('customers'), require('./routes/customers'));
 app.use('/api/suppliers', auth, requireModule('suppliers'), require('./routes/suppliers'));
-app.use('/api/sales-orders', auth, requireModule('sales_orders'), require('./routes/salesOrders'));
 app.use('/api/delivery-notes', auth, requireModule('delivery_notes'), require('./routes/deliveryNotes'));
 app.use('/api/sales-invoices', auth, requireModule('sales_invoices'), require('./routes/salesInvoices'));
 app.use('/api/purchase-invoices', auth, requireModule('purchase_invoices'), require('./routes/purchaseInvoices'));

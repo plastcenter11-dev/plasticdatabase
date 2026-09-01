@@ -7,7 +7,6 @@ import ItemsPage from './pages/ItemsPage';
 import WarehousesPage from './pages/WarehousesPage';
 import CustomersPage from './pages/CustomersPage';
 import SuppliersPage from './pages/SuppliersPage';
-import SalesOrdersPage from './pages/SalesOrdersPage';
 import DeliveryNotesPage from './pages/DeliveryNotesPage';
 import SalesInvoicePage from './pages/SalesInvoicePage';
 import PurchaseInvoicePage from './pages/PurchaseInvoicePage';
@@ -94,7 +93,6 @@ function AppRoutes() {
         <Route path="item-inquiry" element={<ModuleRoute module="stock"><ItemInquiryPage /></ModuleRoute>} />
 
         {/* المبيعات */}
-        <Route path="sales-orders" element={<ModuleRoute module="sales_orders"><SalesOrdersPage /></ModuleRoute>} />
         <Route path="delivery-notes" element={<ModuleRoute module="delivery_notes"><DeliveryNotesPage /></ModuleRoute>} />
         <Route path="sales-invoices" element={<ModuleRoute module="sales_invoices"><SalesInvoicePage /></ModuleRoute>} />
         <Route path="sales-returns" element={<ModuleRoute module="sales_invoices"><SalesReturnsPage /></ModuleRoute>} />

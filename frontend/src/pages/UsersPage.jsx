@@ -10,7 +10,6 @@ const allPermissions = [
   { key: 'stock', label: 'حركة المخزون (صرف/إضافة/تحويل)' },
   { key: 'customers', label: 'العملاء' },
   { key: 'suppliers', label: 'الموردين' },
-  { key: 'sales_orders', label: 'أوامر البيع' },
   { key: 'delivery_notes', label: 'إذون التسليم' },
   { key: 'sales_invoices', label: 'فواتير البيع (والمرتجعات)' },
   { key: 'purchase_invoices', label: 'فواتير الشراء (والمرتجعات)' },

@@ -30,7 +30,6 @@ const menuGroups = [
   {
     label: 'المبيعات', icon: MdReceipt,
     items: [
-      { path: '/sales-orders', label: 'طلبيات البيع', icon: MdAssignment, module: 'sales_orders' },
       { path: '/delivery-notes', label: 'إذون التسليم', icon: MdLocalShipping, module: 'delivery_notes' },
       { path: '/sales-invoices', label: 'فواتير بيع', icon: MdReceipt, module: 'sales_invoices' },
       { path: '/sales-returns', label: 'مرتجع مبيعات', icon: MdTrendingDown, module: 'sales_invoices' },

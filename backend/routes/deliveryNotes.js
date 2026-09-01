@@ -1,10 +1,10 @@
 const router = require('express').Router();
-const { DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder, Customer, Item, SalesOrder, SalesOrderItem, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, sequelize } = require('../models');
+const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, sequelize } = require('../models');
 
 router.get('/', async (req, res) => {
   try {
     res.json(await DeliveryNote.findAll({
-      include: [{ model: Customer, attributes: ['id', 'name'] }, { model: DeliveryNoteItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name'] }] }, { model: SalesOrder, attributes: ['id', 'order_no'] }],
+      include: [{ model: Customer, attributes: ['id', 'name'] }, { model: DeliveryNoteItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name', 'sale_price'] }] }],
       order: [['id', 'DESC']],
     }));
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const n = await DeliveryNote.findByPk(req.params.id, { include: [Customer, { model: DeliveryNoteItem, as: 'items', include: [Item] }, SalesOrder] });
+    const n = await DeliveryNote.findByPk(req.params.id, { include: [Customer, { model: DeliveryNoteItem, as: 'items', include: [Item] }] });
     if (!n) return res.status(404).json({ error: 'غير موجود' });
     res.json(n);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -21,16 +21,13 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, linked_orders, ...data } = req.body;
+    const { items, ...data } = req.body;
     const max = await DeliveryNote.max('id') || 0;
     data.note_no = max + 1;
     const note = await DeliveryNote.create(data, { transaction: t });
     if (items?.length) await DeliveryNoteItem.bulkCreate(items.map(i => ({ ...i, note_id: note.id })), { transaction: t });
-    if (linked_orders?.length) {
-      await DeliveryNoteOrder.bulkCreate(linked_orders.map(orderId => ({ note_id: note.id, order_id: orderId })), { transaction: t });
-    }
     await t.commit();
-    res.status(201).json(await DeliveryNote.findByPk(note.id, { include: [{ model: DeliveryNoteItem, as: 'items' }, SalesOrder] }));
+    res.status(201).json(await DeliveryNote.findByPk(note.id, { include: [{ model: DeliveryNoteItem, as: 'items' }] }));
   } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
 
@@ -55,17 +52,14 @@ router.post('/:id/deliver', async (req, res) => {
     if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'تم ترحيل هذا الإذن مسبقاً' }); }
 
-    const { invoice_no, warehouse_id } = req.body;
+    const { invoice_no, warehouse_id, items: pricedItems } = req.body;
     const effectiveWarehouseId = warehouse_id ? Number(warehouse_id) : note.warehouse_id;
 
-    // Get prices from linked sales order items
-    const linkedOrders = await DeliveryNoteOrder.findAll({ where: { note_id: note.id }, transaction: t });
-    const orderIds = linkedOrders.map(o => o.order_id);
-    const orderItems = orderIds.length ? await SalesOrderItem.findAll({ where: { order_id: orderIds }, transaction: t }) : [];
+    // Prices are entered at delivery/posting time, keyed by delivery-note item id
     const priceMap = {}, taxMap = {};
-    orderItems.forEach(oi => {
-      priceMap[oi.item_id] = Number(oi.price);
-      if (oi.tax_rate) taxMap[oi.item_id] = Number(oi.tax_rate);
+    (pricedItems || []).forEach(pi => {
+      priceMap[pi.item_id] = Number(pi.price || 0);
+      if (pi.tax_rate) taxMap[pi.item_id] = Number(pi.tax_rate);
     });
 
     const invMax = await SalesInvoice.max('id', { transaction: t }) || 0;

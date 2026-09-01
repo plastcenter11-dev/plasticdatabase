@@ -20,7 +20,6 @@ export const customersAPI = { ...crud('/customers'), statement: (id, params) => 
 export const suppliersAPI = { ...crud('/suppliers'), statement: (id, params) => api.get(`/suppliers/${id}/statement`, { params }) };
 export const employeesAPI = crud('/employees');
 
-export const salesOrdersAPI = crud('/sales-orders');
 export const deliveryNotesAPI = { ...crud('/delivery-notes'), convertToInvoice: (id) => api.post(`/delivery-notes/${id}/convert`) };
 export const salesInvoicesAPI = {
   ...crud('/sales-invoices'),

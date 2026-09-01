@@ -4,7 +4,6 @@ import { MdSave } from 'react-icons/md';
 import api from '../api/axios';
 
 const DOC_TYPES = [
-  { key: 'sales_order', label: 'طلبية البيع', prefix: 'SO-', start: 1 },
   { key: 'delivery_note', label: 'إذن التسليم', prefix: 'DN-', start: 1 },
   { key: 'sales_invoice', label: 'فاتورة البيع', prefix: 'SI-', start: 1 },
   { key: 'sales_return', label: 'مرتجع مبيعات', prefix: 'SR-', start: 1 },
@@ -18,8 +17,6 @@ const DOC_TYPES = [
 
 const FLOW_RULES = [
   { key: 'delivery_auto_invoice', label: 'ترحيل إذن التسليم ينشئ فاتورة بيع تلقائياً', default: true },
-  { key: 'require_order_before_delivery', label: 'يشترط طلبية بيع لإنشاء إذن تسليم', default: false },
-  { key: 'allow_partial_delivery', label: 'السماح بالتسليم الجزئي للطلبيات', default: true },
   { key: 'auto_number_docs', label: 'ترقيم المستندات تلقائياً', default: true },
   { key: 'block_sale_over_credit', label: 'منع البيع عند تجاوز حد الائتمان', default: false },
   { key: 'require_warehouse_on_invoice', label: 'يشترط تحديد المخزن في فواتير البيع', default: true },

@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, DeliveryNote, DeliveryNoteItem, SalesInvoice, SalesOrder, SalesOrderItem, Customer, Item, Warehouse, Stock, StockMovement } = require('../../models');
+const { sequelize, DeliveryNote, DeliveryNoteItem, SalesInvoice, Customer, Item, Warehouse, Stock, StockMovement } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeWarehouse, makeItem, makeCustomer } = require('../helpers/fixtures');
 
@@ -70,16 +70,11 @@ describe('POST /api/delivery-notes/:id/deliver', () => {
     expect(Number(stock.quantity)).toBe(-3);
   });
 
-  test('updates item sale_price to match manual post route parity', async () => {
-    const order = await SalesOrder.create({ order_no: `SO-${Date.now()}`, date: '2026-03-01', status: 'pending' });
-    await SalesOrderItem.create({ order_id: order.id, item_id: item.id, quantity: 10, price: 77 });
-    const res1 = await request(app).post('/api/delivery-notes').set(auth()).send({
-      date: '2026-03-01', customer_id: customer.id, warehouse_id: warehouse.id,
-      items: [{ item_id: item.id, net_weight: 100, roll_count: 10 }],
-      linked_orders: [order.id],
+  test('updates item sale_price from the price entered at delivery time', async () => {
+    const note = (await createNote()).body;
+    await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      items: [{ item_id: item.id, price: 77 }],
     });
-    const note = res1.body;
-    await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({});
     const updated = await Item.findByPk(item.id);
     expect(Number(updated.sale_price)).toBe(77);
   });

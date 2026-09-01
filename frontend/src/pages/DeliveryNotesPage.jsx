@@ -55,7 +55,6 @@ export default function DeliveryNotesPage() {
   const [notes, setNotes] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [allItems, setAllItems] = useState([]);
-  const [salesOrders, setSalesOrders] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
 
   const loadData = async () => {
@@ -72,14 +71,14 @@ export default function DeliveryNotesPage() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(null);
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceWarehouseId, setInvoiceWarehouseId] = useState('');
-  const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] });
+  const [deliverPrices, setDeliverPrices] = useState([]);
+  const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] });
 
   useEffect(() => {
     if (location.state?.openNew) {
       const cid = location.state.customerId || '';
-      setForm({ customer_id: String(cid), date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] });
+      setForm({ customer_id: String(cid), date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] });
       setShowModal(true);
-      if (cid) loadSalesOrders(cid);
       window.history.replaceState({}, '');
     }
   }, []);
@@ -91,36 +90,6 @@ export default function DeliveryNotesPage() {
   });
 
   const getCustomerName = (id) => customers.find(c => c.id === id)?.name || '-';
-
-  const loadSalesOrders = async (customerId) => {
-    if (!customerId) { setSalesOrders([]); return; }
-    try { const { data } = await api.get(`/sales-orders/customer/${customerId}/pending`); setSalesOrders(data); }
-    catch { setSalesOrders([]); }
-  };
-
-  const availableOrders = salesOrders;
-
-  const toggleOrder = (orderId) => {
-    const selected = form.selected_orders.includes(orderId)
-      ? form.selected_orders.filter(id => id !== orderId)
-      : [...form.selected_orders, orderId];
-
-    const orderItems = [];
-    selected.forEach(oId => {
-      const order = salesOrders.find(o => o.id === oId);
-      if (!order) return;
-      (order.items || []).forEach(oi => {
-        orderItems.push({
-          item_id: oi.item_id, item_name: oi.Item?.name || oi.name || '', item_code: oi.Item?.code || oi.code || '',
-          ordered_qty: oi.quantity, net_weight: oi.quantity,
-          batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '',
-          source_order: order.order_no,
-        });
-      });
-    });
-
-    setForm({ ...form, selected_orders: selected, items: orderItems.length > 0 ? orderItems : [{ ...emptyItem }] });
-  };
 
   const updateItem = (idx, field, value) => {
     const items = [...form.items];
@@ -149,7 +118,6 @@ export default function DeliveryNotesPage() {
     setForm({
       customer_id: String(note.customer_id), date: note.date,
       driver_name: note.driver_name || '', car_no: note.car_no || '',
-      selected_orders: [],
       items: (note.items || []).map(i => ({
         item_id: String(i.item_id), item_name: i.Item?.name || '', item_code: i.Item?.code || '',
         net_weight: i.net_weight, batch_no: i.batch_no || '', roll_count: i.roll_count || '',
@@ -168,13 +136,11 @@ export default function DeliveryNotesPage() {
     const payload = {
       customer_id: Number(form.customer_id), date: form.date,
       driver_name: form.driver_name, car_no: form.car_no,
-      linked_orders: form.selected_orders,
       items: form.items.map(i => ({
         item_id: Number(i.item_id), net_weight: Number(i.net_weight),
         batch_no: i.batch_no || '', roll_count: Number(i.roll_count || 0),
         core_weight: Number(i.core_weight || 0), wood_weight: Number(i.wood_weight || 0),
         stretch_weight: Number(i.stretch_weight || 0), gross_weight: Number(i.gross_weight || 0),
-        ordered_qty: Number(i.ordered_qty || 0), source_order_no: i.source_order || ''
       }))
     };
 
@@ -195,13 +161,26 @@ export default function DeliveryNotesPage() {
     setShowInvoiceModal(id);
     setInvoiceNo('');
     setInvoiceWarehouseId(note?.warehouse_id ? String(note.warehouse_id) : '');
+    setDeliverPrices(
+      (note?.items || []).map(i => ({
+        item_id: i.item_id, item_name: i.Item?.name || i.item_name || '',
+        price: i.Item?.sale_price || '', tax_rate: '',
+      }))
+    );
+  };
+
+  const updateDeliverPrice = (idx, field, value) => {
+    setDeliverPrices(prices => prices.map((p, i) => i === idx ? { ...p, [field]: value } : p));
   };
 
   const handleDeliver = async () => {
     if (!invoiceNo.trim()) return toast.error('أدخل رقم الفاتورة');
     if (!invoiceWarehouseId) return toast.error('اختر المخزن');
     try {
-      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, { invoice_no: invoiceNo.trim(), warehouse_id: Number(invoiceWarehouseId) });
+      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, {
+        invoice_no: invoiceNo.trim(), warehouse_id: Number(invoiceWarehouseId),
+        items: deliverPrices.map(p => ({ item_id: p.item_id, price: Number(p.price || 0), tax_rate: Number(p.tax_rate || 0) })),
+      });
       toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
       setShowInvoiceModal(null); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
@@ -300,7 +279,7 @@ export default function DeliveryNotesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">إذون التسليم</h1>
-        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', selected_orders: [], items: [{ ...emptyItem }] }); setShowModal(true); }}
+        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] }); setShowModal(true); }}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إذن تسليم جديد</button>}
       </div>
 
@@ -319,15 +298,14 @@ export default function DeliveryNotesPage() {
 
         <div className="overflow-hidden rounded-lg border border-gray-100">
           <table className="erp-table">
-            <thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>العميل</th><th>طلبيات البيع</th><th>الأصناف</th><th>إجمالي الوزن</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>العميل</th><th>الأصناف</th><th>إجمالي الوزن</th><th>الحالة</th><th>إجراءات</th></tr></thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد إذون تسليم</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد إذون تسليم</td></tr>}
               {filtered.map(n => (
                 <tr key={n.id}>
                   <td className="font-bold">({n.note_no})</td>
                   <td>{n.date}</td>
                   <td className="font-medium">{n.Customer?.name || getCustomerName(n.customer_id)}</td>
-                  <td className="text-xs">{n.SalesOrders?.length > 0 ? n.SalesOrders.map(o => o.order_no).join('، ') : <span className="text-gray-400">—</span>}</td>
                   <td>
                     {(n.items || []).map((item, i) => (
                       <div key={i} className="text-sm">{item.Item?.name || item.item_name || '-'} — {Number(item.net_weight)} كجم ({item.roll_count} بكرة)</div>
@@ -363,7 +341,7 @@ export default function DeliveryNotesPage() {
             <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="form-label">العميل *</label>
-                <SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => { setForm({ ...form, customer_id: e.target.value, selected_orders: [], items: [{ ...emptyItem }] }); loadSalesOrders(e.target.value); }}>
+                <SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}>
                   <option value="">— اختر —</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </SearchableSelect>
@@ -382,23 +360,6 @@ export default function DeliveryNotesPage() {
               </div>
             </div>
 
-            {form.customer_id && availableOrders.length > 0 && (
-              <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                <label className="form-label mb-2">طلبيات البيع المتاحة (اختر واحدة أو أكثر)</label>
-                <div className="space-y-2">
-                  {availableOrders.map(o => (
-                    <label key={o.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-blue-100">
-                      <input type="checkbox" checked={form.selected_orders.includes(o.id)} onChange={() => toggleOrder(o.id)} className="w-4 h-4" />
-                      <span className="font-mono text-sm">{o.order_no}</span>
-                      <span className="text-sm text-gray-500">({o.date})</span>
-                      <span className="text-sm">— {o.items.length} صنف</span>
-                      <span className="text-xs text-gray-400 mr-auto">{o.items.map(i => i.name).join('، ')}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="form-label mb-0">الأصناف</label>
@@ -410,22 +371,16 @@ export default function DeliveryNotesPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-gray-500">صنف #{idx + 1}</span>
-                      {item.source_order && <span className="badge badge-blue text-xs">من {item.source_order}</span>}
-                      {item.ordered_qty && <span className="text-xs text-gray-400">(العدد المطلوبة: {Number(item.ordered_qty).toLocaleString()} كجم)</span>}
                     </div>
                     {form.items.length > 1 && <button type="button" onClick={() => removeItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}
                   </div>
                   <div className="grid grid-cols-3 gap-3 mb-2">
                     <div>
                       <label className="form-label">الصنف *</label>
-                      {item.source_order ? (
-                        <input className="erp-input bg-gray-100" readOnly value={`${item.item_name} (${item.item_code})`} />
-                      ) : (
-                        <SearchableSelect className="erp-input" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
-                          <option value="">— اختر —</option>
-                          {allItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}
-                        </SearchableSelect>
-                      )}
+                      <SearchableSelect className="erp-input" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
+                        <option value="">— اختر —</option>
+                        {allItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}
+                      </SearchableSelect>
                     </div>
                     <div>
                       <label className="form-label">الوزن الصافي (كجم) *</label>
@@ -471,18 +426,35 @@ export default function DeliveryNotesPage() {
       )}
 
       {showInvoiceModal && (
-        <Modal title="ترحيل لفاتورة بيع" onClose={() => setShowInvoiceModal(null)} width="max-w-sm" zIndex={100}>
+        <Modal title="ترحيل لفاتورة بيع" onClose={() => setShowInvoiceModal(null)} width="max-w-lg" zIndex={100}>
           <div className="space-y-4">
-            <div>
-              <label className="form-label">رقم الفاتورة *</label>
-              <input className="erp-input text-left" dir="ltr" required autoFocus value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">رقم الفاتورة *</label>
+                <input className="erp-input text-left" dir="ltr" required autoFocus value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+              </div>
+              <div>
+                <label className="form-label">المخزن *</label>
+                <SearchableSelect className="erp-input" required value={invoiceWarehouseId} onChange={e => setInvoiceWarehouseId(e.target.value)}>
+                  <option value="">— اختر —</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </SearchableSelect>
+              </div>
             </div>
             <div>
-              <label className="form-label">المخزن *</label>
-              <SearchableSelect className="erp-input" required value={invoiceWarehouseId} onChange={e => setInvoiceWarehouseId(e.target.value)}>
-                <option value="">— اختر —</option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </SearchableSelect>
+              <label className="form-label mb-2">أسعار الأصناف</label>
+              <table className="erp-table">
+                <thead><tr><th>الصنف</th><th>السعر *</th><th>ضريبة %</th></tr></thead>
+                <tbody>
+                  {deliverPrices.map((p, idx) => (
+                    <tr key={idx}>
+                      <td className="text-sm">{p.item_name}</td>
+                      <td><input type="number" step="0.01" className="erp-input py-1" required value={p.price} onChange={e => updateDeliverPrice(idx, 'price', e.target.value)} /></td>
+                      <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={p.tax_rate} onChange={e => updateDeliverPrice(idx, 'tax_rate', e.target.value)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button onClick={() => setShowInvoiceModal(null)} className="erp-btn erp-btn-secondary">إلغاء</button>
