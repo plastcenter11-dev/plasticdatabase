@@ -62,6 +62,7 @@ export default function ItemMovementPage() {
                 <th rowSpan={2}>المخزن</th>
                 <th colSpan={2} className="text-center text-green-700">الوارد</th>
                 <th colSpan={2} className="text-center text-red-700">المنصرف</th>
+                <th colSpan={2} className="text-center text-primary">الرصيد</th>
                 <th rowSpan={2}>الوصف</th>
               </tr>
               <tr>
@@ -69,28 +70,38 @@ export default function ItemMovementPage() {
                 <th className="text-green-700">العدد</th>
                 <th className="text-red-700">الوزن</th>
                 <th className="text-red-700">العدد</th>
+                <th className="text-primary">الوزن</th>
+                <th className="text-primary">العدد</th>
               </tr>
             </thead>
             <tbody>
-              {movements.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
-              {movements.map((m, i) => {
-                const incoming = isIncoming(m);
-                return (
-                  <tr key={i}>
-                    <td>{m.date}</td>
-                    <td><span className="badge badge-blue">{m.movement_type}</span></td>
-                    <td className="text-sm">{m.Warehouse?.name || '-'}</td>
-                    <td className="font-bold text-green-700">{incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
-                    <td className="font-bold text-green-700">{incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
-                    <td className="font-bold text-red-700">{!incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
-                    <td className="font-bold text-red-700">{!incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
-                    <td className="text-sm text-gray-500">
-                      {m.description}
-                      {m.assembly_item_name && <span className="text-gray-400"> ({m.assembly_item_name})</span>}
-                    </td>
-                  </tr>
-                );
-              })}
+              {movements.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
+              {(() => {
+                let runWeight = 0, runQty = 0;
+                return movements.map((m, i) => {
+                  const incoming = isIncoming(m);
+                  const sign = incoming ? 1 : -1;
+                  runWeight += sign * Number(m.weight || 0);
+                  runQty += sign * Number(m.quantity || 0);
+                  return (
+                    <tr key={i}>
+                      <td>{m.date}</td>
+                      <td><span className="badge badge-blue">{m.movement_type}</span></td>
+                      <td className="text-sm">{m.Warehouse?.name || '-'}</td>
+                      <td className="font-bold text-green-700">{incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
+                      <td className="font-bold text-green-700">{incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
+                      <td className="font-bold text-red-700">{!incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
+                      <td className="font-bold text-red-700">{!incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
+                      <td className="font-bold text-primary">{runWeight.toLocaleString()} كجم</td>
+                      <td className="font-bold text-primary">{runQty.toLocaleString()}</td>
+                      <td className="text-sm text-gray-500">
+                        {m.description}
+                        {m.assembly_item_name && <span className="text-gray-400"> ({m.assembly_item_name})</span>}
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
             {movements.length > 0 && (() => {
               const inWeight = movements.filter(isIncoming).reduce((s, m) => s + Number(m.weight || 0), 0);
@@ -105,12 +116,7 @@ export default function ItemMovementPage() {
                     <td className="text-green-700">{inQty.toLocaleString()}</td>
                     <td className="text-red-700">{outWeight.toLocaleString()} كجم</td>
                     <td className="text-red-700">{outQty.toLocaleString()}</td>
-                    <td></td>
-                  </tr>
-                  <tr className="bg-primary/20 font-bold text-primary">
-                    <td colSpan={3} className="text-right">الرصيد الصافي</td>
-                    <td colSpan={2}>{(inWeight - outWeight).toLocaleString()} كجم</td>
-                    <td colSpan={2}>{(inQty - outQty).toLocaleString()}</td>
+                    <td colSpan={2}>{(inWeight - outWeight).toLocaleString()} كجم / {(inQty - outQty).toLocaleString()}</td>
                     <td></td>
                   </tr>
                 </tfoot>
