@@ -37,7 +37,7 @@ export default function CustomerStatementPage() {
     <div class="info"><span>العميل: <strong>${customerName}</strong></span><span>من: ${dateFrom} إلى: ${dateTo}</span></div>
     <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (له)</th><th>دائن (منه)</th><th>الرصيد</th></tr></thead>
     <tbody>${rows.map(r => `
-      <tr><td>${r.date}</td><td>${r.type} ${r.reference}</td><td>${r.debit ? Number(r.debit).toLocaleString() : ''}</td><td>${r.credit ? Number(r.credit).toLocaleString() : ''}</td><td>${r.balance.toLocaleString()}</td></tr>
+      <tr><td>${r.date}</td><td>${r.type} ${r.reference}${r.check_due_date ? ` — استحقاق: ${r.check_due_date}` : ''}${r.check_status ? ` (${r.check_status === 'bounced' ? 'مرتد' : r.check_status === 'collected' ? 'تم التحصيل' : 'قيد الانتظار'})` : ''}</td><td>${r.debit ? Number(r.debit).toLocaleString() : ''}</td><td>${r.credit ? Number(r.credit).toLocaleString() : ''}</td><td>${r.balance.toLocaleString()}</td></tr>
       ${r.items?.length ? `<tr class="sub"><td colspan="5"><table style="width:100%;font-size:12px"><thead><tr><th>الصنف</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${r.items.map(it => `<tr><td>${it.Item?.name || ''}</td><td>${Number(it.quantity).toLocaleString()}</td><td>${Number(it.price).toLocaleString()}</td><td>${Number(it.total).toLocaleString()}</td></tr>`).join('')}</tbody></table></td></tr>` : ''}
     `).join('')}</tbody></table>
     </body></html>`;
@@ -73,7 +73,17 @@ export default function CustomerStatementPage() {
                   <td>{r.date}</td>
                   <td>
                     <div className="flex flex-col gap-1">
-                      <div><span className={`font-medium ${typeColor(r.type)}`}>{r.type}</span> <span className="font-mono text-sm text-gray-600">{r.reference}</span></div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-medium ${typeColor(r.type)}`}>{r.type}</span> <span className="font-mono text-sm text-gray-600">{r.reference}</span>
+                        {r.check_status && (
+                          <span className={`badge text-xs ${r.check_status === 'bounced' ? 'badge-red' : r.check_status === 'collected' ? 'badge-green' : 'badge-yellow'}`}>
+                            {r.check_status === 'bounced' ? 'مرتد' : r.check_status === 'collected' ? 'تم التحصيل' : 'قيد الانتظار'}
+                          </span>
+                        )}
+                      </div>
+                      {r.check_due_date && (
+                        <div className="text-xs text-gray-500">تاريخ الاستحقاق: {r.check_due_date}</div>
+                      )}
                       {r.items?.length > 0 && (
                         <div className="text-xs text-gray-500 pr-2 border-r-2 border-blue-200 space-y-0.5 mt-0.5">
                           {r.items.map((it, j) => {

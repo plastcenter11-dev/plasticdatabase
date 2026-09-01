@@ -87,12 +87,12 @@ router.get('/:id/statement', async (req, res) => {
     });
     const opening = await OpeningBalance.findAll({ where: { party_type: 'supplier', party_id: req.params.id } });
     const openingTotal = opening.reduce((sum, o) => sum + Number(o.credit || 0) - Number(o.debit || 0), 0);
-    const checks = await Check.findAll({ where: { party_type: 'supplier', party_id: req.params.id, status: { [Op.ne]: 'bounced' } }, order: [['date', 'ASC']] });
+    const checks = await Check.findAll({ where: { party_type: 'supplier', party_id: req.params.id }, order: [['date', 'ASC']] });
     const movements = [
       ...invoices.map(i => ({ date: i.date, type: 'فاتورة شراء', reference: i.invoice_no, debit: 0, credit: Number(i.total), invoice_id: i.id, items: i.items, subtotal: Number(i.subtotal || 0), discount: Number(i.discount || 0), tax_rate: Number(i.tax_rate || 0), tax_amount: Number(i.tax_amount || 0) })),
       ...payments.map(p => ({ date: p.date, type: 'دفع', reference: p.payment_no, debit: Number(p.amount), credit: 0 })),
       ...returns.map(r => ({ date: r.date, type: 'مرتجع شراء', reference: r.return_no, debit: Number(r.total), credit: 0, items: r.items, subtotal: Number(r.total) - Number(r.tax_amount || 0), discount: 0, tax_rate: Number(r.tax_rate || 0), tax_amount: Number(r.tax_amount || 0) })),
-      ...checks.map(c => ({ date: c.date, type: 'شيك', reference: c.check_no, debit: Number(c.amount), credit: 0 })),
+      ...checks.map(c => ({ date: c.date, type: 'شيك', reference: c.check_no, debit: c.status === 'bounced' ? 0 : Number(c.amount), credit: 0, check_due_date: c.due_date, check_status: c.status })),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = openingTotal;
     if (openingTotal) movements.unshift({ date: null, type: 'رصيد افتتاحي', reference: '-', debit: 0, credit: 0, balance: openingTotal, isOpening: true });
