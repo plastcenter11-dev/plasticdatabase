@@ -66,13 +66,14 @@ router.post('/:id/deliver', async (req, res) => {
     const invoiceNumber = invoice_no || `SI-${String(invMax + 1).padStart(6, '0')}`;
     const items = note.items || [];
     const invoiceItems = items.map(i => {
-      const qty = Number(i.net_weight || i.gross_weight || 0);
+      const weight = Number(i.net_weight || i.gross_weight || 0);
+      const rollCount = Number(i.roll_count || 0);
       const price = priceMap[i.item_id] || 0;
       const taxRate = taxMap[i.item_id] || 0;
-      return { item_id: i.item_id, quantity: qty, price, tax_rate: taxRate || null, total: qty * price * (1 + taxRate / 100) };
+      return { item_id: i.item_id, quantity: rollCount, weight, price, tax_rate: taxRate || null, total: weight * price * (1 + taxRate / 100) };
     });
-    const subtotal = invoiceItems.reduce((s, i) => s + i.quantity * i.price, 0);
-    const taxTotal = invoiceItems.reduce((s, i) => s + i.quantity * i.price * (i.tax_rate || 0) / 100, 0);
+    const subtotal = invoiceItems.reduce((s, i) => s + i.weight * i.price, 0);
+    const taxTotal = invoiceItems.reduce((s, i) => s + i.weight * i.price * (i.tax_rate || 0) / 100, 0);
     const total = subtotal + taxTotal;
 
     const inv = await SalesInvoice.create({
