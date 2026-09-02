@@ -129,21 +129,27 @@ router.post('/financial-years/:id/close', async (req, res) => {
     const next = await FinancialYear.findByPk(next_year_id);
     if (!current || !next) return res.status(404).json({ error: 'سنة غير موجودة' });
 
-    // Transfer customer balances
-    const customers = await Customer.findAll({ where: { balance: { [require('sequelize').Op.ne]: 0 } } });
-    for (const c of customers) {
-      await OpeningBalance.create({ party_type: 'customer', party_id: c.id, debit: Number(c.balance) > 0 ? c.balance : 0, credit: Number(c.balance) < 0 ? Math.abs(c.balance) : 0, financial_year_id: next.id });
-    }
-
-    // Transfer supplier balances
-    const suppliers = await Supplier.findAll({ where: { balance: { [require('sequelize').Op.ne]: 0 } } });
-    for (const s of suppliers) {
-      await OpeningBalance.create({ party_type: 'supplier', party_id: s.id, debit: Number(s.balance) < 0 ? Math.abs(s.balance) : 0, credit: Number(s.balance) > 0 ? s.balance : 0, financial_year_id: next.id });
-    }
-
+    // Customer/supplier balances are a continuous running total (all posted
+    // invoices/returns/receipts/payments/checks ever, plus each party's
+    // one-time opening balance) - it already carries forward correctly on
+    // its own. Closing a year does NOT insert a fresh opening-balance
+    // snapshot here: doing so would double-count everything that snapshot
+    // was computed from, since the running total keeps summing the same
+    // history anyway. Closing only locks the year's documents (enforced via
+    // closedYearError on every financial document route) and switches which
+    // year is "active" for new documents.
     await current.update({ is_active: false, is_closed: true });
     await next.update({ is_active: true });
     res.json({ message: `تم إقفال ${current.name} وتنشيط ${next.name}` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/financial-years/:id/reopen', async (req, res) => {
+  try {
+    const y = await FinancialYear.findByPk(req.params.id);
+    if (!y) return res.status(404).json({ error: 'غير موجود' });
+    await y.update({ is_closed: false });
+    res.json({ message: `تم إعادة فتح ${y.name}` });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

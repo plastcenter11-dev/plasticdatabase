@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, sequelize } = require('../models');
+const { closedYearError } = require('../utils/financialYear');
 
 router.get('/', async (req, res) => {
   try {
@@ -21,6 +22,8 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
+    const closedErr = await closedYearError(data.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const max = await SalesInvoice.max('id') || 0;
     data.invoice_no = data.invoice_no || `SI-${String(max + 1).padStart(6, '0')}`;
     const inv = await SalesInvoice.create(data, { transaction: t });
@@ -36,6 +39,8 @@ router.put('/:id', async (req, res) => {
     const inv = await SalesInvoice.findByPk(req.params.id, { transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     const { items, ...data } = req.body;
+    const closedErr = await closedYearError(data.date || inv.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     if (items) {
       await SalesInvoiceItem.destroy({ where: { invoice_id: inv.id }, transaction: t });
       await SalesInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
@@ -52,6 +57,8 @@ router.post('/:id/post', async (req, res) => {
     const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }], transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
+    const closedErr = await closedYearError(inv.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     // Check stock availability before posting
     if (inv.warehouse_id) {

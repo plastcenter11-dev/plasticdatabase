@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem, Supplier, Customer, Item, Stock, StockMovement, PurchaseInvoice, SalesInvoice, Warehouse, sequelize } = require('../models');
+const { closedYearError } = require('../utils/financialYear');
 
 // Purchase Returns
 router.get('/purchase', async (req, res) => {
@@ -12,6 +13,8 @@ router.post('/purchase', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
+    const closedErr = await closedYearError(data.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const max = await PurchaseReturn.max('id') || 0;
     data.return_no = `PR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
@@ -53,6 +56,8 @@ router.delete('/purchase/:id', async (req, res) => {
   try {
     const r = await PurchaseReturn.findByPk(req.params.id, { include: [{ model: PurchaseReturnItem, as: 'items' }], transaction: t });
     if (!r) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    const closedErr = await closedYearError(r.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     // Reverse the return's stock/balance effects before deleting
     for (const item of (r.items || [])) {
@@ -89,6 +94,8 @@ router.post('/sales', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
+    const closedErr = await closedYearError(data.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const max = await SalesReturn.max('id') || 0;
     data.return_no = `SR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
@@ -130,6 +137,8 @@ router.delete('/sales/:id', async (req, res) => {
   try {
     const r = await SalesReturn.findByPk(req.params.id, { include: [{ model: SalesReturnItem, as: 'items' }], transaction: t });
     if (!r) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    const closedErr = await closedYearError(r.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     // Reverse the return's stock/balance effects before deleting
     for (const item of (r.items || [])) {

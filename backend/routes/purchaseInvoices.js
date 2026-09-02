@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { PurchaseInvoice, PurchaseInvoiceItem, Supplier, Item, Stock, StockMovement, CashPayment, sequelize } = require('../models');
+const { closedYearError } = require('../utils/financialYear');
 
 router.get('/', async (req, res) => {
   try {
@@ -22,6 +23,8 @@ router.post('/', async (req, res) => {
   try {
     const { items, ...data } = req.body;
     if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
+    const closedErr = await closedYearError(data.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const max = await PurchaseInvoice.max('id') || 0;
     data.invoice_no = data.invoice_no || `PI-${String(max + 1).padStart(6, '0')}`;
     const inv = await PurchaseInvoice.create(data, { transaction: t });
@@ -37,6 +40,8 @@ router.put('/:id', async (req, res) => {
     const inv = await PurchaseInvoice.findByPk(req.params.id, { transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     const { items, ...data } = req.body;
+    const closedErr = await closedYearError(data.date || inv.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     if (items) {
       await PurchaseInvoiceItem.destroy({ where: { invoice_id: inv.id }, transaction: t });
       await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
@@ -53,6 +58,8 @@ router.post('/:id/post', async (req, res) => {
     const inv = await PurchaseInvoice.findByPk(req.params.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }], transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
+    const closedErr = await closedYearError(inv.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     await inv.update({ status: 'posted' }, { transaction: t });
 

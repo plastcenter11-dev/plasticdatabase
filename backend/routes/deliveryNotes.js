@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, sequelize } = require('../models');
+const { closedYearError } = require('../utils/financialYear');
 
 router.get('/', async (req, res) => {
   try {
@@ -51,6 +52,8 @@ router.post('/:id/deliver', async (req, res) => {
     });
     if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'تم ترحيل هذا الإذن مسبقاً' }); }
+    const closedErr = await closedYearError(note.date);
+    if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     const { invoice_no, warehouse_id, items: pricedItems } = req.body;
     const effectiveWarehouseId = warehouse_id ? Number(warehouse_id) : note.warehouse_id;

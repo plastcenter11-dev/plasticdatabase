@@ -48,6 +48,12 @@ export default function FinancialYearsPage() {
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
+  const handleReopen = async (y) => {
+    if (!window.confirm(`إعادة فتح "${y.name}"؟ هيبقى ممكن تعدّل أو تحذف مستندات مؤرخة فيها تاني.`)) return;
+    try { await api.post(`/financial-years/${y.id}/reopen`); toast.success(`تم إعادة فتح ${y.name}`); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
+  };
+
   const handleCloseYear = async () => {
     if (!closeForm.next_year_id) return toast.error('اختر السنة المالية الجديدة');
     const nextYear = years.find(y => y.id === Number(closeForm.next_year_id));
@@ -86,7 +92,7 @@ export default function FinancialYearsPage() {
 
       {!activeYear && years.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-          <p className="font-bold text-red-700">لا توجد سنة مالية نشطة — لن تتمكن من إنشاء فواتير جديدة</p>
+          <p className="font-bold text-red-700">لا توجد سنة مالية نشطة</p>
         </div>
       )}
 
@@ -104,7 +110,8 @@ export default function FinancialYearsPage() {
                 <td>{y.is_active ? <span className="badge badge-green font-bold">نشطة</span> : y.is_closed ? <span className="badge badge-gray">مقفولة</span> : <span className="badge badge-yellow">غير نشطة</span>}</td>
                 <td>
                   <div className="flex gap-1">
-                    {!y.is_active && can('financial_years', 'edit') && <button onClick={() => handleActivate(y.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs">إعادة تنشيط</button>}
+                    {!y.is_active && !y.is_closed && can('financial_years', 'edit') && <button onClick={() => handleActivate(y.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs">إعادة تنشيط</button>}
+                    {y.is_closed && can('financial_years', 'edit') && <button onClick={() => handleReopen(y)} className="erp-btn erp-btn-outline py-1 px-2 text-xs">إعادة فتح</button>}
                     {can('financial_years', 'edit') && <button onClick={() => { setEditing(y); setForm({ name: y.name, start_date: y.start_date, end_date: y.end_date }); setShowModal(true); }} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     {!y.is_active && can('financial_years', 'delete') && <button onClick={() => handleDelete(y.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
@@ -137,8 +144,8 @@ export default function FinancialYearsPage() {
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
               <p className="font-bold text-yellow-800 mb-2">تحذير</p>
               <ul className="text-yellow-700 space-y-1 list-disc list-inside">
-                <li>سيتم قفل السنة المالية <strong>{activeYear?.name}</strong></li>
-                <li>ترحيل أرصدة العملاء والموردين كأرصدة افتتاحية</li>
+                <li>سيتم قفل السنة المالية <strong>{activeYear?.name}</strong> — مش هيتقدر حد يعدّل أو يحذف أي فاتورة أو سند أو مرتجع مؤرخ فيها إلا بعد إعادة فتحها</li>
+                <li>أرصدة العملاء والموردين بتترحّل تلقائيًا (مفيش داعي لعمل حاجة إضافية)</li>
                 <li>تفعيل السنة الجديدة</li>
               </ul>
             </div>
