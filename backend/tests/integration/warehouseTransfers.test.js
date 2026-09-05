@@ -66,4 +66,18 @@ describe('POST /api/stock/transfers/:id/confirm', () => {
     const to = await Stock.findOne({ where: { item_id: item.id, warehouse_id: toWh.id } });
     expect(Number(to.quantity)).toBe(10);
   });
+
+  test('two concurrent confirm requests on the same transfer only move stock once (row lock)', async () => {
+    const transfer = await createTransfer(10, 100);
+    const [r1, r2] = await Promise.all([
+      request(app).post(`/api/stock/transfers/${transfer.id}/confirm`).set(auth()),
+      request(app).post(`/api/stock/transfers/${transfer.id}/confirm`).set(auth()),
+    ]);
+    const statuses = [r1.status, r2.status].sort();
+    expect(statuses).toEqual([200, 400]);
+    const from = await Stock.findOne({ where: { item_id: item.id, warehouse_id: fromWh.id } });
+    const to = await Stock.findOne({ where: { item_id: item.id, warehouse_id: toWh.id } });
+    expect(Number(from.quantity)).toBe(40);
+    expect(Number(to.quantity)).toBe(10);
+  });
 });
