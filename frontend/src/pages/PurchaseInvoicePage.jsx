@@ -138,7 +138,12 @@ export default function PurchaseInvoicePage() {
     <div class="info"><span>المورد: <strong>${sup}</strong></span><span>التاريخ: ${inv.date}</span></div>
     <table><thead><tr><th>#</th><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الخصم</th><th>الإجمالي</th></tr></thead>
     <tbody>${invItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.Item?.name || '-'}</td><td>${Number(item.weight || 0) > 0 ? Number(item.weight).toLocaleString() : '—'}</td><td>${Number(item.quantity).toLocaleString()}</td><td>${item.price}</td><td>${item.discount}</td><td>${Number(item.total).toLocaleString()}</td></tr>`).join('')}</tbody></table>
-    <div class="totals"><div class="total-line">الإجمالي: ${Number(inv.total).toLocaleString()} ج.م</div></div></body></html>`;
+    <div class="totals">
+    <div>الإجمالي قبل الخصم والضريبة: ${Number(inv.subtotal || 0).toLocaleString()} ج.م</div>
+    ${Number(inv.discount || 0) > 0 ? `<div>الخصم: - ${Number(inv.discount).toLocaleString()} ج.م</div>` : ''}
+    ${Number(inv.tax_amount || 0) > 0 ? `<div>الضريبة (${inv.tax_rate}%): + ${Number(inv.tax_amount).toLocaleString()} ج.م</div>` : ''}
+    <div class="total-line">الإجمالي: ${Number(inv.total).toLocaleString()} ج.م</div>
+    </div></body></html>`;
     const win = window.open('', '_blank'); win.document.write(printContent); win.document.close(); win.print();
   };
 

@@ -25,7 +25,7 @@ export default function OverdueChecksPage() {
 
   const handlePrint = () => {
     const rows = checks.map(c => `<tr>
-      <td>${c.check_no}</td><td>${c.due_date}</td><td>${c.party_type}</td>
+      <td>${c.check_no}</td><td>${c.due_date}</td><td>${c.party_type === 'customer' ? 'عميل' : 'مورد'}</td>
       <td>${Number(c.amount).toLocaleString()}</td><td>${daysPast(c.due_date)} يوم</td>
     </tr>`).join('');
     const win = window.open('', '_blank');

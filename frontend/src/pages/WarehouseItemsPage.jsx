@@ -88,7 +88,7 @@ export default function WarehouseItemsPage() {
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
       <table><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>المخزن</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="7">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
+      <tfoot><tr><td colspan="8">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
       </table></body></html>`);
     win.document.close(); win.print();
   };

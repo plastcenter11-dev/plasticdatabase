@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
+import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
@@ -127,6 +127,22 @@ export default function SalesReturnsPage() {
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
+  const handlePrint = (r) => {
+    const cust = r.Customer?.name || '-';
+    const retItems = r.items || [];
+    const printContent = `<html dir="rtl"><head><title>مرتجع بيع ${r.return_no}</title>
+    <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:22px;text-align:center}
+    .info{display:flex;justify-content:space-between;margin:20px 0;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #333;padding:8px;text-align:right}
+    th{background:#f0f0f0}.totals{margin-top:15px;text-align:left;font-size:14px}.totals div{margin:4px 0}.total-line{font-size:18px;font-weight:bold}</style></head><body>
+    <h1>مرتجع مبيعات</h1>
+    <div class="info"><span>العميل: <strong>${cust}</strong></span><span>التاريخ: ${r.date}</span></div>
+    <table><thead><tr><th>#</th><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+    <tbody>${retItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.Item?.name || '-'}</td><td>${Number(item.weight || 0) > 0 ? Number(item.weight).toLocaleString() : '—'}</td><td>${Number(item.quantity).toLocaleString()}</td><td>${item.price}</td><td>${Number(item.total).toLocaleString()}</td></tr>`).join('')}</tbody></table>
+    <div class="totals"><div class="total-line">الإجمالي: ${Number(r.total).toLocaleString()} ج.م</div></div></body></html>`;
+    const win = window.open('', '_blank'); win.document.write(printContent); win.document.close(); win.print();
+  };
+
   const filtered = returns.filter(r => !search || r.return_no?.includes(search) || r.Customer?.name?.includes(search));
 
   return (
@@ -156,7 +172,10 @@ export default function SalesReturnsPage() {
                 <td className="text-sm text-blue-600 font-mono">{r.SalesInvoice?.invoice_no || (r.invoice_id ? `#${r.invoice_id}` : '-')}</td>
                 <td className="font-bold text-red-600">{Number(r.total).toLocaleString()} ج.م</td>
                 <td className="text-sm text-gray-500">{r.reason || '-'}</td>
-                <td onClick={e => e.stopPropagation()}>{can('sales_invoices', 'delete') && <button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}</td>
+                <td onClick={e => e.stopPropagation()} className="flex gap-1">
+                  <button onClick={() => handlePrint(r)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
+                  {can('sales_invoices', 'delete') && <button onClick={() => handleDelete(r.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
+                </td>
               </tr>,
               expanded.has(r.id) && (r.items || []).length > 0 && (
                 <tr key={`sub-${r.id}`}>
