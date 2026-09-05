@@ -49,7 +49,7 @@ export default function CustomerStatementPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[200px]">
           <label className="form-label">العميل</label>
-          <SearchableSelect className="erp-input" value={customerId} onChange={e => { setCustomerId(e.target.value); setExpanded(new Set()); }}>
+          <SearchableSelect className="erp-input" value={customerId} onChange={e => setCustomerId(e.target.value)}>
             <option value="">— اختر العميل —</option>
             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </SearchableSelect>
