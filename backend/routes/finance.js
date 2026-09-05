@@ -100,9 +100,12 @@ router.post('/checks', async (req, res) => {
 router.put('/checks/:id', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const c = await Check.findByPk(req.params.id, { transaction: t });
+    const c = await Check.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(req.body.date || c.date);
+    // Block if either the check's current date or its incoming new date falls
+    // in a closed year - changing the date is itself a way to move a balance
+    // effect into/out of a locked period, so both ends must be checked.
+    const closedErr = (await closedYearError(c.date)) || (req.body.date ? await closedYearError(req.body.date) : null);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     await applyCheckBalance(c, 1, t); // reverse old effect
     await c.update(req.body, { transaction: t });
@@ -115,7 +118,7 @@ router.put('/checks/:id', async (req, res) => {
 router.delete('/checks/:id', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const c = await Check.findByPk(req.params.id, { transaction: t });
+    const c = await Check.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     const closedErr = await closedYearError(c.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
