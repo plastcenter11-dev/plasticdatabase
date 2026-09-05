@@ -41,13 +41,32 @@ export default function PurchaseReturnsPage() {
     } else { setPurchaseInvoices([]); }
   };
 
+  // Per-unit "effective" price for a returned item, folding in that item's
+  // proportional share of the original invoice's header-level discount and
+  // tax (the same allocation the invoice's own POST /:id/post uses) - so
+  // returning goods from a discounted/taxed invoice reverses exactly what
+  // the invoice actually charged for them, not the pre-discount line price.
+  const effectiveUnitNet = (i, inv, grossTotal) => {
+    const unit = (Number(i.weight) || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0;
+    if (unit <= 0) return 0;
+    const pr = Number(i.price) || 0;
+    const disc = Number(i.discount) || 0;
+    const itemGross = unit * pr;
+    const itemNet = itemGross * (1 - disc / 100);
+    const taxShare = grossTotal > 0 ? Number(inv.tax_amount || 0) * (itemGross / grossTotal) : 0;
+    const discShare = Number(inv.subtotal || 0) > 0 ? Number(inv.discount || 0) * (itemNet / Number(inv.subtotal)) : 0;
+    return (itemNet - discShare + taxShare) / unit;
+  };
+
   const handleInvoiceChange = (invoiceId) => {
     const inv = purchaseInvoices.find(i => i.id === Number(invoiceId));
     if (inv) {
+      const grossTotal = (inv.items || []).reduce((s, i) => s + ((Number(i.weight) || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0) * Number(i.price || 0), 0);
       const mapped = (inv.items || []).map(i => {
         const wt = Number(i.weight) || 0;
         const pr = Number(i.price) || 0;
         const disc = Number(i.discount) || 0;
+        const unitNet = effectiveUnitNet(i, inv, grossTotal);
         return {
           item_id: i.item_id,
           name: i.Item?.name || '-',
@@ -55,9 +74,10 @@ export default function PurchaseReturnsPage() {
           weight: wt,
           price: pr,
           discount: disc,
+          unitNet,
           max_qty: Number(i.quantity),
           max_weight: wt,
-          total: wt > 0 ? wt * pr * (1 - disc / 100) : Number(i.quantity) * pr * (1 - disc / 100),
+          total: unitNet * (wt > 0 ? wt : Number(i.quantity) || 0),
         };
       });
       const items = mapped.length > 0 ? mapped : [{ ...emptyItem }];
@@ -72,12 +92,22 @@ export default function PurchaseReturnsPage() {
     const qty = Number(items[idx].quantity) || 0;
     const pr = Number(items[idx].price) || 0;
     const disc = Number(items[idx].discount) || 0;
-    items[idx].total = wt > 0 ? wt * pr * (1 - disc / 100) : qty * pr * (1 - disc / 100);
+    if (form.invoice_id && items[idx].unitNet != null) {
+      // Linked to an invoice: total scales with the effective per-unit price
+      // computed once when the invoice was selected (already nets out that
+      // item's share of the invoice's discount and tax).
+      items[idx].total = items[idx].unitNet * (wt > 0 ? wt : qty);
+    } else {
+      items[idx].total = wt > 0 ? wt * pr * (1 - disc / 100) : qty * pr * (1 - disc / 100);
+    }
     setForm({ ...form, items });
   };
 
   const calcSubtotal = () => form.items.reduce((sum, i) => sum + (i.total || 0), 0);
-  const calcTax = () => calcSubtotal() * (form.invoice_tax_rate / 100);
+  // When linked to an invoice, each item's total already has its share of
+  // discount/tax folded in - the tax shown here is informational only and
+  // must NOT be added again on top of the subtotal.
+  const calcTax = () => form.invoice_id ? 0 : calcSubtotal() * (form.invoice_tax_rate / 100);
   const calcTotal = () => calcSubtotal() + calcTax();
 
   const handleSave = async (e) => {
@@ -193,7 +223,9 @@ export default function PurchaseReturnsPage() {
                   </tr>
                 ))}</tbody>
               </table>
-              {form.invoice_tax_rate > 0 && (
+              {form.invoice_id ? (
+                <div className="text-sm text-gray-500 border-t pt-3 mt-2 text-left">شامل الضريبة والخصم بنفس نسبتهما في الفاتورة الأصلية</div>
+              ) : form.invoice_tax_rate > 0 && (
                 <div className="flex gap-6 justify-end text-sm border-t pt-3 mt-2">
                   <span>إجمالي قبل الضريبة: <strong>{calcSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                   <span className="text-green-600">الضريبة ({form.invoice_tax_rate}%): <strong>+ {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>

@@ -18,7 +18,10 @@ router.post('/purchase', async (req, res) => {
     const max = await PurchaseReturn.max('id') || 0;
     data.return_no = `PR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
-      data.total = items.reduce((sum, i) => sum + ((Number(i.weight || 0) || Number(i.quantity || 0)) * Number(i.price || 0) - Number(i.discount || 0)), 0);
+      data.total = items.reduce((sum, i) => {
+        const unit = Number(i.weight || 0) || Number(i.quantity || 0);
+        return sum + unit * Number(i.price || 0) * (1 - Number(i.discount || 0) / 100);
+      }, 0);
     }
     const ret = await PurchaseReturn.create(data, { transaction: t });
     if (items?.length) await PurchaseReturnItem.bulkCreate(items.map(i => ({ ...i, return_id: ret.id })), { transaction: t });
@@ -99,7 +102,10 @@ router.post('/sales', async (req, res) => {
     const max = await SalesReturn.max('id') || 0;
     data.return_no = `SR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
-      data.total = items.reduce((sum, i) => sum + ((Number(i.weight || 0) || Number(i.quantity || 0)) * Number(i.price || 0) - Number(i.discount || 0)), 0);
+      data.total = items.reduce((sum, i) => {
+        const unit = Number(i.weight || 0) || Number(i.quantity || 0);
+        return sum + unit * Number(i.price || 0) * (1 - Number(i.discount || 0) / 100);
+      }, 0);
     }
     const ret = await SalesReturn.create(data, { transaction: t });
     if (items?.length) await SalesReturnItem.bulkCreate(items.map(i => ({ ...i, return_id: ret.id })), { transaction: t });

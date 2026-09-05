@@ -37,23 +37,44 @@ export default function SalesReturnsPage() {
     } else setSalesInvoices([]);
   };
 
+  // Per-unit "effective" price for a returned item, folding in that item's
+  // proportional share of the original invoice's header-level discount and
+  // tax (the same allocation the invoice's own POST /:id/post uses) - so
+  // returning goods from a discounted/taxed invoice reverses exactly what
+  // the invoice actually charged for them, not the pre-discount line price.
+  const effectiveUnitNet = (i, inv, grossTotal) => {
+    const unit = Number(i.weight || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0;
+    if (unit <= 0) return 0;
+    const pr = Number(i.price) || 0;
+    const disc = Number(i.discount) || 0;
+    const itemGross = unit * pr;
+    const itemNet = itemGross * (1 - disc / 100);
+    const taxShare = grossTotal > 0 ? Number(inv.tax_amount || 0) * (itemGross / grossTotal) : 0;
+    const discShare = Number(inv.subtotal || 0) > 0 ? Number(inv.discount || 0) * (itemNet / Number(inv.subtotal)) : 0;
+    return (itemNet - discShare + taxShare) / unit;
+  };
+
   const handleInvoiceChange = async (invId) => {
     if (!invId) { setForm(f => ({ ...f, invoice_id: '', items: [{ ...emptyItem }] })); return; }
     setForm(f => ({ ...f, invoice_id: invId }));
     try {
       const r = await api.get(`/sales-invoices/${invId}`);
-      const mapped = (r.data.items || []).map(i => ({
-        item_id: i.item_id,
-        quantity: i.quantity,
-        weight: i.weight || '',
-        price: i.price,
-        discount: i.discount || 0,
-        total: Number(i.weight || 0) > 0
-          ? Number(i.weight) * Number(i.price) * (1 - Number(i.discount || 0) / 100)
-          : Number(i.quantity) * Number(i.price) - Number(i.discount || 0),
-      }));
       const inv = r.data;
-      setForm(f => ({ ...f, invoice_id: invId, tax_rate: Number(inv.tax_rate || 0), items: mapped.length > 0 ? mapped : [{ ...emptyItem }] }));
+      const grossTotal = (inv.items || []).reduce((s, i) => s + (Number(i.weight || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0) * Number(i.price || 0), 0);
+      const mapped = (inv.items || []).map(i => {
+        const unitNet = effectiveUnitNet(i, inv, grossTotal);
+        const unit = Number(i.weight || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0;
+        return {
+          item_id: i.item_id,
+          quantity: i.quantity,
+          weight: i.weight || '',
+          price: i.price,
+          discount: i.discount || 0,
+          unitNet,
+          total: unitNet * unit,
+        };
+      });
+      setForm(f => ({ ...f, invoice_id: invId, tax_rate: Number(inv.tax_rate || 0), invoice_discount: Number(inv.discount || 0), invoice_subtotal: Number(inv.subtotal || 0), items: mapped.length > 0 ? mapped : [{ ...emptyItem }] }));
     } catch { }
   };
 
@@ -64,12 +85,21 @@ export default function SalesReturnsPage() {
     const qty = Number(its[idx].quantity || 0);
     const pr = Number(its[idx].price || 0);
     const disc = Number(its[idx].discount || 0);
-    its[idx].total = wt > 0 ? wt * pr * (1 - disc / 100) : qty * pr * (1 - disc / 100);
+    if (form.invoice_id && its[idx].unitNet != null) {
+      // Linked to an invoice: total scales with the effective per-unit price
+      // computed once when the invoice was selected (already nets out that
+      // item's share of the invoice's discount and tax).
+      its[idx].total = its[idx].unitNet * (wt > 0 ? wt : qty);
+    } else {
+      its[idx].total = wt > 0 ? wt * pr * (1 - disc / 100) : qty * pr * (1 - disc / 100);
+    }
     setForm(f => ({ ...f, items: its }));
   };
 
   const calcSubtotal = () => form.items.reduce((s, i) => s + Number(i.total || 0), 0);
-  const calcTax = () => calcSubtotal() * (Number(form.tax_rate) / 100);
+  // When linked to an invoice, each item's total already has its share of
+  // discount/tax folded in - must NOT be added again on top of the subtotal.
+  const calcTax = () => form.invoice_id ? 0 : calcSubtotal() * (Number(form.tax_rate) / 100);
   const calcTotal = () => calcSubtotal() + calcTax();
 
   const handleSave = async (e) => {
@@ -238,7 +268,9 @@ export default function SalesReturnsPage() {
                   ))}
                 </tbody>
               </table>
-              {Number(form.tax_rate) > 0 && (
+              {form.invoice_id ? (
+                <div className="text-sm text-gray-500 border-t pt-3 mt-2 text-left">شامل الضريبة والخصم بنفس نسبتهما في الفاتورة الأصلية</div>
+              ) : Number(form.tax_rate) > 0 && (
                 <div className="flex gap-6 justify-end text-sm border-t pt-3 mt-2">
                   <span>إجمالي قبل الضريبة: <strong>{calcSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                   <span className="text-green-600">الضريبة ({form.tax_rate}%): <strong>+ {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ج.م</span>
