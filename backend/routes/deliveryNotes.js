@@ -36,6 +36,7 @@ router.put('/:id', async (req, res) => {
   try {
     const note = await DeliveryNote.findByPk(req.params.id);
     if (!note) return res.status(404).json({ error: 'غير موجود' });
+    if (note.status === 'delivered') return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' });
     await note.update(req.body);
     res.json(note);
   } catch (err) { res.status(500).json({ error: err.message }); }

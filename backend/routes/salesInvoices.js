@@ -38,6 +38,7 @@ router.put('/:id', async (req, res) => {
   try {
     const inv = await SalesInvoice.findByPk(req.params.id, { transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل فاتورة مرحّلة' }); }
     const { items, ...data } = req.body;
     const closedErr = await closedYearError(data.date || inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }

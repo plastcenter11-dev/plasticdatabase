@@ -33,6 +33,10 @@ router.put('/adjustments/:id', async (req, res) => {
   try {
     const old = await StockMovement.findByPk(req.params.id, { transaction: t });
     if (!old) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (old.movement_type !== 'إضافة' && old.movement_type !== 'صرف') {
+      await t.rollback();
+      return res.status(400).json({ error: 'لا يمكن تعديل حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
+    }
 
     // Reverse old movement effect on stock
     const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
@@ -66,6 +70,10 @@ router.delete('/adjustments/:id', async (req, res) => {
   try {
     const m = await StockMovement.findByPk(req.params.id, { transaction: t });
     if (!m) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (m.movement_type !== 'إضافة' && m.movement_type !== 'صرف') {
+      await t.rollback();
+      return res.status(400).json({ error: 'لا يمكن حذف حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
+    }
 
     // Reverse stock effect before deleting
     const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
