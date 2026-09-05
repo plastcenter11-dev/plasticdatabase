@@ -175,7 +175,7 @@ router.post('/transfers', async (req, res) => {
 router.post('/transfers/:id/confirm', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const transfer = await WarehouseTransfer.findByPk(req.params.id, { include: [{ model: WarehouseTransferItem, as: 'items' }], transaction: t });
+    const transfer = await WarehouseTransfer.findByPk(req.params.id, { include: [{ model: WarehouseTransferItem, as: 'items' }], transaction: t, lock: t.LOCK.UPDATE });
     if (!transfer) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (transfer.status === 'confirmed') { await t.rollback(); return res.status(400).json({ error: 'التحويل مؤكد مسبقاً' }); }
 

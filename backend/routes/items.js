@@ -1,5 +1,10 @@
 const router = require('express').Router();
-const { Item, Category, ItemType, Stock } = require('../models');
+const {
+  Item, Category, ItemType, Stock,
+  SalesInvoiceItem, PurchaseInvoiceItem, SalesReturnItem, PurchaseReturnItem,
+  DeliveryNoteItem, StockMovement, WarehouseTransferItem, ItemAssemblyComponent, ItemAssembly,
+  SalesOrderItem,
+} = require('../models');
 const { Op } = require('sequelize');
 
 router.get('/', async (req, res) => {
@@ -55,6 +60,29 @@ router.delete('/:id', async (req, res) => {
   try {
     const item = await Item.findByPk(req.params.id);
     if (!item) return res.status(404).json({ error: 'غير موجود' });
+
+    // Every one of these FKs cascade-deletes on Item.destroy() (see
+    // models/index.js), which would silently wipe line items and movement
+    // history out of documents that are otherwise untouched - the invoice's
+    // own stored total/discount/tax would still show the old numbers with
+    // the line(s) that produced them gone. Block deletion entirely if the
+    // item has ever been used anywhere, rather than let history vanish.
+    const usageChecks = await Promise.all([
+      SalesInvoiceItem.count({ where: { item_id: item.id } }),
+      PurchaseInvoiceItem.count({ where: { item_id: item.id } }),
+      SalesReturnItem.count({ where: { item_id: item.id } }),
+      PurchaseReturnItem.count({ where: { item_id: item.id } }),
+      DeliveryNoteItem.count({ where: { item_id: item.id } }),
+      StockMovement.count({ where: { item_id: item.id } }),
+      WarehouseTransferItem.count({ where: { item_id: item.id } }),
+      ItemAssemblyComponent.count({ where: { item_id: item.id } }),
+      ItemAssembly.count({ where: { assembled_item_id: item.id } }),
+      SalesOrderItem.count({ where: { item_id: item.id } }),
+    ]);
+    if (usageChecks.some(c => c > 0)) {
+      return res.status(400).json({ error: 'لا يمكن حذف هذا الصنف لأن له حركات أو فواتير مسجلة - يمكنك إخفاؤه بدلاً من حذفه إن أردت' });
+    }
+
     await item.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(500).json({ error: err.message }); }
