@@ -76,6 +76,7 @@ router.delete('/:id', async (req, res) => {
 
 router.get('/:id/statement', async (req, res) => {
   try {
+    const { from, to } = req.query;
     const invoices = await SalesInvoice.findAll({
       where: { customer_id: req.params.id, status: 'posted' },
       include: [{ model: SalesInvoiceItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code'] }] }],
@@ -90,14 +91,23 @@ router.get('/:id/statement', async (req, res) => {
     const opening = await OpeningBalance.findAll({ where: { party_type: 'customer', party_id: req.params.id } });
     const openingTotal = opening.reduce((sum, o) => sum + Number(o.debit || 0) - Number(o.credit || 0), 0);
     const checks = await Check.findAll({ where: { party_type: 'customer', party_id: req.params.id }, order: [['date', 'ASC']] });
-    const movements = [
+    const allMovements = [
       ...invoices.map(i => ({ date: i.date, type: 'فاتورة بيع', reference: i.invoice_no, debit: Number(i.total), credit: 0, invoice_id: i.id, items: i.items, subtotal: Number(i.subtotal || 0), discount: Number(i.discount || 0), tax_rate: Number(i.tax_rate || 0), tax_amount: Number(i.tax_amount || 0) })),
       ...receipts.map(r => ({ date: r.date, type: 'تحصيل', reference: r.receipt_no, debit: 0, credit: Number(r.amount) })),
       ...returns.map(r => ({ date: r.date, type: 'مرتجع بيع', reference: r.return_no, debit: 0, credit: Number(r.total), items: r.items, subtotal: Number(r.total) - Number(r.tax_amount || 0), discount: 0, tax_rate: Number(r.tax_rate || 0), tax_amount: Number(r.tax_amount || 0) })),
       ...checks.map(c => ({ date: c.date, type: 'شيك', reference: c.check_no, debit: c.status === 'bounced' ? Number(c.amount) : 0, credit: Number(c.amount), check_due_date: c.due_date, check_status: c.status })),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
-    let balance = openingTotal;
-    if (openingTotal) movements.unshift({ date: null, type: 'رصيد افتتاحي', reference: '-', debit: 0, credit: 0, balance: openingTotal, isOpening: true });
+
+    // Everything dated before `from` is folded into a single carried-forward
+    // opening balance, so the running balance column stays correct even
+    // though only movements inside [from, to] are actually listed.
+    const before = from ? allMovements.filter(m => m.date < from) : [];
+    const inRange = allMovements.filter(m => (!from || m.date >= from) && (!to || m.date <= to));
+    const carryForward = openingTotal + before.reduce((sum, m) => sum + m.debit - m.credit, 0);
+
+    let balance = carryForward;
+    const movements = [...inRange];
+    if (carryForward || from) movements.unshift({ date: null, type: from ? 'رصيد مرحّل' : 'رصيد افتتاحي', reference: '-', debit: 0, credit: 0, balance: carryForward, isOpening: true });
     movements.forEach(m => { if (!m.isOpening) { balance += m.debit - m.credit; m.balance = balance; } });
     res.json(movements);
   } catch (err) { res.status(500).json({ error: err.message }); }

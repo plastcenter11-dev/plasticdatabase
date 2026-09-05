@@ -13,16 +13,15 @@ export default function CustomerStatementPage() {
 
   useEffect(() => {
     if (!customerId) { setMovements([]); return; }
-    api.get(`/customers/${customerId}/statement`).then(r => setMovements(r.data)).catch(() => setMovements([]));
-  }, [customerId]);
+    api.get(`/customers/${customerId}/statement`, { params: { from: dateFrom, to: dateTo } }).then(r => setMovements(r.data)).catch(() => setMovements([]));
+  }, [customerId, dateFrom, dateTo]);
 
   const customerName = customers.find(c => c.id === Number(customerId))?.name || '';
 
-  let balance = 0;
-  const rows = movements.map(m => {
-    balance += m.debit - m.credit;
-    return { ...m, balance };
-  });
+  // Use the balance the backend already computed per row (it correctly
+  // folds in the opening/carried-forward balance) rather than recomputing
+  // from zero here, which would silently drop that opening amount.
+  const rows = movements;
 
   const typeColor = (type) => {
     if (type === 'فاتورة بيع') return 'text-red-600';

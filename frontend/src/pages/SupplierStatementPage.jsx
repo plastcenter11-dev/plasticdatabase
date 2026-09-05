@@ -13,16 +13,15 @@ export default function SupplierStatementPage() {
 
   useEffect(() => {
     if (!supplierId) { setMovements([]); return; }
-    api.get(`/suppliers/${supplierId}/statement`).then(r => setMovements(r.data)).catch(() => setMovements([]));
-  }, [supplierId]);
+    api.get(`/suppliers/${supplierId}/statement`, { params: { from: dateFrom, to: dateTo } }).then(r => setMovements(r.data)).catch(() => setMovements([]));
+  }, [supplierId, dateFrom, dateTo]);
 
   const supplierName = suppliers.find(s => s.id === Number(supplierId))?.name || '';
 
-  let balance = 0;
-  const rows = movements.map(m => {
-    balance += m.credit - m.debit;
-    return { ...m, balance };
-  });
+  // Use the balance the backend already computed per row (it correctly
+  // folds in the opening/carried-forward balance) rather than recomputing
+  // from zero here, which would silently drop that opening amount.
+  const rows = movements;
 
   const typeColor = (type) => {
     if (type === 'فاتورة شراء') return 'text-red-600';
