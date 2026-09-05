@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
 // Sub-actions that mutate an existing record (as opposed to creating a new one)
-const EDIT_ACTION_RE = /(?:^|\/)(post|deliver|confirm|activate|close|restore)(?:\/|$)/;
+const EDIT_ACTION_RE = /(?:^|\/)(post|deliver|confirm|activate|close|restore|reopen)(?:\/|$)/;
 const BULK_DELETE_RE = /bulk-delete/;
 
 async function auth(req, res, next) {
