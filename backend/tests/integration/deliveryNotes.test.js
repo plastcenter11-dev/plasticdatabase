@@ -99,7 +99,7 @@ describe('POST /api/delivery-notes/:id/deliver', () => {
     const balBefore = Number(customer.balance);
     const note = (await createNote()).body;
     const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
-      payment: { method: 'cash', amount: 100, date: '2026-03-01' },
+      payments: [{ method: 'cash', amount: 100, date: '2026-03-01' }],
     });
     expect(res.status).toBe(200);
     const inv = await SalesInvoice.findByPk(res.body.invoice_id);
@@ -114,7 +114,7 @@ describe('POST /api/delivery-notes/:id/deliver', () => {
     const balBefore = Number(customer.balance);
     const note = (await createNote()).body;
     const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
-      payment: { method: 'check', amount: 50, date: '2026-03-01', check_no: 'CHK-99', due_date: '2026-04-01', bank_name: 'بنك مصر' },
+      payments: [{ method: 'check', amount: 50, date: '2026-03-01', check_no: 'CHK-99', due_date: '2026-04-01', bank_name: 'بنك مصر' }],
     });
     expect(res.status).toBe(200);
     const inv = await SalesInvoice.findByPk(res.body.invoice_id);
@@ -126,10 +126,27 @@ describe('POST /api/delivery-notes/:id/deliver', () => {
     expect(Number(c.balance)).toBeCloseTo(balBefore + Number(inv.total) - 50, 2);
   });
 
+  test('both a cash payment and a check can be registered together', async () => {
+    const balBefore = Number(customer.balance);
+    const note = (await createNote()).body;
+    const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      payments: [
+        { method: 'cash', amount: 100, date: '2026-03-01' },
+        { method: 'check', amount: 50, date: '2026-03-01', check_no: 'CHK-100', due_date: '2026-04-01' },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    expect(await CashReceipt.findOne({ where: { customer_id: customer.id } })).not.toBeNull();
+    expect(await Check.findOne({ where: { check_no: 'CHK-100' } })).not.toBeNull();
+    const c = await Customer.findByPk(customer.id);
+    expect(Number(c.balance)).toBeCloseTo(balBefore + Number(inv.total) - 150, 2);
+  });
+
   test('a cash payment with no amount is rejected', async () => {
     const note = (await createNote()).body;
     const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
-      payment: { method: 'cash', amount: 0 },
+      payments: [{ method: 'cash', amount: 0 }],
     });
     expect(res.status).toBe(400);
   });

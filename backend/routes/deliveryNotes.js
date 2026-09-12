@@ -56,15 +56,17 @@ router.post('/:id/deliver', async (req, res) => {
     const closedErr = await closedYearError(note.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
-    const { invoice_no, warehouse_id, items: pricedItems, payment } = req.body;
+    const { invoice_no, warehouse_id, items: pricedItems, payments } = req.body;
     const effectiveWarehouseId = warehouse_id ? Number(warehouse_id) : note.warehouse_id;
 
-    if (payment?.method) {
-      const paymentDate = payment.date || note.date;
-      const paymentErr = await closedYearError(paymentDate);
-      if (paymentErr) { await t.rollback(); return res.status(400).json({ error: paymentErr }); }
-      if (payment.method === 'check' && !payment.check_no) { await t.rollback(); return res.status(400).json({ error: 'أدخل رقم الشيك' }); }
-      if (!(Number(payment.amount) > 0)) { await t.rollback(); return res.status(400).json({ error: 'أدخل قيمة الدفعة' }); }
+    // Cash and a check can both be registered at once - a customer might pay
+    // part cash, part check, for a combined amount that need not match the
+    // invoice total either.
+    for (const p of (payments || [])) {
+      const pErr = await closedYearError(p.date || note.date);
+      if (pErr) { await t.rollback(); return res.status(400).json({ error: pErr }); }
+      if (p.method === 'check' && !p.check_no) { await t.rollback(); return res.status(400).json({ error: 'أدخل رقم الشيك' }); }
+      if (!(Number(p.amount) > 0)) { await t.rollback(); return res.status(400).json({ error: 'أدخل قيمة الدفعة' }); }
     }
 
     // Prices are entered at delivery/posting time, keyed by delivery-note item id
@@ -102,23 +104,25 @@ router.post('/:id/deliver', async (req, res) => {
       const customer = await Customer.findByPk(note.customer_id, { transaction: t });
       if (customer) await customer.update({ balance: Number(customer.balance || 0) + total }, { transaction: t });
 
-      // Optional payment collected at posting time - not required to match the
-      // invoice total (customer may pay partially, in full, or via a check for
-      // a different amount than what's owed today).
-      if (payment?.method === 'cash') {
-        const max = await CashReceipt.max('id', { transaction: t }) || 0;
-        await CashReceipt.create({
-          receipt_no: `CR-${String(max + 1).padStart(6, '0')}`,
-          date: payment.date || note.date, customer_id: note.customer_id, amount: Number(payment.amount),
-        }, { transaction: t });
-        if (customer) await customer.update({ balance: Number(customer.balance) - Number(payment.amount) }, { transaction: t });
-      } else if (payment?.method === 'check') {
-        await Check.create({
-          check_no: payment.check_no, date: payment.date || note.date, due_date: payment.due_date || payment.date || note.date,
-          party_type: 'customer', party_id: note.customer_id, amount: Number(payment.amount),
-          bank_name: payment.bank_name || '', status: 'pending',
-        }, { transaction: t });
-        if (customer) await customer.update({ balance: Number(customer.balance) - Number(payment.amount) }, { transaction: t });
+      // Optional payment(s) collected at posting time - not required to match
+      // the invoice total (customer may pay partially, in full, or a mix of
+      // cash and check for a different combined amount than owed today).
+      for (const p of (payments || [])) {
+        if (p.method === 'cash') {
+          const max = await CashReceipt.max('id', { transaction: t }) || 0;
+          await CashReceipt.create({
+            receipt_no: `CR-${String(max + 1).padStart(6, '0')}`,
+            date: p.date || note.date, customer_id: note.customer_id, amount: Number(p.amount),
+          }, { transaction: t });
+          if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
+        } else if (p.method === 'check') {
+          await Check.create({
+            check_no: p.check_no, date: p.date || note.date, due_date: p.due_date || p.date || note.date,
+            party_type: 'customer', party_id: note.customer_id, amount: Number(p.amount),
+            bank_name: p.bank_name || '', status: 'pending',
+          }, { transaction: t });
+          if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
+        }
       }
     }
 

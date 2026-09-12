@@ -72,9 +72,13 @@ export default function DeliveryNotesPage() {
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceWarehouseId, setInvoiceWarehouseId] = useState('');
   const [deliverPrices, setDeliverPrices] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState('');
+  const [deliverCustomerId, setDeliverCustomerId] = useState(null);
+  const [useCash, setUseCash] = useState(false);
+  const [cashAmount, setCashAmount] = useState('');
+  const [cashDate, setCashDate] = useState('');
+  const [useCheck, setUseCheck] = useState(false);
+  const [checkAmount, setCheckAmount] = useState('');
+  const [checkDate, setCheckDate] = useState('');
   const [checkNo, setCheckNo] = useState('');
   const [checkDueDate, setCheckDueDate] = useState('');
   const [checkBank, setCheckBank] = useState('');
@@ -164,16 +168,20 @@ export default function DeliveryNotesPage() {
 
   const openInvoiceModal = (id) => {
     const note = notes.find(n => n.id === id);
+    const today = new Date().toISOString().split('T')[0];
     setShowInvoiceModal(id);
     setInvoiceNo('');
     setInvoiceWarehouseId(note?.warehouse_id ? String(note.warehouse_id) : '');
+    setDeliverCustomerId(note?.customer_id || null);
     setDeliverPrices(
       (note?.items || []).map(i => ({
         item_id: i.item_id, item_name: i.Item?.name || i.item_name || '',
         price: i.Item?.sale_price || '', tax_rate: '',
+        weight: Number(i.net_weight || i.gross_weight || 0),
       }))
     );
-    setPaymentMethod(''); setPaymentAmount(''); setPaymentDate(note?.date || new Date().toISOString().split('T')[0]);
+    setUseCash(false); setCashAmount(''); setCashDate(note?.date || today);
+    setUseCheck(false); setCheckAmount(''); setCheckDate(note?.date || today);
     setCheckNo(''); setCheckDueDate(''); setCheckBank('');
   };
 
@@ -181,21 +189,31 @@ export default function DeliveryNotesPage() {
     setDeliverPrices(prices => prices.map((p, i) => i === idx ? { ...p, [field]: value } : p));
   };
 
+  // Live preview of the invoice total from the prices being entered, so the
+  // expected-balance figure below updates as the user types.
+  const deliverInvoiceTotal = deliverPrices.reduce((s, p) => {
+    const price = Number(p.price || 0), tax = Number(p.tax_rate || 0), weight = Number(p.weight || 0);
+    return s + weight * price * (1 + tax / 100);
+  }, 0);
+  const deliverCustomerBalance = customers.find(c => c.id === deliverCustomerId)?.balance;
+  const deliverExpectedBalance = deliverCustomerBalance != null
+    ? Number(deliverCustomerBalance) + deliverInvoiceTotal - (useCash ? Number(cashAmount || 0) : 0) - (useCheck ? Number(checkAmount || 0) : 0)
+    : null;
+
   const handleDeliver = async () => {
     if (!invoiceNo.trim()) return toast.error('أدخل رقم الفاتورة');
     if (!invoiceWarehouseId) return toast.error('اختر المخزن');
-    if (paymentMethod === 'cash' && !Number(paymentAmount)) return toast.error('أدخل قيمة الدفعة النقدية');
-    if (paymentMethod === 'check' && (!checkNo.trim() || !Number(paymentAmount) || !checkDueDate)) return toast.error('أكمل بيانات الشيك');
+    if (useCash && !Number(cashAmount)) return toast.error('أدخل قيمة الدفعة النقدية');
+    if (useCheck && (!checkNo.trim() || !Number(checkAmount) || !checkDueDate)) return toast.error('أكمل بيانات الشيك');
     try {
+      const payments = [];
+      if (useCash) payments.push({ method: 'cash', amount: Number(cashAmount), date: cashDate });
+      if (useCheck) payments.push({ method: 'check', amount: Number(checkAmount), date: checkDate, check_no: checkNo.trim(), due_date: checkDueDate, bank_name: checkBank });
       const payload = {
         invoice_no: invoiceNo.trim(), warehouse_id: Number(invoiceWarehouseId),
         items: deliverPrices.map(p => ({ item_id: p.item_id, price: Number(p.price || 0), tax_rate: Number(p.tax_rate || 0) })),
+        payments,
       };
-      if (paymentMethod === 'cash') {
-        payload.payment = { method: 'cash', amount: Number(paymentAmount), date: paymentDate };
-      } else if (paymentMethod === 'check') {
-        payload.payment = { method: 'check', amount: Number(paymentAmount), date: paymentDate, check_no: checkNo.trim(), due_date: checkDueDate, bank_name: checkBank };
-      }
       await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, payload);
       toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
       setShowInvoiceModal(null); loadData();
@@ -472,25 +490,42 @@ export default function DeliveryNotesPage() {
                 </tbody>
               </table>
             </div>
-            <div>
-              <label className="form-label mb-2">دفعة عند الترحيل (اختياري)</label>
-              <select className="erp-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                <option value="">بدون دفعة</option>
-                <option value="cash">نقدي</option>
-                <option value="check">شيك</option>
-              </select>
-              {paymentMethod === 'cash' && (
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div><label className="form-label">قيمة الدفعة *</label><input type="number" step="0.01" className="erp-input" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
-                  <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
-                </div>
-              )}
-              {paymentMethod === 'check' && (
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div><label className="form-label">رقم الشيك *</label><input className="erp-input" value={checkNo} onChange={e => setCheckNo(e.target.value)} /></div>
-                  <div><label className="form-label">قيمة الشيك *</label><input type="number" step="0.01" className="erp-input" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
-                  <div><label className="form-label">تاريخ الاستحقاق *</label><input type="date" className="erp-input" value={checkDueDate} onChange={e => setCheckDueDate(e.target.value)} /></div>
-                  <div><label className="form-label">البنك</label><input className="erp-input" value={checkBank} onChange={e => setCheckBank(e.target.value)} /></div>
+            <div className="space-y-3">
+              <label className="form-label mb-0">دفعة عند الترحيل (اختياري — يمكن الاثنان معًا)</label>
+
+              <div className="border rounded-lg p-3">
+                <label className="flex items-center gap-2 font-medium text-sm">
+                  <input type="checkbox" checked={useCash} onChange={e => setUseCash(e.target.checked)} /> دفعة نقدية
+                </label>
+                {useCash && (
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div><label className="form-label">القيمة *</label><input type="number" step="0.01" className="erp-input" value={cashAmount} onChange={e => setCashAmount(e.target.value)} /></div>
+                    <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={cashDate} onChange={e => setCashDate(e.target.value)} /></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border rounded-lg p-3">
+                <label className="flex items-center gap-2 font-medium text-sm">
+                  <input type="checkbox" checked={useCheck} onChange={e => setUseCheck(e.target.checked)} /> شيك
+                </label>
+                {useCheck && (
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div><label className="form-label">رقم الشيك *</label><input className="erp-input" value={checkNo} onChange={e => setCheckNo(e.target.value)} /></div>
+                    <div><label className="form-label">القيمة *</label><input type="number" step="0.01" className="erp-input" value={checkAmount} onChange={e => setCheckAmount(e.target.value)} /></div>
+                    <div><label className="form-label">تاريخ الاستحقاق *</label><input type="date" className="erp-input" value={checkDueDate} onChange={e => setCheckDueDate(e.target.value)} /></div>
+                    <div><label className="form-label">البنك</label><input className="erp-input" value={checkBank} onChange={e => setCheckBank(e.target.value)} /></div>
+                  </div>
+                )}
+              </div>
+
+              {deliverExpectedBalance != null && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-1">
+                  <div className="flex justify-between"><span>الرصيد الحالي:</span><strong>{Number(deliverCustomerBalance).toLocaleString()} ج.م</strong></div>
+                  <div className="flex justify-between"><span>+ إجمالي الفاتورة:</span><strong>{deliverInvoiceTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ج.م</strong></div>
+                  {useCash && Number(cashAmount) > 0 && <div className="flex justify-between text-green-700"><span>- الدفعة النقدية:</span><strong>{Number(cashAmount).toLocaleString()} ج.م</strong></div>}
+                  {useCheck && Number(checkAmount) > 0 && <div className="flex justify-between text-green-700"><span>- الشيك:</span><strong>{Number(checkAmount).toLocaleString()} ج.م</strong></div>}
+                  <div className="flex justify-between border-t pt-1 font-bold text-primary"><span>الرصيد المتوقع بعد الترحيل (نظري):</span><span>{deliverExpectedBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} ج.م</span></div>
                 </div>
               )}
             </div>
