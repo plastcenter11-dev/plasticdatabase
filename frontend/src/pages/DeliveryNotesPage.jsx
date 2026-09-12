@@ -72,6 +72,12 @@ export default function DeliveryNotesPage() {
   const [invoiceNo, setInvoiceNo] = useState('');
   const [invoiceWarehouseId, setInvoiceWarehouseId] = useState('');
   const [deliverPrices, setDeliverPrices] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState('');
+  const [checkNo, setCheckNo] = useState('');
+  const [checkDueDate, setCheckDueDate] = useState('');
+  const [checkBank, setCheckBank] = useState('');
   const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] });
 
   useEffect(() => {
@@ -167,6 +173,8 @@ export default function DeliveryNotesPage() {
         price: i.Item?.sale_price || '', tax_rate: '',
       }))
     );
+    setPaymentMethod(''); setPaymentAmount(''); setPaymentDate(note?.date || new Date().toISOString().split('T')[0]);
+    setCheckNo(''); setCheckDueDate(''); setCheckBank('');
   };
 
   const updateDeliverPrice = (idx, field, value) => {
@@ -176,11 +184,19 @@ export default function DeliveryNotesPage() {
   const handleDeliver = async () => {
     if (!invoiceNo.trim()) return toast.error('أدخل رقم الفاتورة');
     if (!invoiceWarehouseId) return toast.error('اختر المخزن');
+    if (paymentMethod === 'cash' && !Number(paymentAmount)) return toast.error('أدخل قيمة الدفعة النقدية');
+    if (paymentMethod === 'check' && (!checkNo.trim() || !Number(paymentAmount) || !checkDueDate)) return toast.error('أكمل بيانات الشيك');
     try {
-      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, {
+      const payload = {
         invoice_no: invoiceNo.trim(), warehouse_id: Number(invoiceWarehouseId),
         items: deliverPrices.map(p => ({ item_id: p.item_id, price: Number(p.price || 0), tax_rate: Number(p.tax_rate || 0) })),
-      });
+      };
+      if (paymentMethod === 'cash') {
+        payload.payment = { method: 'cash', amount: Number(paymentAmount), date: paymentDate };
+      } else if (paymentMethod === 'check') {
+        payload.payment = { method: 'check', amount: Number(paymentAmount), date: paymentDate, check_no: checkNo.trim(), due_date: checkDueDate, bank_name: checkBank };
+      }
+      await api.post(`/delivery-notes/${showInvoiceModal}/deliver`, payload);
       toast.success(`تم ترحيل إذن التسليم — فاتورة رقم ${invoiceNo.trim()}`);
       setShowInvoiceModal(null); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
@@ -455,6 +471,28 @@ export default function DeliveryNotesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div>
+              <label className="form-label mb-2">دفعة عند الترحيل (اختياري)</label>
+              <select className="erp-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                <option value="">بدون دفعة</option>
+                <option value="cash">نقدي</option>
+                <option value="check">شيك</option>
+              </select>
+              {paymentMethod === 'cash' && (
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div><label className="form-label">قيمة الدفعة *</label><input type="number" step="0.01" className="erp-input" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
+                  <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
+                </div>
+              )}
+              {paymentMethod === 'check' && (
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div><label className="form-label">رقم الشيك *</label><input className="erp-input" value={checkNo} onChange={e => setCheckNo(e.target.value)} /></div>
+                  <div><label className="form-label">قيمة الشيك *</label><input type="number" step="0.01" className="erp-input" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
+                  <div><label className="form-label">تاريخ الاستحقاق *</label><input type="date" className="erp-input" value={checkDueDate} onChange={e => setCheckDueDate(e.target.value)} /></div>
+                  <div><label className="form-label">البنك</label><input className="erp-input" value={checkBank} onChange={e => setCheckBank(e.target.value)} /></div>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button onClick={() => setShowInvoiceModal(null)} className="erp-btn erp-btn-secondary">إلغاء</button>

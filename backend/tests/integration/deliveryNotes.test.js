@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, DeliveryNote, DeliveryNoteItem, SalesInvoice, Customer, Item, Warehouse, Stock, StockMovement } = require('../../models');
+const { sequelize, DeliveryNote, DeliveryNoteItem, SalesInvoice, Customer, Item, Warehouse, Stock, StockMovement, CashReceipt, Check } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeWarehouse, makeItem, makeCustomer } = require('../helpers/fixtures');
 
@@ -93,6 +93,45 @@ describe('POST /api/delivery-notes/:id/deliver', () => {
     const inv = await SalesInvoice.findByPk(res.body.invoice_id);
     const c = await Customer.findByPk(customer.id);
     expect(Number(c.balance)).toBeCloseTo(balBefore + Number(inv.total), 2);
+  });
+
+  test('optional cash payment at delivery creates a CashReceipt and further reduces the balance', async () => {
+    const balBefore = Number(customer.balance);
+    const note = (await createNote()).body;
+    const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      payment: { method: 'cash', amount: 100, date: '2026-03-01' },
+    });
+    expect(res.status).toBe(200);
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    const receipt = await CashReceipt.findOne({ where: { customer_id: customer.id } });
+    expect(receipt).not.toBeNull();
+    expect(Number(receipt.amount)).toBe(100);
+    const c = await Customer.findByPk(customer.id);
+    expect(Number(c.balance)).toBeCloseTo(balBefore + Number(inv.total) - 100, 2);
+  });
+
+  test('optional check payment at delivery creates a pending Check and reduces the balance, amount need not match the invoice total', async () => {
+    const balBefore = Number(customer.balance);
+    const note = (await createNote()).body;
+    const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      payment: { method: 'check', amount: 50, date: '2026-03-01', check_no: 'CHK-99', due_date: '2026-04-01', bank_name: 'بنك مصر' },
+    });
+    expect(res.status).toBe(200);
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    const check = await Check.findOne({ where: { check_no: 'CHK-99' } });
+    expect(check).not.toBeNull();
+    expect(check.status).toBe('pending');
+    expect(Number(check.amount)).toBe(50);
+    const c = await Customer.findByPk(customer.id);
+    expect(Number(c.balance)).toBeCloseTo(balBefore + Number(inv.total) - 50, 2);
+  });
+
+  test('a cash payment with no amount is rejected', async () => {
+    const note = (await createNote()).body;
+    const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      payment: { method: 'cash', amount: 0 },
+    });
+    expect(res.status).toBe(400);
   });
 
   test('delivering twice is rejected', async () => {
