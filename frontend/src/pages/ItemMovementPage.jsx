@@ -20,10 +20,15 @@ const isIncoming = (m) => {
 export default function ItemMovementPage() {
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [itemId, setItemId] = useState(searchParams.get('item_id') || '');
+  const [warehouseId, setWarehouseId] = useState('');
   const [movements, setMovements] = useState([]);
 
-  useEffect(() => { api.get('/items').then(r => setItems(r.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    api.get('/items').then(r => setItems(r.data)).catch(() => {});
+    api.get('/warehouses').then(r => setWarehouses(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const paramId = searchParams.get('item_id');
@@ -35,6 +40,11 @@ export default function ItemMovementPage() {
     api.get(`/stock/movements/${itemId}`).then(r => setMovements(r.data)).catch(() => setMovements([]));
   }, [itemId]);
 
+  // Filtering to one warehouse recomputes the running balance from just that
+  // warehouse's own movements, rather than the item's combined balance
+  // across every warehouse.
+  const filteredMovements = warehouseId ? movements.filter(m => m.warehouse_id === Number(warehouseId)) : movements;
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-gray-800">حركة صنف</h1>
@@ -45,6 +55,13 @@ export default function ItemMovementPage() {
           <SearchableSelect className="erp-input" value={itemId} onChange={e => setItemId(e.target.value)}>
             <option value="">— اختر الصنف —</option>
             {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
+          </SearchableSelect>
+        </div>
+        <div className="min-w-[200px]">
+          <label className="form-label">المخزن</label>
+          <SearchableSelect className="erp-input" value={warehouseId} onChange={e => setWarehouseId(e.target.value)}>
+            <option value="">— كل المخازن —</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </SearchableSelect>
         </div>
         {itemId && <button onClick={() => window.print()} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>}
@@ -75,10 +92,10 @@ export default function ItemMovementPage() {
               </tr>
             </thead>
             <tbody>
-              {movements.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
+              {filteredMovements.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
               {(() => {
                 let runWeight = 0, runQty = 0;
-                return movements.map((m, i) => {
+                return filteredMovements.map((m, i) => {
                   const incoming = isIncoming(m);
                   const sign = incoming ? 1 : -1;
                   runWeight += sign * Number(m.weight || 0);
@@ -103,11 +120,11 @@ export default function ItemMovementPage() {
                 });
               })()}
             </tbody>
-            {movements.length > 0 && (() => {
-              const inWeight = movements.filter(isIncoming).reduce((s, m) => s + Number(m.weight || 0), 0);
-              const inQty = movements.filter(isIncoming).reduce((s, m) => s + Number(m.quantity || 0), 0);
-              const outWeight = movements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.weight || 0), 0);
-              const outQty = movements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.quantity || 0), 0);
+            {filteredMovements.length > 0 && (() => {
+              const inWeight = filteredMovements.filter(isIncoming).reduce((s, m) => s + Number(m.weight || 0), 0);
+              const inQty = filteredMovements.filter(isIncoming).reduce((s, m) => s + Number(m.quantity || 0), 0);
+              const outWeight = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.weight || 0), 0);
+              const outQty = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.quantity || 0), 0);
               return (
                 <tfoot>
                   <tr className="bg-primary/10 font-bold text-primary border-t-2 border-primary/30">
