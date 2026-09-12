@@ -26,6 +26,7 @@ export default function SupplierStatementPage() {
   const typeColor = (type) => {
     if (type === 'فاتورة شراء') return 'text-red-600';
     if (type === 'مرتجع شراء') return 'text-green-600';
+    if (type === 'شيك مرتد') return 'text-red-600';
     return 'text-blue-600';
   };
 

@@ -214,6 +214,7 @@ const Check = sequelize.define('Check', {
   status: { type: DataTypes.ENUM('pending', 'collected', 'bounced'), defaultValue: 'pending' },
   bank_name: { type: DataTypes.STRING, defaultValue: '' },
   notes: { type: DataTypes.STRING, defaultValue: '' },
+  bounced_date: { type: DataTypes.DATEONLY, allowNull: true },
 });
 
 const Expense = sequelize.define('Expense', {

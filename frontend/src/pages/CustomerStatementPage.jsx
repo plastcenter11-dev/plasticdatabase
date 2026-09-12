@@ -26,6 +26,7 @@ export default function CustomerStatementPage() {
   const typeColor = (type) => {
     if (type === 'فاتورة بيع') return 'text-red-600';
     if (type === 'مرتجع بيع') return 'text-green-600';
+    if (type === 'شيك مرتد') return 'text-red-600';
     return 'text-blue-600';
   };
 

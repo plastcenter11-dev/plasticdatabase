@@ -51,19 +51,29 @@ describe('PUT /api/finance/checks/:id — status transitions', () => {
     let cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(700);
 
-    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced' });
+    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced', bounced_date: '2026-01-15' });
     expect(res.status).toBe(200);
     cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(1000);
   });
 
-  test('bounced -> pending removes the amount from the balance again', async () => {
+  test('PUT to bounced without a bounced_date is rejected', async () => {
     const created = await request(app).post('/api/finance/checks').set(auth()).send({
       check_no: 'CHK-1', date: '2026-01-01', due_date: '2026-02-01',
-      party_type: 'customer', party_id: customer.id, amount: 300, status: 'bounced',
+      party_type: 'customer', party_id: customer.id, amount: 300, status: 'pending',
+    });
+    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced' });
+    expect(res.status).toBe(400);
+  });
+
+  test('bounced -> pending removes the amount from the balance again, and clears bounced_date', async () => {
+    const created = await request(app).post('/api/finance/checks').set(auth()).send({
+      check_no: 'CHK-1', date: '2026-01-01', due_date: '2026-02-01',
+      party_type: 'customer', party_id: customer.id, amount: 300, status: 'bounced', bounced_date: '2026-01-15',
     });
     const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'pending' });
     expect(res.status).toBe(200);
+    expect(res.body.bounced_date).toBeNull();
     const cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(700);
   });
@@ -71,9 +81,9 @@ describe('PUT /api/finance/checks/:id — status transitions', () => {
   test('bounced -> bounced is a no-op on balance', async () => {
     const created = await request(app).post('/api/finance/checks').set(auth()).send({
       check_no: 'CHK-1', date: '2026-01-01', due_date: '2026-02-01',
-      party_type: 'customer', party_id: customer.id, amount: 300, status: 'bounced',
+      party_type: 'customer', party_id: customer.id, amount: 300, status: 'bounced', bounced_date: '2026-01-15',
     });
-    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced', amount: 999 });
+    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced', bounced_date: '2026-01-20', amount: 999 });
     expect(res.status).toBe(200);
     const cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(1000);
@@ -110,7 +120,7 @@ describe('closed-year locking on checks', () => {
     });
     await FinancialYear.create({ name: '2026', start_date: '2026-01-01', end_date: '2026-12-31', is_active: false, is_closed: true });
 
-    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced' });
+    const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced', bounced_date: '2026-06-05' });
     expect(res.status).toBe(400);
   });
 

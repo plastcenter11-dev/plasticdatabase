@@ -18,6 +18,8 @@ export default function ChecksPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [bouncing, setBouncing] = useState(null);
+  const [bounceDate, setBounceDate] = useState('');
 
   const loadData = async () => {
     try {
@@ -61,9 +63,15 @@ export default function ChecksPage() {
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
-  const handleBounce = async (id) => {
-    try { await api.put(`/finance/checks/${id}`, { status: 'bounced' }); toast.error('تم تسجيل الشيك كمرتجع'); loadData(); }
-    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
+  const openBounce = (ch) => { setBouncing(ch); setBounceDate(today); };
+
+  const confirmBounce = async () => {
+    if (!bounceDate) return toast.error('أدخل تاريخ الارتداد');
+    try {
+      await api.put(`/finance/checks/${bouncing.id}`, { status: 'bounced', bounced_date: bounceDate });
+      toast.error('تم تسجيل الشيك كمرتجع');
+      setBouncing(null); loadData();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   const handleDelete = async (id) => {
@@ -120,7 +128,7 @@ export default function ChecksPage() {
                     {ch.status === 'pending' && can('checks', 'edit') && (
                       <>
                         <button onClick={() => handleCollect(ch.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs" title="تحصيل"><MdCheckCircle size={14} /></button>
-                        <button onClick={() => handleBounce(ch.id)} className="erp-btn erp-btn-warning py-1 px-2 text-xs" title="مرتجع"><MdCancel size={14} /></button>
+                        <button onClick={() => openBounce(ch)} className="erp-btn erp-btn-warning py-1 px-2 text-xs" title="مرتجع"><MdCancel size={14} /></button>
                       </>
                     )}
                     {can('checks', 'delete') && <button onClick={() => handleDelete(ch.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
@@ -156,6 +164,22 @@ export default function ChecksPage() {
               <button type="submit" className="erp-btn erp-btn-primary">حفظ</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {bouncing && (
+        <Modal title="تسجيل ارتداد الشيك" onClose={() => setBouncing(null)} width="max-w-sm">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">الشيك رقم <strong>{bouncing.check_no}</strong> — {Number(bouncing.amount).toLocaleString()} ج.م</p>
+            <div>
+              <label className="form-label">تاريخ الارتداد *</label>
+              <input type="date" className="erp-input" required value={bounceDate} onChange={e => setBounceDate(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <button type="button" onClick={() => setBouncing(null)} className="erp-btn erp-btn-secondary">إلغاء</button>
+              <button onClick={confirmBounce} className="erp-btn erp-btn-warning">تأكيد الارتداد</button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

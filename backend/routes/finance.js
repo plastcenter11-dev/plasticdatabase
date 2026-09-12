@@ -102,12 +102,22 @@ router.put('/checks/:id', async (req, res) => {
   try {
     const c = await Check.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (req.body.status === 'bounced' && !req.body.bounced_date) {
+      await t.rollback();
+      return res.status(400).json({ error: 'أدخل تاريخ ارتداد الشيك' });
+    }
     // Block if either the check's current date or its incoming new date falls
     // in a closed year - changing the date is itself a way to move a balance
     // effect into/out of a locked period, so both ends must be checked.
-    const closedErr = (await closedYearError(c.date)) || (req.body.date ? await closedYearError(req.body.date) : null);
+    const closedErr = (await closedYearError(c.date))
+      || (req.body.date ? await closedYearError(req.body.date) : null)
+      || (req.body.bounced_date ? await closedYearError(req.body.bounced_date) : null);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     await applyCheckBalance(c, 1, t); // reverse old effect
+    // Moving away from bounced (e.g. back to pending) leaves a stale
+    // bounced_date behind otherwise - clear it so the statement doesn't show
+    // a phantom bounce entry if it bounces again with a fresh date later.
+    if (req.body.status && req.body.status !== 'bounced') req.body.bounced_date = null;
     await c.update(req.body, { transaction: t });
     await applyCheckBalance(c, -1, t); // reapply with new status/amount/party
     await t.commit();
