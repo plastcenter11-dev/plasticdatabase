@@ -11,16 +11,26 @@ export default function WarehouseTransfersPage() {
   const [transfers, setTransfers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
+  const [stockData, setStockData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ from_warehouse_id: '', to_warehouse_id: '', date: new Date().toISOString().split('T')[0], items: [{ item_id: '', quantity: '', weight: '' }] });
 
   const loadData = async () => {
     try {
-      const [t, w, it] = await Promise.all([api.get('/stock/transfers'), api.get('/warehouses'), api.get('/items')]);
-      setTransfers(t.data); setWarehouses(w.data); setItems(it.data);
+      const [t, w, it, st] = await Promise.all([api.get('/stock/transfers'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
+      setTransfers(t.data); setWarehouses(w.data); setItems(it.data); setStockData(st.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+
+  // Available quantity/weight for an item in the currently-selected source
+  // warehouse, so the person filling the transfer knows what they can move.
+  const availableStock = (itemId) => {
+    if (!itemId || !form.from_warehouse_id) return null;
+    const entry = stockData.find(s => s.item_id === Number(itemId));
+    const wh = entry?.warehouses.find(w => w.warehouse_id === Number(form.from_warehouse_id));
+    return { quantity: wh?.quantity || 0, weight: wh?.weight || 0 };
+  };
 
   const updateFormItem = (idx, field, value) => {
     const fitems = [...form.items];
@@ -87,15 +97,23 @@ export default function WarehouseTransfersPage() {
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
-                <tbody>{form.items.map((item, idx) => (
+                <thead><tr><th>الصنف</th><th>المتاح بالمخزن المصدر</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
+                <tbody>{form.items.map((item, idx) => {
+                  const avail = availableStock(item.item_id);
+                  return (
                   <tr key={idx}>
                     <td><SearchableSelect className="erp-input py-1" value={item.item_id} onChange={e => updateFormItem(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</SearchableSelect></td>
+                    <td className="text-sm text-gray-600">
+                      {!form.from_warehouse_id ? <span className="text-gray-400">اختر المخزن المصدر أولاً</span>
+                        : avail ? `${Number(avail.weight).toLocaleString()} كجم | عدد: ${Number(avail.quantity).toLocaleString()}`
+                        : <span className="text-gray-400">—</span>}
+                    </td>
                     <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={item.weight} onChange={e => updateFormItem(idx, 'weight', e.target.value)} /></td>
                     <td><input type="number" className="erp-input py-1 w-24" value={item.quantity} onChange={e => updateFormItem(idx, 'quantity', e.target.value)} /></td>
                     <td>{form.items.length > 1 && <button type="button" onClick={() => removeFormItem(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>
-                ))}</tbody>
+                  );
+                })}</tbody>
               </table>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
