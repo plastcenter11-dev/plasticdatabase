@@ -218,8 +218,8 @@ export default function PurchaseReturnsPage() {
                     <td className="font-medium">{item.name || '—'}</td>
                     <td className="text-gray-500">{Number(item.max_weight || 0).toLocaleString()} كجم</td>
                     <td className="text-gray-500">{item.max_qty || '-'}</td>
-                    <td><input type="number" step="0.01" min="0" className="erp-input py-1 w-24" value={item.weight} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
-                    <td><input type="number" min="0" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
+                    <td><input type="number" step="0.01" min="0" className="erp-input py-1 w-24" value={item.weight} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
+                    <td><input type="number" min="0" className="erp-input py-1 w-20" value={item.quantity} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
                     <td>{Number(item.price || 0).toLocaleString()} ج.م</td>
                     <td>{form.invoice_id ? <span className="text-gray-700">{Number(item.discount || 0)}%</span> : <input type="number" min="0" max="100" className="erp-input py-1 w-16" value={item.discount} onChange={e => updateItem(idx, 'discount', e.target.value)} />}</td>
                     <td className="font-bold">{(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</td>

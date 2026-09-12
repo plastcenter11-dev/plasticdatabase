@@ -251,8 +251,8 @@ export default function SalesReturnsPage() {
                             </SearchableSelect>
                         }
                       </td>
-                      <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
-                      <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
+                      <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={item.weight} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
+                      <td><input type="number" className="erp-input py-1 w-20" value={item.quantity} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
                       <td>
                         {form.invoice_id
                           ? <span className="text-gray-700">{Number(item.price).toLocaleString()} ج.م</span>
