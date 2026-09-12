@@ -96,7 +96,7 @@ router.get('/:id/statement', async (req, res) => {
       ...checks.flatMap(c => {
         const rows = [{ date: c.date, type: 'شيك', reference: c.check_no, debit: Number(c.amount), credit: 0, check_due_date: c.due_date, check_status: c.status }];
         if (c.status === 'bounced') {
-          rows.push({ date: c.bounced_date || c.date, type: 'شيك مرتد', reference: c.check_no, debit: 0, credit: Number(c.amount) });
+          rows.push({ date: c.bounced_date || c.date, type: 'شيك مرتد', reference: c.check_no, debit: 0, credit: Number(c.amount), check_bounced_date: c.bounced_date || c.date });
         }
         return rows;
       }),
