@@ -5,6 +5,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch, MdPrint, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { effectiveUnitNet } from '../utils/returnCalc';
 
 const emptyItem = { item_id: '', name: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
 
@@ -39,23 +40,6 @@ export default function PurchaseReturnsPage() {
         setPurchaseInvoices(data);
       } catch { setPurchaseInvoices([]); }
     } else { setPurchaseInvoices([]); }
-  };
-
-  // Per-unit "effective" price for a returned item, folding in that item's
-  // proportional share of the original invoice's header-level discount and
-  // tax (the same allocation the invoice's own POST /:id/post uses) - so
-  // returning goods from a discounted/taxed invoice reverses exactly what
-  // the invoice actually charged for them, not the pre-discount line price.
-  const effectiveUnitNet = (i, inv, grossTotal) => {
-    const unit = (Number(i.weight) || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0;
-    if (unit <= 0) return 0;
-    const pr = Number(i.price) || 0;
-    const disc = Number(i.discount) || 0;
-    const itemGross = unit * pr;
-    const itemNet = itemGross * (1 - disc / 100);
-    const taxShare = grossTotal > 0 ? Number(inv.tax_amount || 0) * (itemGross / grossTotal) : 0;
-    const discShare = Number(inv.subtotal || 0) > 0 ? Number(inv.discount || 0) * (itemNet / Number(inv.subtotal)) : 0;
-    return (itemNet - discShare + taxShare) / unit;
   };
 
   const handleInvoiceChange = (invoiceId) => {
