@@ -106,6 +106,7 @@ const DeliveryNoteItem = sequelize.define('DeliveryNoteItem', {
   gross_weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   ordered_qty: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   source_order_no: { type: DataTypes.STRING, defaultValue: '' },
+  product_description: { type: DataTypes.STRING, defaultValue: '' },
 });
 
 const DeliveryNoteOrder = sequelize.define('DeliveryNoteOrder', {}, { timestamps: false });

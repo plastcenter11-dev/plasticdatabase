@@ -7,7 +7,7 @@ import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-ico
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '' };
+const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '', product_description: '' };
 
 function numberToArabicWords(num) {
   if (!num) return '';
@@ -133,6 +133,7 @@ export default function DeliveryNotesPage() {
         net_weight: i.net_weight, batch_no: i.batch_no || '', roll_count: i.roll_count || '',
         core_weight: i.core_weight || '', wood_weight: i.wood_weight || '',
         stretch_weight: i.stretch_weight || '', gross_weight: i.gross_weight || '',
+        product_description: i.product_description || '',
       })),
     });
     setShowModal(true);
@@ -151,6 +152,7 @@ export default function DeliveryNotesPage() {
         batch_no: i.batch_no || '', roll_count: Number(i.roll_count || 0),
         core_weight: Number(i.core_weight || 0), wood_weight: Number(i.wood_weight || 0),
         stretch_weight: Number(i.stretch_weight || 0), gross_weight: Number(i.gross_weight || 0),
+        product_description: i.product_description || '',
       }))
     };
 
@@ -282,6 +284,7 @@ export default function DeliveryNotesPage() {
             const sw = Number(item.stretch_weight) || 0;
             const gw = Number(item.gross_weight) || 0;
             let details = `<div class="weight-words">${numberToArabicWords(nw)}</div>`;
+            if (item.product_description) details += `<div class="detail-line">${item.product_description}</div>`;
             details += `<div class="detail-line">${name} ${code}</div>`;
             if (item.batch_no) details += `<div class="detail-line"><span class="detail-label">رقم الباتش :</span> ${item.batch_no}</div>`;
             if (rc) details += `<div class="detail-line"><span class="detail-label">عدد</span> ${rc} بكرة</div>`;
@@ -424,6 +427,10 @@ export default function DeliveryNotesPage() {
                       <label className="form-label">رقم الباتش</label>
                       <input className="erp-input" value={item.batch_no} onChange={e => updateItem(idx, 'batch_no', e.target.value)} />
                     </div>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">تعريف المنتج</label>
+                    <input className="erp-input" value={item.product_description} onChange={e => updateItem(idx, 'product_description', e.target.value)} />
                   </div>
                   <div className="grid grid-cols-5 gap-3">
                     <div>
