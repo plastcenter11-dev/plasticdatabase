@@ -247,9 +247,10 @@ export default function DeliveryNotesPage() {
         th,td{border:1px solid #333;padding:8px 10px;text-align:right;vertical-align:top}
         th{background:#e8e8e8;font-weight:bold;font-size:13px}
         .qty-col{width:120px;text-align:center;font-size:16px;font-weight:bold}
-        .detail-line{margin:2px 0;font-size:13px}
+        .detail-line{margin:2px 0;font-size:11px;color:#666}
         .detail-label{color:#555}
         .weight-words{font-weight:bold;margin-bottom:5px}
+        .product-name{font-weight:bold;font-size:14px;margin:2px 0}
         .footer{margin-top:30px;display:flex;justify-content:space-between;font-size:13px}
         .footer div{min-width:200px}
         .address{text-align:center;margin-top:50px;font-size:12px;color:#666;border-top:1px solid #ccc;padding-top:10px}
@@ -284,14 +285,14 @@ export default function DeliveryNotesPage() {
             const sw = Number(item.stretch_weight) || 0;
             const gw = Number(item.gross_weight) || 0;
             let details = `<div class="weight-words">${numberToArabicWords(nw)}</div>`;
-            if (item.product_description) details += `<div class="detail-line">${item.product_description}</div>`;
+            if (item.product_description) details += `<div class="product-name">${item.product_description}</div>`;
             details += `<div class="detail-line">${name} ${code}</div>`;
             if (item.batch_no) details += `<div class="detail-line"><span class="detail-label">رقم الباتش :</span> ${item.batch_no}</div>`;
             if (rc) details += `<div class="detail-line"><span class="detail-label">عدد</span> ${rc} بكرة</div>`;
             if (cw) details += `<div class="detail-line"><span class="detail-label">وزن الكور</span> ${cw} كجم</div>`;
             if (ww) details += `<div class="detail-line"><span class="detail-label">وزن الخشب</span> ${ww} كجم</div>`;
             if (sw) details += `<div class="detail-line"><span class="detail-label">وزن الاسترتش</span> ${sw} كجم</div>`;
-            if (gw) details += `<div class="detail-line"><strong>الوزن القائم  ${gw} كجم</strong></div>`;
+            if (gw) details += `<div class="detail-line" style="font-size:13px;color:#000"><strong>الوزن القائم  ${gw} كجم</strong></div>`;
             return `<tr><td class="qty-col">${nw} ك</td><td>${details}</td></tr>`;
           }).join('')}
         </tbody>
