@@ -292,7 +292,7 @@ export default function DeliveryNotesPage() {
             if (cw) details += `<div class="detail-line"><span class="detail-label">وزن الكور</span> ${cw} كجم</div>`;
             if (ww) details += `<div class="detail-line"><span class="detail-label">وزن الخشب</span> ${ww} كجم</div>`;
             if (sw) details += `<div class="detail-line"><span class="detail-label">وزن الاسترتش</span> ${sw} كجم</div>`;
-            if (gw) details += `<div class="detail-line" style="font-size:13px;color:#000"><strong>الوزن القائم  ${gw} كجم</strong></div>`;
+            if (gw) details += `<div class="detail-line" style="font-size:13px;color:#000">الوزن القائم  ${gw} كجم</div>`;
             return `<tr><td class="qty-col">${nw} ك</td><td>${details}</td></tr>`;
           }).join('')}
         </tbody>
