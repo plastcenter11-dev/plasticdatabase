@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, Stock, WarehouseTransfer } = require('../../models');
+const { sequelize, Stock, WarehouseTransfer, StockMovement } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeWarehouse, makeItem } = require('../helpers/fixtures');
 
@@ -65,6 +65,21 @@ describe('POST /api/stock/transfers/:id/confirm', () => {
     expect(r2.status).toBe(400);
     const to = await Stock.findOne({ where: { item_id: item.id, warehouse_id: toWh.id } });
     expect(Number(to.quantity)).toBe(10);
+  });
+
+  test('creates a StockMovement pair (تحويل خارج / تحويل داخل) so the transfer shows up in item-movement history', async () => {
+    const transfer = await createTransfer(20, 200);
+    await request(app).post(`/api/stock/transfers/${transfer.id}/confirm`).set(auth());
+    const out = await StockMovement.findOne({ where: { item_id: item.id, warehouse_id: fromWh.id, movement_type: 'تحويل خارج' } });
+    const inn = await StockMovement.findOne({ where: { item_id: item.id, warehouse_id: toWh.id, movement_type: 'تحويل داخل' } });
+    expect(out).not.toBeNull();
+    expect(inn).not.toBeNull();
+    expect(Number(out.quantity)).toBe(20);
+    expect(Number(out.weight)).toBe(200);
+    expect(Number(inn.quantity)).toBe(20);
+    expect(Number(inn.weight)).toBe(200);
+    expect(out.reference).toBe(String(transfer.id));
+    expect(inn.reference).toBe(String(transfer.id));
   });
 
   test('two concurrent confirm requests on the same transfer only move stock once (row lock)', async () => {

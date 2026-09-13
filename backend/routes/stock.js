@@ -175,7 +175,14 @@ router.post('/transfers', async (req, res) => {
 router.post('/transfers/:id/confirm', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const transfer = await WarehouseTransfer.findByPk(req.params.id, { include: [{ model: WarehouseTransferItem, as: 'items' }], transaction: t, lock: t.LOCK.UPDATE });
+    const transfer = await WarehouseTransfer.findByPk(req.params.id, {
+      include: [
+        { model: WarehouseTransferItem, as: 'items' },
+        { model: Warehouse, as: 'fromWarehouse' },
+        { model: Warehouse, as: 'toWarehouse' },
+      ],
+      transaction: t, lock: t.LOCK.UPDATE,
+    });
     if (!transfer) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (transfer.status === 'confirmed') { await t.rollback(); return res.status(400).json({ error: 'التحويل مؤكد مسبقاً' }); }
 
@@ -195,6 +202,17 @@ router.post('/transfers/:id/confirm', async (req, res) => {
       const [toStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.to_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
       await fromStock.update({ quantity: Number(fromStock.quantity) - Number(item.quantity), weight: Number(fromStock.weight) - Number(item.weight || 0) }, { transaction: t });
       await toStock.update({ quantity: Number(toStock.quantity) + Number(item.quantity), weight: Number(toStock.weight) + Number(item.weight || 0) }, { transaction: t });
+
+      await StockMovement.create({
+        item_id: item.item_id, warehouse_id: transfer.from_warehouse_id,
+        movement_type: 'تحويل خارج', quantity: item.quantity, weight: item.weight || 0,
+        date: transfer.date, description: `تحويل إلى مخزن ${transfer.toWarehouse?.name || transfer.to_warehouse_id}`, reference: String(transfer.id),
+      }, { transaction: t });
+      await StockMovement.create({
+        item_id: item.item_id, warehouse_id: transfer.to_warehouse_id,
+        movement_type: 'تحويل داخل', quantity: item.quantity, weight: item.weight || 0,
+        date: transfer.date, description: `تحويل من مخزن ${transfer.fromWarehouse?.name || transfer.from_warehouse_id}`, reference: String(transfer.id),
+      }, { transaction: t });
     }
     await transfer.update({ status: 'confirmed' }, { transaction: t });
     await t.commit();
