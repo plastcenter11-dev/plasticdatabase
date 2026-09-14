@@ -75,7 +75,7 @@ export default function PurchaseInvoicePage() {
   const lineDiscount = (i) => (Number(i.weight) || 0) * (Number(i.price) || 0) * (Number(i.discount || 0) / 100);
   const calcGross = () => form.items.reduce((sum, i) => sum + (Number(i.weight) || 0) * (Number(i.price) || 0), 0);
   const calcSubtotal = () => form.items.reduce((sum, i) => sum + ((Number(i.weight) || 0) * (Number(i.price) || 0) - lineDiscount(i)), 0);
-  const calcDiscountAmount = () => calcSubtotal() * (Number(form.discount || 0) / 100);
+  const calcDiscountAmount = () => Number(form.discount || 0);
   const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
   const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
 
@@ -99,7 +99,7 @@ export default function PurchaseInvoicePage() {
     setEditing(inv);
     setForm({
       supplier_id: String(inv.supplier_id), warehouse_id: String(inv.warehouse_id || ''), date: inv.date,
-      discount: Number(inv.subtotal) > 0 ? Math.round((Number(inv.discount) / Number(inv.subtotal)) * 10000) / 100 : 0, tax_rate: inv.tax_rate, paid: inv.paid,
+      discount: Number(inv.discount || 0), tax_rate: inv.tax_rate, paid: inv.paid,
       items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
     setShowModal(true);
@@ -223,13 +223,13 @@ export default function PurchaseInvoicePage() {
               </table>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <div><label className="form-label">خصم الفاتورة %</label><input type="number" min="0" max="100" step="0.01" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
+              <div><label className="form-label">خصم الفاتورة (مبلغ)</label><input type="number" min="0" step="0.01" className="erp-input" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
               <div><label className="form-label">نسبة الضريبة %</label><input type="number" className="erp-input" value={form.tax_rate} onChange={e => setForm({ ...form, tax_rate: e.target.value })} /></div>
               <div><label className="form-label">المدفوع</label><input type="number" className="erp-input" value={form.paid} onChange={e => setForm({ ...form, paid: e.target.value })} /></div>
               <div className="flex flex-col justify-end gap-1">
                 {(Number(form.discount) > 0 || Number(form.tax_rate) > 0) && (
                   <div className="text-xs text-gray-500 mb-1 space-y-0.5">
-                    {Number(form.discount) > 0 && <div className="text-red-500">خصم ({form.discount}%): - {calcDiscountAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
+                    {Number(form.discount) > 0 && <div className="text-red-500">خصم: - {calcDiscountAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
                     {Number(form.tax_rate) > 0 && <div className="text-green-600">ضريبة ({form.tax_rate}%): + {calcTax().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>}
                   </div>
                 )}
