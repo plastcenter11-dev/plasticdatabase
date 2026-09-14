@@ -1,11 +1,16 @@
 const router = require('express').Router();
+const { Op } = require('sequelize');
 const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType, sequelize } = require('../models');
+
+// Manual stock-adjustment types, as opposed to StockMovement rows generated
+// automatically by invoices/transfers/assemblies (which have their own
+// dedicated pages and shouldn't clutter this one).
+const MANUAL_ADJUSTMENT_TYPES = ['إضافة', 'صرف', 'تعديل جرد'];
 
 // Stock Adjustments
 router.get('/adjustments', async (req, res) => {
   try {
-    const where = {};
-    if (req.query.type) where.movement_type = req.query.type;
+    const where = { movement_type: req.query.type ? req.query.type : { [Op.in]: MANUAL_ADJUSTMENT_TYPES } };
     res.json(await StockMovement.findAll({ where, include: [{ model: Item, attributes: ['id', 'code', 'name'] }, { model: Warehouse, attributes: ['id', 'name'] }], order: [['id', 'DESC']] }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
