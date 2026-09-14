@@ -1,8 +1,30 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdSearch, MdPrint, MdBarChart } from 'react-icons/md';
+import { MdSearch, MdPrint, MdBarChart, MdViewColumn } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
+
+const COLUMNS = [
+  { key: 'code', label: 'الكود' },
+  { key: 'name', label: 'الصنف' },
+  { key: 'category', label: 'القسم' },
+  { key: 'warehouse', label: 'المخزن' },
+  { key: 'qty', label: 'العدد' },
+  { key: 'weight', label: 'الوزن (كجم)' },
+  { key: 'unit', label: 'الوحدة' },
+  { key: 'purchase_price', label: 'سعر الشراء' },
+  { key: 'sale_price', label: 'سعر البيع' },
+  { key: 'value', label: 'القيمة الإجمالية' },
+];
+const VISIBLE_COLS_KEY = 'warehouseItems.visibleCols';
+
+function loadVisibleCols() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VISIBLE_COLS_KEY));
+    if (saved && typeof saved === 'object') return { ...Object.fromEntries(COLUMNS.map(c => [c.key, true])), ...saved };
+  } catch { /* ignore */ }
+  return Object.fromEntries(COLUMNS.map(c => [c.key, true]));
+}
 
 export default function WarehouseItemsPage() {
   const navigate = useNavigate();
@@ -12,6 +34,24 @@ export default function WarehouseItemsPage() {
   const [categoryFilters, setCategoryFilters] = useState([]);
   const [typeFilters, setTypeFilters] = useState([]);
   const [search, setSearch] = useState('');
+  const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
+  const [showColMenu, setShowColMenu] = useState(false);
+  const colMenuRef = useRef(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(visibleCols)); } catch { /* ignore */ }
+  }, [visibleCols]);
+
+  useEffect(() => {
+    if (!showColMenu) return;
+    const onClick = (e) => { if (colMenuRef.current && !colMenuRef.current.contains(e.target)) setShowColMenu(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showColMenu]);
+
+  const toggleCol = (key) => setVisibleCols(v => ({ ...v, [key]: !v[key] }));
+  const isVisible = (key) => key === 'warehouse' ? (!warehouseFilter && visibleCols.warehouse) : visibleCols[key];
+  const visibleCount = COLUMNS.filter(c => isVisible(c.key)).length + 1; // +1 for the actions column
 
   useEffect(() => {
     api.get('/stock/items-stock').then(r => setItems(r.data)).catch(() => {});
@@ -65,20 +105,27 @@ export default function WarehouseItemsPage() {
 
   const getValue = (item) => Number(item.weight || 0) * Number(item.purchase_price || 0);
 
+  const printCols = COLUMNS.filter(c => isVisible(c.key) && c.key !== 'sale_price');
+  const printCellFor = (item, key) => {
+    switch (key) {
+      case 'code': return item.isFirst ? (item.item_code || '') : '';
+      case 'name': return item.isFirst ? (item.item_name || '') : '';
+      case 'category': return item.isFirst ? (item.category_name || '') : '';
+      case 'warehouse': return item.warehouseName || '';
+      case 'qty': return Number(item.qty).toLocaleString();
+      case 'weight': return Number(item.weight).toLocaleString();
+      case 'unit': return item.unit || '';
+      case 'purchase_price': return Number(item.purchase_price || 0).toLocaleString();
+      case 'value': return getValue(item).toLocaleString();
+      default: return '';
+    }
+  };
+
   const handlePrint = () => {
     const whName = warehouses.find(w => w.id === Number(warehouseFilter))?.name || 'كل المخازن';
     const totalValue = displayRows.reduce((s, r) => s + getValue(r), 0);
-    const rows = displayRows.map(item => `<tr>
-      <td>${item.isFirst ? (item.item_code || '') : ''}</td>
-      <td>${item.isFirst ? (item.item_name || '') : ''}</td>
-      <td>${item.isFirst ? (item.category_name || '') : ''}</td>
-      <td>${item.warehouseName || ''}</td>
-      <td>${Number(item.qty).toLocaleString()}</td>
-      <td>${Number(item.weight).toLocaleString()}</td>
-      <td>${item.unit || ''}</td>
-      <td>${Number(item.purchase_price || 0).toLocaleString()}</td>
-      <td>${getValue(item).toLocaleString()}</td>
-    </tr>`).join('');
+    const valueColIdx = printCols.findIndex(c => c.key === 'value');
+    const rows = displayRows.map(item => `<tr>${printCols.map(c => `<td>${printCellFor(item, c.key)}</td>`).join('')}</tr>`).join('');
     const win = window.open('', '_blank');
     win.document.write(`<html dir="rtl"><head><title>مخزن الأصناف</title>
       <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:20px;text-align:center;margin-bottom:10px}
@@ -86,9 +133,9 @@ export default function WarehouseItemsPage() {
       .info{text-align:center;color:#555;margin-bottom:15px;font-size:13px}
       tfoot td{font-weight:bold;background:#f0f0f0}</style></head>
       <body><h1>مخزن الأصناف</h1><div class="info">المخزن: ${whName}</div>
-      <table><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>المخزن</th><th>العدد</th><th>الوزن (كجم)</th><th>الوحدة</th><th>سعر التكلفة</th><th>القيمة الإجمالية</th></tr></thead>
+      <table><thead><tr>${printCols.map(c => `<th>${c.key === 'purchase_price' ? 'سعر التكلفة' : c.label}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="8">الإجمالي</td><td>${totalValue.toLocaleString()} ج.م</td></tr></tfoot>
+      <tfoot><tr>${printCols.map((c, i) => i === valueColIdx ? `<td>${totalValue.toLocaleString()} ج.م</td>` : i === 0 ? `<td colspan="${valueColIdx >= 0 ? valueColIdx : printCols.length}">الإجمالي</td>` : (i < valueColIdx ? '' : `<td></td>`)).join('')}</tr></tfoot>
       </table></body></html>`);
     win.document.close(); win.print();
   };
@@ -97,9 +144,24 @@ export default function WarehouseItemsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مخزن الأصناف</h1>
-        <button onClick={handlePrint} className="erp-btn erp-btn-outline flex items-center gap-1">
-          <MdPrint size={18} /> طباعة
-        </button>
+        <div className="flex gap-2 relative" ref={colMenuRef}>
+          <button onClick={() => setShowColMenu(v => !v)} className="erp-btn erp-btn-outline flex items-center gap-1">
+            <MdViewColumn size={18} /> الأعمدة
+          </button>
+          {showColMenu && (
+            <div className="absolute top-full mt-1 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-20 min-w-[180px] space-y-1">
+              {COLUMNS.map(c => (
+                <label key={c.key} className="flex items-center gap-2 text-sm py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+                  <input type="checkbox" checked={visibleCols[c.key]} onChange={() => toggleCol(c.key)} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
+          <button onClick={handlePrint} className="erp-btn erp-btn-outline flex items-center gap-1">
+            <MdPrint size={18} /> طباعة
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-3 flex-wrap items-center">
@@ -155,41 +217,36 @@ export default function WarehouseItemsPage() {
         <table className="erp-table">
           <thead>
             <tr>
-              <th>الكود</th>
-              <th>الصنف</th>
-              <th>القسم</th>
-              {!warehouseFilter && <th>المخزن</th>}
-              <th>العدد</th>
-              <th>الوزن (كجم)</th>
-              <th>الوحدة</th>
-              <th>سعر الشراء</th>
-              <th>سعر البيع</th>
-              <th>القيمة الإجمالية</th>
+              {COLUMNS.filter(c => isVisible(c.key)).map(c => <th key={c.key}>{c.label}</th>)}
               <th></th>
             </tr>
           </thead>
           <tbody>
             {displayRows.length === 0 && (
-              <tr><td colSpan={warehouseFilter ? 10 : 11} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
+              <tr><td colSpan={visibleCount} className="text-center py-10 text-gray-400">لا توجد بيانات</td></tr>
             )}
             {displayRows.map((item) => (
               <tr key={item.key} className={item.qty < 0 ? 'bg-red-50' : ''}>
-                {item.isFirst && <td className="font-mono text-sm text-gray-500" rowSpan={item.rowSpan}>{item.item_code}</td>}
-                {item.isFirst && <td className="font-medium" rowSpan={item.rowSpan}>{item.item_name}</td>}
-                {item.isFirst && <td className="text-sm text-gray-500" rowSpan={item.rowSpan}>{item.category_name || '—'}</td>}
-                {!warehouseFilter && (
+                {isVisible('code') && item.isFirst && <td className="font-mono text-sm text-gray-500" rowSpan={item.rowSpan}>{item.item_code}</td>}
+                {isVisible('name') && item.isFirst && <td className="font-medium" rowSpan={item.rowSpan}>{item.item_name}</td>}
+                {isVisible('category') && item.isFirst && <td className="text-sm text-gray-500" rowSpan={item.rowSpan}>{item.category_name || '—'}</td>}
+                {isVisible('warehouse') && (
                   <td className="text-xs text-gray-400">{item.warehouseName || '—'}</td>
                 )}
-                <td className={`font-bold ${item.qty < 0 ? 'text-red-600' : item.qty === 0 ? 'text-gray-400' : ''}`}>
-                  {Number(item.qty).toLocaleString()}
-                </td>
-                <td className={item.weight < 0 ? 'text-red-600' : ''}>
-                  {Number(item.weight).toLocaleString()}
-                </td>
-                <td className="text-gray-500">{item.unit}</td>
-                <td className="text-gray-600">{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>
-                <td className="text-gray-600">{Number(item.sale_price || 0) > 0 ? Number(item.sale_price).toLocaleString() + ' ج.م' : '—'}</td>
-                <td className="font-bold text-primary">{getValue(item) > 0 ? getValue(item).toLocaleString() + ' ج.م' : '—'}</td>
+                {isVisible('qty') && (
+                  <td className={`font-bold ${item.qty < 0 ? 'text-red-600' : item.qty === 0 ? 'text-gray-400' : ''}`}>
+                    {Number(item.qty).toLocaleString()}
+                  </td>
+                )}
+                {isVisible('weight') && (
+                  <td className={item.weight < 0 ? 'text-red-600' : ''}>
+                    {Number(item.weight).toLocaleString()}
+                  </td>
+                )}
+                {isVisible('unit') && <td className="text-gray-500">{item.unit}</td>}
+                {isVisible('purchase_price') && <td className="text-gray-600">{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>}
+                {isVisible('sale_price') && <td className="text-gray-600">{Number(item.sale_price || 0) > 0 ? Number(item.sale_price).toLocaleString() + ' ج.م' : '—'}</td>}
+                {isVisible('value') && <td className="font-bold text-primary">{getValue(item) > 0 ? getValue(item).toLocaleString() + ' ج.م' : '—'}</td>}
                 {item.isFirst && (
                   <td rowSpan={item.rowSpan}>
                     <button
@@ -205,19 +262,23 @@ export default function WarehouseItemsPage() {
               </tr>
             ))}
           </tbody>
-          {displayRows.length > 0 && (
-            <tfoot>
-              <tr className="bg-gray-50 font-bold">
-                <td colSpan={warehouseFilter ? 3 : 4}>الإجمالي ({itemCount} صنف)</td>
-                <td>{displayRows.reduce((s, r) => s + Number(r.qty), 0).toLocaleString()}</td>
-                <td>{displayRows.reduce((s, r) => s + Number(r.weight), 0).toLocaleString()}</td>
-                <td></td>
-                <td></td>
-                <td className="text-primary">{displayRows.reduce((s, r) => s + getValue(r), 0).toLocaleString()} ج.م</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          )}
+          {displayRows.length > 0 && (() => {
+            const leadCols = ['code', 'name', 'category', 'warehouse'].filter(isVisible);
+            const numericLeadCols = ['qty', 'weight'].filter(isVisible);
+            const trailingCols = ['unit', 'purchase_price', 'sale_price'].filter(isVisible);
+            return (
+              <tfoot>
+                <tr className="bg-gray-50 font-bold">
+                  {leadCols.length > 0 && <td colSpan={leadCols.length}>الإجمالي ({itemCount} صنف)</td>}
+                  {numericLeadCols.includes('qty') && <td>{displayRows.reduce((s, r) => s + Number(r.qty), 0).toLocaleString()}</td>}
+                  {numericLeadCols.includes('weight') && <td>{displayRows.reduce((s, r) => s + Number(r.weight), 0).toLocaleString()}</td>}
+                  {trailingCols.map(k => <td key={k}></td>)}
+                  {isVisible('value') && <td className="text-primary">{displayRows.reduce((s, r) => s + getValue(r), 0).toLocaleString()} ج.م</td>}
+                  <td></td>
+                </tr>
+              </tfoot>
+            );
+          })()}
         </table>
       </div>
     </div>
