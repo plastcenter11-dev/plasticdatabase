@@ -32,7 +32,7 @@ export default function WarehouseItemsPage() {
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [categoryFilters, setCategoryFilters] = useState([]);
-  const [typeFilters, setTypeFilters] = useState([]);
+  const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
   const [showColMenu, setShowColMenu] = useState(false);
@@ -59,7 +59,16 @@ export default function WarehouseItemsPage() {
   }, []);
 
   const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();
-  const types = [...new Set(items.map(i => i.type_name).filter(Boolean))].sort();
+  // Only offer the types that actually exist within the selected categories
+  // (all types when no category is selected).
+  const types = [...new Set(
+    items
+      .filter(i => categoryFilters.length === 0 || categoryFilters.includes(i.category_name))
+      .map(i => i.type_name)
+      .filter(Boolean)
+  )].sort();
+  // If the chosen type stops being available after the category changes, ignore it.
+  const activeTypeFilter = types.includes(typeFilter) ? typeFilter : '';
 
   const filtered = items.filter(item => {
     if (search) {
@@ -67,7 +76,7 @@ export default function WarehouseItemsPage() {
       if (!item.item_name?.toLowerCase().includes(q) && !item.item_code?.toLowerCase().includes(q)) return false;
     }
     if (categoryFilters.length > 0 && !categoryFilters.includes(item.category_name)) return false;
-    if (typeFilters.length > 0 && !typeFilters.includes(item.type_name)) return false;
+    if (activeTypeFilter && item.type_name !== activeTypeFilter) return false;
     return true;
   });
 
@@ -197,19 +206,10 @@ export default function WarehouseItemsPage() {
       {types.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500 font-medium shrink-0">النوع:</span>
-          {types.map(t => {
-            const active = typeFilters.includes(t);
-            return (
-              <button key={t} type="button"
-                onClick={() => setTypeFilters(prev => active ? prev.filter(x => x !== t) : [...prev, t])}
-                className={`px-3 py-1 rounded-full text-sm border transition-colors cursor-pointer ${active ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'}`}>
-                {t}
-              </button>
-            );
-          })}
-          {typeFilters.length > 0 && (
-            <button type="button" onClick={() => setTypeFilters([])} className="text-xs text-gray-400 hover:text-red-500 underline cursor-pointer">مسح</button>
-          )}
+          <SearchableSelect className="erp-input w-auto min-w-[180px]" value={activeTypeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="">كل الأنواع</option>
+            {types.map(t => <option key={t} value={t}>{t}</option>)}
+          </SearchableSelect>
         </div>
       )}
 
