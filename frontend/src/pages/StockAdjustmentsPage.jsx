@@ -13,6 +13,9 @@ export default function StockAdjustmentsPage() {
   const location = useLocation();
   const defaultType = location.pathname === '/stock-issue' ? 'صرف' : location.pathname === '/stock-receive' ? 'إضافة' : 'إضافة';
   const pageTitle = location.pathname === '/stock-issue' ? 'صرف من المخزن' : location.pathname === '/stock-receive' ? 'إضافة للمخزن' : 'تسوية المخزون (جرد / صرف / إضافة)';
+  // /stock-issue and /stock-receive are each dedicated to one movement type -
+  // the shared /stock-adjustments page is the only one that mixes all three.
+  const pageType = location.pathname === '/stock-issue' ? 'صرف' : location.pathname === '/stock-receive' ? 'إضافة' : null;
 
   const { can } = useAuth();
   const [adjustments, setAdjustments] = useState([]);
@@ -34,7 +37,7 @@ export default function StockAdjustmentsPage() {
 
   const filtered = adjustments.filter(a => {
     const matchSearch = !search || a.Item?.name?.includes(search) || a.description?.includes(search);
-    const matchType = !filterType || a.movement_type === filterType;
+    const matchType = pageType ? a.movement_type === pageType : (!filterType || a.movement_type === filterType);
     return matchSearch && matchType;
   });
 
@@ -85,12 +88,14 @@ export default function StockAdjustmentsPage() {
             <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
             <input className="erp-input pr-10" placeholder="بحث بالصنف أو الوصف..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <select className="erp-input w-auto min-w-[130px]" value={filterType} onChange={e => setFilterType(e.target.value)}>
-            <option value="">كل الأنواع</option>
-            <option value="إضافة">إضافة</option>
-            <option value="صرف">صرف</option>
-            <option value="تعديل جرد">تعديل جرد</option>
-          </select>
+          {!pageType && (
+            <select className="erp-input w-auto min-w-[130px]" value={filterType} onChange={e => setFilterType(e.target.value)}>
+              <option value="">كل الأنواع</option>
+              <option value="إضافة">إضافة</option>
+              <option value="صرف">صرف</option>
+              <option value="تعديل جرد">تعديل جرد</option>
+            </select>
+          )}
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-100">
@@ -125,7 +130,7 @@ export default function StockAdjustmentsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">نوع الحركة *</label>
-                <select className="erp-input" value={form.movement_type} onChange={e => setForm({ ...form, movement_type: e.target.value })}>
+                <select className="erp-input" disabled={!!pageType} value={form.movement_type} onChange={e => setForm({ ...form, movement_type: e.target.value })}>
                   <option value="إضافة">إضافة للمخزن</option>
                   <option value="صرف">صرف من المخزن</option>
                   <option value="تعديل جرد">تعديل جرد</option>
