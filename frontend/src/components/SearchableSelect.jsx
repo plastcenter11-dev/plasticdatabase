@@ -105,7 +105,7 @@ export default function SearchableSelect({ value, onChange, children, className 
         type="text"
         name={name}
         id={id}
-        className={className}
+        className={`${className} erp-select`}
         value={displayValue}
         placeholder={placeholder}
         required={required}
