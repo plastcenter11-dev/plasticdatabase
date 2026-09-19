@@ -6,7 +6,8 @@ import api from '../api/axios';
 export default function OverdueChecksPage() {
   const [checks, setChecks] = useState([]);
 
-  const load = () => api.get('/finance/checks/overdue').then(r => setChecks(r.data)).catch(() => {});
+  // This report is for checks we receive; overdue checks we issued to suppliers are excluded.
+  const load = () => api.get('/finance/checks/overdue').then(r => setChecks(r.data.filter(c => c.party_type === 'customer'))).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const markCollected = async (id) => {

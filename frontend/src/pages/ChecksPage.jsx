@@ -7,24 +7,27 @@ import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel, MdShoppingCart } fr
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyForm = { check_no: '', party_type: 'customer', party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] };
+const makeEmptyForm = (partyType) => ({ check_no: '', party_type: partyType, party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] });
 
-export default function ChecksPage() {
+// One page for both directions of checks: 'customer' = checks we receive
+// (حركات تحصيل شيكات), 'supplier' = checks we issue (حركات دفع شيكات).
+export default function ChecksPage({ partyType = 'customer' }) {
+  const isSupplier = partyType === 'supplier';
   const navigate = useNavigate();
   const { can } = useAuth();
   const [checks, setChecks] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [parties, setParties] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => makeEmptyForm(partyType));
   const [bouncing, setBouncing] = useState(null);
   const [bounceDate, setBounceDate] = useState('');
 
   const loadData = async () => {
     try {
-      const [ch, cu] = await Promise.all([api.get('/finance/checks'), api.get('/customers')]);
-      setChecks(ch.data); setCustomers(cu.data);
+      const [ch, pa] = await Promise.all([api.get('/finance/checks'), api.get(isSupplier ? '/suppliers' : '/customers')]);
+      setChecks(ch.data.filter(c => c.party_type === partyType)); setParties(pa.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -36,13 +39,13 @@ export default function ChecksPage() {
     return matchSearch && matchStatus;
   });
 
-  const getPartyName = (ch) => customers.find(c => c.id === ch.party_id)?.name || '-';
+  const getPartyName = (ch) => parties.find(c => c.id === ch.party_id)?.name || '-';
   const isOverdue = (ch) => ch.status === 'pending' && ch.due_date < today;
   const pendingTotal = checks.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.amount), 0);
   const overdueCount = checks.filter(c => isOverdue(c)).length;
 
   const statusBadge = (ch) => {
-    if (ch.status === 'collected') return <span className="badge badge-green">تم التحصيل</span>;
+    if (ch.status === 'collected') return <span className="badge badge-green">{isSupplier ? 'تم الصرف' : 'تم التحصيل'}</span>;
     if (ch.status === 'bounced') return <span className="badge badge-red">مرتجع</span>;
     if (isOverdue(ch)) return <span className="badge badge-red">متأخر</span>;
     return <span className="badge badge-yellow">قيد الانتظار</span>;
@@ -54,12 +57,12 @@ export default function ChecksPage() {
     try {
       await api.post('/finance/checks', { ...form, party_id: Number(form.party_id), amount: Number(form.amount) });
       toast.success('تم تسجيل الشيك');
-      setShowModal(false); setForm(emptyForm); loadData();
+      setShowModal(false); setForm(makeEmptyForm(partyType)); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   const handleCollect = async (id) => {
-    try { await api.put(`/finance/checks/${id}`, { status: 'collected' }); toast.success('تم تحصيل الشيك'); loadData(); }
+    try { await api.put(`/finance/checks/${id}`, { status: 'collected' }); toast.success(isSupplier ? 'تم صرف الشيك' : 'تم تحصيل الشيك'); loadData(); }
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -83,10 +86,10 @@ export default function ChecksPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold text-gray-800">شيكات - قبض</h1>
+        <h1 className="text-xl font-bold text-gray-800">{isSupplier ? 'حركات دفع شيكات' : 'حركات تحصيل شيكات'}</h1>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/delivery-notes', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> إذن تسليم جديد</button>
-          {can('checks', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>}
+          {!isSupplier && <button onClick={() => navigate('/delivery-notes', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> إذن تسليم جديد</button>}
+          {can('checks', 'create') && <button onClick={() => { setForm(makeEmptyForm(partyType)); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>}
         </div>
       </div>
 
@@ -104,14 +107,14 @@ export default function ChecksPage() {
         <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">كل الحالات</option>
           <option value="pending">قيد الانتظار</option>
-          <option value="collected">تم التحصيل</option>
+          <option value="collected">{isSupplier ? 'تم الصرف' : 'تم التحصيل'}</option>
           <option value="bounced">مرتجع</option>
         </select>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>رقم الشيك</th><th>التاريخ</th><th>العميل</th><th>المبلغ</th><th>تاريخ الاستحقاق</th><th>البنك</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>رقم الشيك</th><th>التاريخ</th><th>{isSupplier ? 'المورد' : 'العميل'}</th><th>المبلغ</th><th>تاريخ الاستحقاق</th><th>البنك</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد شيكات</td></tr>}
             {filtered.map(ch => (
@@ -127,7 +130,7 @@ export default function ChecksPage() {
                   <div className="flex gap-1">
                     {ch.status === 'pending' && can('checks', 'edit') && (
                       <>
-                        <button onClick={() => handleCollect(ch.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs" title="تحصيل"><MdCheckCircle size={14} /></button>
+                        <button onClick={() => handleCollect(ch.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs" title={isSupplier ? 'تم الصرف' : 'تحصيل'}><MdCheckCircle size={14} /></button>
                         <button onClick={() => openBounce(ch)} className="erp-btn erp-btn-warning py-1 px-2 text-xs" title="مرتجع"><MdCancel size={14} /></button>
                       </>
                     )}
@@ -141,17 +144,17 @@ export default function ChecksPage() {
       </div>
 
       {showModal && (
-        <Modal title="شيك قبض جديد" onClose={() => setShowModal(false)} width="max-w-md">
+        <Modal title={isSupplier ? 'شيك دفع جديد' : 'شيك قبض جديد'} onClose={() => setShowModal(false)} width="max-w-md">
           <form onSubmit={handleSave} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">رقم الشيك *</label><input className="erp-input" required value={form.check_no} onChange={e => setForm({ ...form, check_no: e.target.value })} /></div>
               <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>
-              <label className="form-label">العميل *</label>
+              <label className="form-label">{isSupplier ? 'المورد *' : 'العميل *'}</label>
               <SearchableSelect className="erp-input" required value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })}>
                 <option value="">— اختر —</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {parties.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </SearchableSelect>
             </div>
             <div className="grid grid-cols-2 gap-3">

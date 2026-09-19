@@ -1,8 +1,8 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, Customer, FinancialYear } = require('../../models');
+const { sequelize, Customer, Supplier, FinancialYear } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
-const { makeAuthToken, makeCustomer } = require('../helpers/fixtures');
+const { makeAuthToken, makeCustomer, makeSupplier } = require('../helpers/fixtures');
 
 const app = express();
 app.use(express.json());
@@ -133,5 +133,35 @@ describe('closed-year locking on checks', () => {
 
     const res = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ date: '2020-06-01' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('checks issued to a supplier (party_type = supplier)', () => {
+  test('a pending check reduces what we owe the supplier, and bouncing it restores the debt', async () => {
+    const supplier = await makeSupplier({ balance: 1000 });
+    const created = await request(app).post('/api/finance/checks').set(auth()).send({
+      check_no: 'S-1', date: '2026-01-01', due_date: '2026-02-01',
+      party_type: 'supplier', party_id: supplier.id, amount: 400, status: 'pending',
+    });
+    expect(created.status).toBe(201);
+    let sup = await Supplier.findByPk(supplier.id);
+    expect(Number(sup.balance)).toBe(600);
+
+    const bounced = await request(app).put(`/api/finance/checks/${created.body.id}`).set(auth()).send({ status: 'bounced', bounced_date: '2026-01-10' });
+    expect(bounced.status).toBe(200);
+    sup = await Supplier.findByPk(supplier.id);
+    expect(Number(sup.balance)).toBe(1000);
+  });
+
+  test('deleting a pending supplier check gives the amount back to the supplier balance', async () => {
+    const supplier = await makeSupplier({ balance: 1000 });
+    const created = await request(app).post('/api/finance/checks').set(auth()).send({
+      check_no: 'S-2', date: '2026-01-01', due_date: '2026-02-01',
+      party_type: 'supplier', party_id: supplier.id, amount: 250, status: 'pending',
+    });
+    const res = await request(app).delete(`/api/finance/checks/${created.body.id}`).set(auth());
+    expect(res.status).toBe(200);
+    const sup = await Supplier.findByPk(supplier.id);
+    expect(Number(sup.balance)).toBe(1000);
   });
 });

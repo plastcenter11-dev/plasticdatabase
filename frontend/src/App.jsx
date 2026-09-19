@@ -115,7 +115,8 @@ function AppRoutes() {
         {/* أوراق مالية */}
         <Route path="cash-receipts" element={<ModuleRoute module="cash_receipts"><CashReceiptsPage /></ModuleRoute>} />
         <Route path="cash-payments" element={<ModuleRoute module="cash_payments"><CashPaymentsPage /></ModuleRoute>} />
-        <Route path="checks" element={<ModuleRoute module="checks"><ChecksPage /></ModuleRoute>} />
+        <Route path="checks" element={<ModuleRoute module="checks"><ChecksPage key="customer" partyType="customer" /></ModuleRoute>} />
+        <Route path="supplier-checks" element={<ModuleRoute module="checks"><ChecksPage key="supplier" partyType="supplier" /></ModuleRoute>} />
         <Route path="reports/overdue-checks" element={<ModuleRoute module="checks"><OverdueChecksPage /></ModuleRoute>} />
 
         {/* قيود و مصروفات */}
