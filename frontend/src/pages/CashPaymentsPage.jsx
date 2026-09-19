@@ -103,7 +103,6 @@ export default function CashPaymentsPage() {
               <select className="erp-input" value={form.payment_method} onChange={e => setForm({ ...form, payment_method: e.target.value })}>
                 <option value="نقدي">نقدي</option>
                 <option value="تحويل بنكي">تحويل بنكي</option>
-                <option value="شيك">شيك</option>
               </select>
             </div>
             <div><label className="form-label">ملاحظات</label><input className="erp-input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
