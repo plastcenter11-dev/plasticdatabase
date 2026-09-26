@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { PurchaseInvoice, PurchaseInvoiceItem, Supplier, Item, Stock, StockMovement, CashPayment, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
+const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 
 router.get('/', async (req, res) => {
   try {
@@ -61,6 +62,8 @@ router.post('/:id/post', async (req, res) => {
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const closedErr = await closedYearError(inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    const whErr = await missingWarehouseError(inv, t);
+    if (whErr) { await t.rollback(); return res.status(400).json({ error: whErr }); }
 
     await inv.update({ status: 'posted' }, { transaction: t });
 
