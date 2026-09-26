@@ -8,6 +8,7 @@ const COLUMNS = [
   { key: 'code', label: 'الكود' },
   { key: 'name', label: 'الصنف' },
   { key: 'category', label: 'القسم' },
+  { key: 'type', label: 'النوع' },
   { key: 'warehouse', label: 'المخزن' },
   { key: 'qty', label: 'العدد' },
   { key: 'weight', label: 'الوزن (كجم)' },
@@ -120,6 +121,7 @@ export default function WarehouseItemsPage() {
       case 'code': return item.isFirst ? (item.item_code || '') : '';
       case 'name': return item.isFirst ? (item.item_name || '') : '';
       case 'category': return item.isFirst ? (item.category_name || '') : '';
+      case 'type': return item.isFirst ? (item.type_name || '') : '';
       case 'warehouse': return item.warehouseName || '';
       case 'qty': return Number(item.qty).toLocaleString();
       case 'weight': return Number(item.weight).toLocaleString();
@@ -230,6 +232,7 @@ export default function WarehouseItemsPage() {
                 {isVisible('code') && item.isFirst && <td className="font-mono text-sm text-gray-500" rowSpan={item.rowSpan}>{item.item_code}</td>}
                 {isVisible('name') && item.isFirst && <td className="font-medium" rowSpan={item.rowSpan}>{item.item_name}</td>}
                 {isVisible('category') && item.isFirst && <td className="text-sm text-gray-500" rowSpan={item.rowSpan}>{item.category_name || '—'}</td>}
+                {isVisible('type') && item.isFirst && <td className="text-sm text-gray-500" rowSpan={item.rowSpan}>{item.type_name || '—'}</td>}
                 {isVisible('warehouse') && (
                   <td className="text-xs text-gray-400">{item.warehouseName || '—'}</td>
                 )}
@@ -263,7 +266,7 @@ export default function WarehouseItemsPage() {
             ))}
           </tbody>
           {displayRows.length > 0 && (() => {
-            const leadCols = ['code', 'name', 'category', 'warehouse'].filter(isVisible);
+            const leadCols = ['code', 'name', 'category', 'type', 'warehouse'].filter(isVisible);
             const numericLeadCols = ['qty', 'weight'].filter(isVisible);
             const trailingCols = ['unit', 'purchase_price', 'sale_price'].filter(isVisible);
             return (
