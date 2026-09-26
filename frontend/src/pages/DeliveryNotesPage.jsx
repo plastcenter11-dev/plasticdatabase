@@ -179,7 +179,7 @@ export default function DeliveryNotesPage() {
       (note?.items || []).map(i => ({
         item_id: i.item_id, item_name: i.Item?.name || i.item_name || '',
         price: i.Item?.sale_price || '', tax_rate: '',
-        weight: Number(i.net_weight || i.gross_weight || 0),
+        weight: Number(i.net_weight || i.gross_weight || 0), roll_count: Number(i.roll_count || 0),
       }))
     );
     setUseCash(false); setCashAmount(''); setCashDate(note?.date || today);
@@ -486,11 +486,13 @@ export default function DeliveryNotesPage() {
             <div>
               <label className="form-label mb-2">أسعار الأصناف</label>
               <table className="erp-table">
-                <thead><tr><th>الصنف</th><th>السعر *</th><th>ضريبة %</th></tr></thead>
+                <thead><tr><th>الصنف</th><th>العدد</th><th>الوزن (كجم)</th><th>السعر *</th><th>ضريبة %</th></tr></thead>
                 <tbody>
                   {deliverPrices.map((p, idx) => (
                     <tr key={idx}>
                       <td className="text-sm">{p.item_name}</td>
+                      <td className="text-sm">{Number(p.roll_count || 0).toLocaleString()}</td>
+                      <td className="text-sm">{Number(p.weight || 0).toLocaleString()}</td>
                       <td><input type="number" step="0.01" className="erp-input py-1" required value={p.price} onChange={e => updateDeliverPrice(idx, 'price', e.target.value)} /></td>
                       <td><input type="number" step="0.01" className="erp-input py-1 w-20" value={p.tax_rate} onChange={e => updateDeliverPrice(idx, 'tax_rate', e.target.value)} /></td>
                     </tr>
