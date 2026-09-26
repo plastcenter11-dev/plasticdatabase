@@ -27,10 +27,14 @@ export default function StockAdjustmentsPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ ...emptyForm, movement_type: defaultType });
 
+  const [stockData, setStockData] = useState([]);
+  const selectedStock = form.item_id ? stockData.find(s => s.item_id === Number(form.item_id)) : null;
+  const whStock = selectedStock && form.warehouse_id ? selectedStock.warehouses.find(w => w.warehouse_id === Number(form.warehouse_id)) : null;
+
   const loadData = async () => {
     try {
-      const [adj, wh, it] = await Promise.all([api.get('/stock/adjustments'), api.get('/warehouses'), api.get('/items')]);
-      setAdjustments(adj.data); setWarehouses(wh.data); setItems(it.data);
+      const [adj, wh, it, st] = await Promise.all([api.get('/stock/adjustments'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
+      setAdjustments(adj.data); setWarehouses(wh.data); setItems(it.data); setStockData(st.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -154,6 +158,12 @@ export default function StockAdjustmentsPage() {
                 </SearchableSelect>
               </div>
             </div>
+            {form.item_id && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-sm text-blue-800 flex flex-wrap gap-x-6 gap-y-1">
+                {form.warehouse_id && <span>الرصيد بهذا المخزن: <strong>{Number(whStock?.weight || 0).toLocaleString()} كجم</strong> / <strong>{Number(whStock?.quantity || 0).toLocaleString()} عدد</strong></span>}
+                <span>إجمالي كل المخازن: <strong>{Number(selectedStock?.total_weight || 0).toLocaleString()} كجم</strong> / <strong>{Number(selectedStock?.total_quantity || 0).toLocaleString()} عدد</strong></span>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div><label className="form-label">الوزن (كجم) *</label><input type="number" step="0.01" className="erp-input" required value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} /></div>
               <div><label className="form-label">العدد</label><input type="number" className="erp-input" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} /></div>
