@@ -32,6 +32,7 @@ export default function CashReceiptsPage() {
   });
 
   const totalAmount = receipts.reduce((s, r) => s + Number(r.amount), 0);
+  const selectedCustomer = customers.find(c => c.id === Number(form.customer_id));
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -98,6 +99,11 @@ export default function CashReceiptsPage() {
                 <option value="">— اختر —</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </SearchableSelect>
+              {selectedCustomer && (
+                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 ${Number(selectedCustomer.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedCustomer.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                  رصيد العميل الحالي: <strong>{Number(selectedCustomer.balance).toLocaleString()} ج.م</strong>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
