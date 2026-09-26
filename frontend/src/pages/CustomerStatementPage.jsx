@@ -22,6 +22,8 @@ export default function CustomerStatementPage() {
   // folds in the opening/carried-forward balance) rather than recomputing
   // from zero here, which would silently drop that opening amount.
   const rows = movements;
+  const balSplit = (b) => { const n = Number(b || 0); const pos = n > 0 ? n : 0; const neg = n < 0 ? -n : 0; return { debit: pos, credit: neg }; };
+  const fmt = (n) => Number(n).toLocaleString();
 
   const typeColor = (type) => {
     if (type === 'فاتورة بيع') return 'text-red-600';
@@ -35,10 +37,10 @@ export default function CustomerStatementPage() {
     <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:20px;text-align:center}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f9f9f9;font-size:12px;color:#555}.info{display:flex;justify-content:space-between;margin:15px 0;font-size:14px}</style></head><body>
     <h1>كشف حساب عميل</h1>
     <div class="info"><span>العميل: <strong>${customerName}</strong></span><span>من: ${dateFrom} إلى: ${dateTo}</span></div>
-    <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (له)</th><th>دائن (منه)</th><th>الرصيد</th></tr></thead>
+    <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (له)</th><th>دائن (منه)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
     <tbody>${rows.map(r => `
-      <tr><td>${r.date}</td><td>${r.type} ${r.reference}${r.check_due_date ? ` — استحقاق: ${r.check_due_date}` : ''}${r.check_bounced_date ? ` — ارتداد: ${r.check_bounced_date}` : ''}${r.check_status ? ` (${r.check_status === 'bounced' ? 'مرتد' : r.check_status === 'collected' ? 'تم التحصيل' : 'قيد الانتظار'})` : ''}</td><td>${r.debit ? Number(r.debit).toLocaleString() : ''}</td><td>${r.credit ? Number(r.credit).toLocaleString() : ''}</td><td>${r.balance.toLocaleString()}</td></tr>
-      ${r.items?.length ? `<tr class="sub"><td colspan="5"><table style="width:100%;font-size:12px"><thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${r.items.map(it => `<tr><td>${it.Item?.name || ''}</td><td>${Number(it.weight || 0) > 0 ? Number(it.weight).toLocaleString() : '—'}</td><td>${Number(it.quantity).toLocaleString()}</td><td>${Number(it.price).toLocaleString()}</td><td>${Number(it.total).toLocaleString()}</td></tr>`).join('')}</tbody></table></td></tr>` : ''}
+      <tr><td>${r.date}</td><td>${r.type} ${r.reference}${r.check_due_date ? ` — استحقاق: ${r.check_due_date}` : ''}${r.check_bounced_date ? ` — ارتداد: ${r.check_bounced_date}` : ''}${r.check_status ? ` (${r.check_status === 'bounced' ? 'مرتد' : r.check_status === 'collected' ? 'تم التحصيل' : 'قيد الانتظار'})` : ''}</td><td>${r.debit ? Number(r.debit).toLocaleString() : ''}</td><td>${r.credit ? Number(r.credit).toLocaleString() : ''}</td><td>${fmt(balSplit(r.balance).debit)}</td><td>${fmt(balSplit(r.balance).credit)}</td></tr>
+      ${r.items?.length ? `<tr class="sub"><td colspan="6"><table style="width:100%;font-size:12px"><thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${r.items.map(it => `<tr><td>${it.Item?.name || ''}</td><td>${Number(it.weight || 0) > 0 ? Number(it.weight).toLocaleString() : '—'}</td><td>${Number(it.quantity).toLocaleString()}</td><td>${Number(it.price).toLocaleString()}</td><td>${Number(it.total).toLocaleString()}</td></tr>`).join('')}</tbody></table></td></tr>` : ''}
     `).join('')}</tbody></table>
     </body></html>`;
     const win = window.open('', '_blank'); win.document.write(printContent); win.document.close(); win.print();
@@ -65,9 +67,9 @@ export default function CustomerStatementPage() {
       {customerId && (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="erp-table">
-            <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (له)</th><th>دائن (منه)</th><th>الرصيد</th></tr></thead>
+            <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (له)</th><th>دائن (منه)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
               {rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.date}</td>
@@ -110,7 +112,8 @@ export default function CustomerStatementPage() {
                   </td>
                   <td className={r.debit ? 'text-red-600 font-medium' : ''}>{r.debit ? Number(r.debit).toLocaleString() : ''}</td>
                   <td className={r.credit ? 'text-green-600 font-medium' : ''}>{r.credit ? Number(r.credit).toLocaleString() : ''}</td>
-                  <td className="font-bold">{r.balance.toLocaleString()}</td>
+                  <td className="font-bold">{fmt(balSplit(r.balance).debit)}</td>
+                  <td className="font-bold">{fmt(balSplit(r.balance).credit)}</td>
                 </tr>
               ))}
             </tbody>
@@ -119,7 +122,8 @@ export default function CustomerStatementPage() {
                 <td colSpan={2}>الرصيد النهائي</td>
                 <td className="text-red-600">{rows.reduce((s, r) => s + Number(r.debit), 0).toLocaleString()}</td>
                 <td className="text-green-600">{rows.reduce((s, r) => s + Number(r.credit), 0).toLocaleString()}</td>
-                <td className="text-primary text-lg">{rows[rows.length-1].balance.toLocaleString()} ج.م</td>
+                <td className="text-primary text-lg">{fmt(balSplit(rows[rows.length-1].balance).debit)}</td>
+                <td className="text-primary text-lg">{fmt(balSplit(rows[rows.length-1].balance).credit)}</td>
               </tr></tfoot>
             )}
           </table>
