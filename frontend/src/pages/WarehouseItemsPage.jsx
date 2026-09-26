@@ -32,7 +32,7 @@ export default function WarehouseItemsPage() {
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
-  const [categoryFilters, setCategoryFilters] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
@@ -60,11 +60,11 @@ export default function WarehouseItemsPage() {
   }, []);
 
   const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();
-  // Only offer the types that actually exist within the selected categories
+  // Only offer the types that actually exist within the selected category
   // (all types when no category is selected).
   const types = [...new Set(
     items
-      .filter(i => categoryFilters.length === 0 || categoryFilters.includes(i.category_name))
+      .filter(i => !categoryFilter || i.category_name === categoryFilter)
       .map(i => i.type_name)
       .filter(Boolean)
   )].sort();
@@ -76,7 +76,7 @@ export default function WarehouseItemsPage() {
       const q = search.toLowerCase();
       if (!item.item_name?.toLowerCase().includes(q) && !item.item_code?.toLowerCase().includes(q)) return false;
     }
-    if (categoryFilters.length > 0 && !categoryFilters.includes(item.category_name)) return false;
+    if (categoryFilter && item.category_name !== categoryFilter) return false;
     if (activeTypeFilter && item.type_name !== activeTypeFilter) return false;
     return true;
   });
@@ -189,19 +189,10 @@ export default function WarehouseItemsPage() {
       {categories.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500 font-medium shrink-0">القسم:</span>
-          {categories.map(c => {
-            const active = categoryFilters.includes(c);
-            return (
-              <button key={c} type="button"
-                onClick={() => setCategoryFilters(prev => active ? prev.filter(x => x !== c) : [...prev, c])}
-                className={`px-3 py-1 rounded-full text-sm border transition-colors cursor-pointer ${active ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'}`}>
-                {c}
-              </button>
-            );
-          })}
-          {categoryFilters.length > 0 && (
-            <button type="button" onClick={() => setCategoryFilters([])} className="text-xs text-gray-400 hover:text-red-500 underline cursor-pointer">مسح</button>
-          )}
+          <SearchableSelect className="erp-input w-auto min-w-[180px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+            <option value="">كل الأقسام</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </SearchableSelect>
         </div>
       )}
 
