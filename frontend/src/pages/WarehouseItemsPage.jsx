@@ -51,7 +51,10 @@ export default function WarehouseItemsPage() {
   }, [showColMenu]);
 
   const toggleCol = (key) => setVisibleCols(v => ({ ...v, [key]: !v[key] }));
-  const isVisible = (key) => key === 'warehouse' ? (!warehouseFilter && visibleCols.warehouse) : visibleCols[key];
+  // The المخزن column now hosts the warehouse-filter dropdown in its header,
+  // so it must stay visible (subject to the columns menu) even once a
+  // specific warehouse is selected, unlike before when selecting one hid it.
+  const isVisible = (key) => visibleCols[key];
   const visibleCount = COLUMNS.filter(c => isVisible(c.key)).length + 1; // +1 for the actions column
 
   useEffect(() => {
@@ -87,9 +90,10 @@ export default function WarehouseItemsPage() {
   // its own; items in a single warehouse (or none) stay as a single row.
   let displayRows;
   if (warehouseFilter) {
+    const selectedWarehouseName = warehouses.find(w => w.id === Number(warehouseFilter))?.name || null;
     displayRows = filtered.map(item => {
       const wh = item.warehouses.find(w => w.warehouse_id === Number(warehouseFilter));
-      return { ...item, qty: wh ? wh.quantity : 0, weight: wh ? wh.weight : 0, warehouseName: null, isFirst: true, rowSpan: 1, key: String(item.item_id) };
+      return { ...item, qty: wh ? wh.quantity : 0, weight: wh ? wh.weight : 0, warehouseName: selectedWarehouseName, isFirst: true, rowSpan: 1, key: String(item.item_id) };
     });
   } else {
     displayRows = [];
@@ -176,25 +180,11 @@ export default function WarehouseItemsPage() {
       </div>
 
       <div className="flex gap-3 flex-wrap items-center">
-        <SearchableSelect className="erp-input w-auto min-w-[150px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
-          <option value="">كل المخازن</option>
-          {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </SearchableSelect>
         <div className="relative flex-1 min-w-[200px]">
           <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
           <input className="erp-input pr-10" placeholder="بحث باسم الصنف أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
-
-      {types.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500 font-medium shrink-0">النوع:</span>
-          <SearchableSelect className="erp-input w-auto min-w-[180px]" value={activeTypeFilter} onChange={e => setTypeFilter(e.target.value)}>
-            <option value="">كل الأنواع</option>
-            {types.map(t => <option key={t} value={t}>{t}</option>)}
-          </SearchableSelect>
-        </div>
-      )}
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
@@ -206,6 +196,16 @@ export default function WarehouseItemsPage() {
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                       <option value="">القسم</option>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </SearchableSelect>
+                  ) : c.key === 'type' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[100px]" value={activeTypeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                      <option value="">النوع</option>
+                      {types.map(t => <option key={t} value={t}>{t}</option>)}
+                    </SearchableSelect>
+                  ) : c.key === 'warehouse' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
+                      <option value="">المخزن</option>
+                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </SearchableSelect>
                   ) : c.label}
                 </th>
