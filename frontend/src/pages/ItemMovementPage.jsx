@@ -83,6 +83,7 @@ export default function ItemMovementPage() {
                 <th rowSpan={2}>التاريخ</th>
                 <th rowSpan={2}>نوع الحركة</th>
                 <th rowSpan={2}>المخزن</th>
+                <th rowSpan={2}>السعر</th>
                 <th colSpan={2} className="text-center text-green-700">الوارد</th>
                 <th colSpan={2} className="text-center text-red-700">المنصرف</th>
                 <th colSpan={2} className="text-center text-primary">الرصيد</th>
@@ -98,7 +99,7 @@ export default function ItemMovementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredMovements.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
+              {filteredMovements.length === 0 && <tr><td colSpan={11} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
               {(() => {
                 let runWeight = 0, runQty = 0;
                 return filteredMovements.map((m, i) => {
@@ -113,6 +114,7 @@ export default function ItemMovementPage() {
                       <td>{m.date}</td>
                       <td><span className="badge badge-blue">{m.movement_type}</span></td>
                       <td className="text-sm">{m.Warehouse?.name || '-'}</td>
+                      <td className="text-sm">{Number(m.unit_price || 0) ? Number(m.unit_price).toLocaleString() : '—'}</td>
                       <td className="font-bold text-green-700">{incoming ? `${weight.toLocaleString()} كجم` : '—'}</td>
                       <td className="font-bold text-green-700">{incoming ? qty.toLocaleString() : '—'}</td>
                       <td className="font-bold text-red-700">{!incoming ? `${weight.toLocaleString()} كجم` : '—'}</td>
@@ -136,7 +138,7 @@ export default function ItemMovementPage() {
               return (
                 <tfoot>
                   <tr className="bg-primary/10 font-bold text-primary border-t-2 border-primary/30">
-                    <td colSpan={3} className="text-right">الإجمالي</td>
+                    <td colSpan={4} className="text-right">الإجمالي</td>
                     <td className="text-green-700">{inWeight.toLocaleString()} كجم</td>
                     <td className="text-green-700">{inQty.toLocaleString()}</td>
                     <td className="text-red-700">{outWeight.toLocaleString()} كجم</td>
