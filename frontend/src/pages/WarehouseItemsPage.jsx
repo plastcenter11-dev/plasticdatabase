@@ -34,6 +34,9 @@ export default function WarehouseItemsPage() {
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [itemFilter, setItemFilter] = useState('');
+  const [qtyFilter, setQtyFilter] = useState('');
+  const [weightFilter, setWeightFilter] = useState('');
   const [search, setSearch] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
   const [showColMenu, setShowColMenu] = useState(false);
@@ -81,6 +84,7 @@ export default function WarehouseItemsPage() {
     }
     if (categoryFilter && item.category_name !== categoryFilter) return false;
     if (activeTypeFilter && item.type_name !== activeTypeFilter) return false;
+    if (itemFilter && String(item.item_id) !== itemFilter) return false;
     return true;
   });
 
@@ -115,7 +119,22 @@ export default function WarehouseItemsPage() {
       }
     });
   }
-  const itemCount = filtered.length;
+  // العدد / الوزن header filters work on the balance of each displayed row (so a
+  // per-warehouse row is judged on its own balance). Filtering rows out can drop
+  // the first row of an item group, so the code/name cells' rowSpan is rebuilt.
+  const stateOk = (v, state) => !state || (state === 'positive' ? Number(v) > 0 : state === 'zero' ? Number(v) === 0 : Number(v) < 0);
+  if (qtyFilter || weightFilter) {
+    const kept = displayRows.filter(r => stateOk(r.qty, qtyFilter) && stateOk(r.weight, weightFilter));
+    const counts = {};
+    kept.forEach(r => { counts[r.item_id] = (counts[r.item_id] || 0) + 1; });
+    const seen = new Set();
+    displayRows = kept.map(r => {
+      const first = !seen.has(r.item_id);
+      seen.add(r.item_id);
+      return { ...r, isFirst: first, rowSpan: first ? counts[r.item_id] : 0 };
+    });
+  }
+  const itemCount = new Set(displayRows.map(r => r.item_id)).size;
 
   const getValue = (item) => Number(item.weight || 0) * Number(item.purchase_price || 0);
 
@@ -201,6 +220,25 @@ export default function WarehouseItemsPage() {
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[100px]" value={activeTypeFilter} onChange={e => setTypeFilter(e.target.value)}>
                       <option value="">النوع</option>
                       {types.map(t => <option key={t} value={t}>{t}</option>)}
+                    </SearchableSelect>
+                  ) : c.key === 'name' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[170px]" value={itemFilter} onChange={e => setItemFilter(e.target.value)}>
+                      <option value="">الصنف</option>
+                      {items.map(i => <option key={i.item_id} value={i.item_id}>{i.item_code} - {i.item_name}</option>)}
+                    </SearchableSelect>
+                  ) : c.key === 'qty' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={qtyFilter} onChange={e => setQtyFilter(e.target.value)}>
+                      <option value="">العدد</option>
+                      <option value="positive">متاح (أكبر من صفر)</option>
+                      <option value="zero">صفر</option>
+                      <option value="negative">سالب</option>
+                    </SearchableSelect>
+                  ) : c.key === 'weight' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={weightFilter} onChange={e => setWeightFilter(e.target.value)}>
+                      <option value="">الوزن (كجم)</option>
+                      <option value="positive">متاح (أكبر من صفر)</option>
+                      <option value="zero">صفر</option>
+                      <option value="negative">سالب</option>
                     </SearchableSelect>
                   ) : c.key === 'warehouse' ? (
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
