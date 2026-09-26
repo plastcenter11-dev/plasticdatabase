@@ -1,13 +1,12 @@
 const router = require('express').Router();
 const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, sequelize } = require('../models');
+const { listInvoices } = require('../utils/invoiceList');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 
 router.get('/', async (req, res) => {
   try {
-    const where = {};
-    if (req.query.status) where.status = req.query.status;
-    res.json(await SalesInvoice.findAll({ where, include: [{ model: Customer, attributes: ['id', 'name'] }, { model: Employee, attributes: ['id', 'name'] }, { model: SalesInvoiceItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name'] }] }], order: [['id', 'DESC']] }));
+    res.json(await listInvoices(req, { Invoice: SalesInvoice, Party: Customer, ItemModel: SalesInvoiceItem, extra: [{ model: Employee, attributes: ['id', 'name'] }] }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

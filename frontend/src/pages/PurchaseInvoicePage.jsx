@@ -25,13 +25,28 @@ export default function PurchaseInvoicePage() {
   const [newItemRowIdx, setNewItemRowIdx] = useState(null);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
 
-  const loadData = async () => {
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total: 0, pages: 1 });
+  const PAGE_SIZE = 25;
+
+  const loadInvoices = async () => {
     try {
-      const [inv, s, it, wh, cats] = await Promise.all([api.get('/purchase-invoices'), api.get('/suppliers'), api.get('/items'), api.get('/warehouses'), api.get('/categories')]);
-      setInvoices(inv.data); setSuppliers(s.data); setItems(it.data); setWarehouses(wh.data); setCategories(cats.data);
+      const r = await api.get('/purchase-invoices', { params: { page, limit: PAGE_SIZE, search: search || undefined, status: filterStatus || undefined } });
+      setInvoices(r.data.rows); setPageInfo({ total: r.data.total, pages: r.data.pages });
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
-  useEffect(() => { loadData(); }, []);
+  const loadLookups = async () => {
+    try {
+      const [s, it, wh, cats] = await Promise.all([api.get('/suppliers'), api.get('/items'), api.get('/warehouses'), api.get('/categories')]);
+      setSuppliers(s.data); setItems(it.data); setWarehouses(wh.data); setCategories(cats.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  const loadData = () => Promise.all([loadInvoices(), loadLookups()]);
+  useEffect(() => { loadLookups(); }, []);
+  useEffect(() => {
+    const t = setTimeout(loadInvoices, search ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [page, search, filterStatus]);
 
   const openNewItem = (idx) => {
     const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
@@ -57,11 +72,7 @@ export default function PurchaseInvoicePage() {
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ في إضافة الصنف'); }
   };
 
-  const filtered = invoices.filter(inv => {
-    const matchSearch = !search || inv.invoice_no?.includes(search) || inv.Supplier?.name?.includes(search);
-    const matchStatus = !filterStatus || inv.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const filtered = invoices; // filtered and paged by the server
 
   const updateFormItem = (idx, field, value) => {
     const fitems = [...form.items];
@@ -163,8 +174,8 @@ export default function PurchaseInvoicePage() {
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">كل الحالات</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></select>
+        <div className="relative flex-1 min-w-[200px]"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
+        <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}><option value="">كل الحالات</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></select>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -195,6 +206,13 @@ export default function PurchaseInvoicePage() {
           </tbody>
         </table>
       </div>
+      {pageInfo.pages > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <button className="erp-btn erp-btn-outline py-1 px-3" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</button>
+          <span>صفحة {page} من {pageInfo.pages} — {pageInfo.total.toLocaleString()} فاتورة</span>
+          <button className="erp-btn erp-btn-outline py-1 px-3" disabled={page >= pageInfo.pages} onClick={() => setPage(p => p + 1)}>التالي</button>
+        </div>
+      )}
 
       {showModal && (
         <Modal title={editing ? 'تعديل فاتورة شراء' : 'فاتورة شراء جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">

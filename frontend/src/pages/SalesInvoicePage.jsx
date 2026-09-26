@@ -22,19 +22,30 @@ export default function SalesInvoicePage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [form, setForm] = useState({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] });
 
-  const loadData = async () => {
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total: 0, pages: 1 });
+  const PAGE_SIZE = 25;
+
+  const loadInvoices = async () => {
     try {
-      const [inv, c, e, it, wh] = await Promise.all([api.get('/sales-invoices'), api.get('/customers'), api.get('/employees'), api.get('/items'), api.get('/warehouses')]);
-      setInvoices(inv.data); setCustomers(c.data); setEmployees(e.data); setItems(it.data); setWarehouses(wh.data);
+      const r = await api.get('/sales-invoices', { params: { page, limit: PAGE_SIZE, search: search || undefined, status: filterStatus || undefined } });
+      setInvoices(r.data.rows); setPageInfo({ total: r.data.total, pages: r.data.pages });
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
-  useEffect(() => { loadData(); }, []);
+  const loadLookups = async () => {
+    try {
+      const [c, e, it, wh] = await Promise.all([api.get('/customers'), api.get('/employees'), api.get('/items'), api.get('/warehouses')]);
+      setCustomers(c.data); setEmployees(e.data); setItems(it.data); setWarehouses(wh.data);
+    } catch { toast.error('خطأ في تحميل البيانات'); }
+  };
+  const loadData = () => Promise.all([loadInvoices(), loadLookups()]);
+  useEffect(() => { loadLookups(); }, []);
+  useEffect(() => {
+    const t = setTimeout(loadInvoices, search ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [page, search, filterStatus]);
 
-  const filtered = invoices.filter(inv => {
-    const matchSearch = !search || inv.invoice_no?.includes(search) || inv.Customer?.name?.includes(search);
-    const matchStatus = !filterStatus || inv.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const filtered = invoices; // filtered and paged by the server
 
   const updateFormItem = (idx, field, value) => {
     const fitems = [...form.items];
@@ -139,8 +150,8 @@ export default function SalesInvoicePage() {
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">كل الحالات</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></select>
+        <div className="relative flex-1 min-w-[200px]"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
+        <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}><option value="">كل الحالات</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></select>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -172,6 +183,13 @@ export default function SalesInvoicePage() {
           </tbody>
         </table>
       </div>
+      {pageInfo.pages > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <button className="erp-btn erp-btn-outline py-1 px-3" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</button>
+          <span>صفحة {page} من {pageInfo.pages} — {pageInfo.total.toLocaleString()} فاتورة</span>
+          <button className="erp-btn erp-btn-outline py-1 px-3" disabled={page >= pageInfo.pages} onClick={() => setPage(p => p + 1)}>التالي</button>
+        </div>
+      )}
 
       {showModal && (
         <Modal title={editing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">
