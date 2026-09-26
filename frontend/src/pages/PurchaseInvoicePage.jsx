@@ -79,10 +79,15 @@ export default function PurchaseInvoicePage() {
   const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
   const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
 
+  // Stock only moves when the invoice has a warehouse, so it's required as soon as
+  // any line is a stockable item (service/fee-only invoices don't need one).
+  const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
+    if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
       supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
@@ -196,7 +201,7 @@ export default function PurchaseInvoicePage() {
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div><label className="form-label">المورد *</label><SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}><option value="">— اختر —</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect></div>
-              <div><label className="form-label">المخزن</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
+              <div><label className="form-label">المخزن{needsWarehouse ? ' *' : ''}</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div>
