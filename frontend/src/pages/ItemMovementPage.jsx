@@ -9,11 +9,17 @@ const OUTGOING_TYPES = new Set(['صرف', 'تحويل خارج', 'فاتورة �
 
 // 'تركيب' covers both a component being issued and the assembled item being
 // produced, distinguished only by the description text; 'تعديل جرد' sets an
-// absolute count rather than a delta, so it defaults to incoming.
+// absolute count rather than a delta, so it defaults to incoming. A component
+// line recorded with a negative weight/quantity (e.g. surplus material
+// returned) is an addition in substance, so it's shown with the incoming
+// rows instead of as a negative number sitting in the outgoing column.
 const isIncoming = (m) => {
   if (INCOMING_TYPES.has(m.movement_type)) return true;
   if (OUTGOING_TYPES.has(m.movement_type)) return false;
-  if (m.movement_type === 'تركيب') return (m.description || '').includes('ناتج');
+  if (m.movement_type === 'تركيب') {
+    if ((m.description || '').includes('ناتج')) return true;
+    return Number(m.weight || 0) < 0 || Number(m.quantity || 0) < 0;
+  }
   return true;
 };
 
@@ -98,17 +104,19 @@ export default function ItemMovementPage() {
                 return filteredMovements.map((m, i) => {
                   const incoming = isIncoming(m);
                   const sign = incoming ? 1 : -1;
-                  runWeight += sign * Number(m.weight || 0);
-                  runQty += sign * Number(m.quantity || 0);
+                  const weight = Math.abs(Number(m.weight || 0));
+                  const qty = Math.abs(Number(m.quantity || 0));
+                  runWeight += sign * weight;
+                  runQty += sign * qty;
                   return (
                     <tr key={i}>
                       <td>{m.date}</td>
                       <td><span className="badge badge-blue">{m.movement_type}</span></td>
                       <td className="text-sm">{m.Warehouse?.name || '-'}</td>
-                      <td className="font-bold text-green-700">{incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
-                      <td className="font-bold text-green-700">{incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
-                      <td className="font-bold text-red-700">{!incoming ? `${Number(m.weight).toLocaleString()} كجم` : '—'}</td>
-                      <td className="font-bold text-red-700">{!incoming ? Number(m.quantity).toLocaleString() : '—'}</td>
+                      <td className="font-bold text-green-700">{incoming ? `${weight.toLocaleString()} كجم` : '—'}</td>
+                      <td className="font-bold text-green-700">{incoming ? qty.toLocaleString() : '—'}</td>
+                      <td className="font-bold text-red-700">{!incoming ? `${weight.toLocaleString()} كجم` : '—'}</td>
+                      <td className="font-bold text-red-700">{!incoming ? qty.toLocaleString() : '—'}</td>
                       <td className="font-bold text-primary">{runWeight.toLocaleString()} كجم</td>
                       <td className="font-bold text-primary">{runQty.toLocaleString()}</td>
                       <td className="text-sm text-gray-500">
@@ -121,10 +129,10 @@ export default function ItemMovementPage() {
               })()}
             </tbody>
             {filteredMovements.length > 0 && (() => {
-              const inWeight = filteredMovements.filter(isIncoming).reduce((s, m) => s + Number(m.weight || 0), 0);
-              const inQty = filteredMovements.filter(isIncoming).reduce((s, m) => s + Number(m.quantity || 0), 0);
-              const outWeight = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.weight || 0), 0);
-              const outQty = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Number(m.quantity || 0), 0);
+              const inWeight = filteredMovements.filter(isIncoming).reduce((s, m) => s + Math.abs(Number(m.weight || 0)), 0);
+              const inQty = filteredMovements.filter(isIncoming).reduce((s, m) => s + Math.abs(Number(m.quantity || 0)), 0);
+              const outWeight = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Math.abs(Number(m.weight || 0)), 0);
+              const outQty = filteredMovements.filter(m => !isIncoming(m)).reduce((s, m) => s + Math.abs(Number(m.quantity || 0)), 0);
               return (
                 <tfoot>
                   <tr className="bg-primary/10 font-bold text-primary border-t-2 border-primary/30">
