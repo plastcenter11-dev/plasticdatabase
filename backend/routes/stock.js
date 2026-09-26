@@ -286,10 +286,29 @@ router.post('/assemblies', async (req, res) => {
       description: `ناتج تركيب رقم ${assembly.id}`, reference: String(assembly.id),
     }, { transaction: t });
 
+    await updateAssembledItemCost(data, components, t);
+
     await t.commit();
     res.status(201).json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
   } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
 });
+
+// Roll up the assembled item's purchase price from what each component is
+// actually priced at right now, per unit of the produced output (weight if
+// the output is weight-tracked, otherwise quantity) - the same per-unit
+// effective-cost pattern used elsewhere (e.g. sale_price at delivery time).
+async function updateAssembledItemCost(data, components, t) {
+  const outputUnit = Number(data.assembled_weight || 0) > 0 ? Number(data.assembled_weight) : Number(data.assembled_qty || 0);
+  if (outputUnit <= 0) return;
+  let totalCost = 0;
+  for (const c of (components || [])) {
+    const compItem = await Item.findByPk(c.item_id, { transaction: t });
+    const compUnit = Number(c.weight || 0) > 0 ? Number(c.weight) : Number(c.quantity || 0);
+    totalCost += compUnit * Number(compItem?.purchase_price || 0);
+  }
+  const unitCost = Math.round((totalCost / outputUnit) * 100) / 100;
+  await Item.update({ purchase_price: unitCost }, { where: { id: data.assembled_item_id }, transaction: t });
+}
 
 // Reverse an assembly's stock effect: give back the components, take back the produced item
 async function reverseAssembly(assembly, components, t) {
@@ -354,6 +373,8 @@ router.put('/assemblies/:id', async (req, res) => {
       quantity: data.assembled_qty, weight: data.assembled_weight || 0, date: data.date,
       description: `ناتج تركيب رقم ${assembly.id}`, reference: String(assembly.id),
     }, { transaction: t });
+
+    await updateAssembledItemCost(data, components, t);
 
     await t.commit();
     res.json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
