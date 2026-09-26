@@ -186,16 +186,6 @@ export default function WarehouseItemsPage() {
         </div>
       </div>
 
-      {categories.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500 font-medium shrink-0">القسم:</span>
-          <SearchableSelect className="erp-input w-auto min-w-[180px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-            <option value="">كل الأقسام</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </SearchableSelect>
-        </div>
-      )}
-
       {types.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500 font-medium shrink-0">النوع:</span>
@@ -210,7 +200,16 @@ export default function WarehouseItemsPage() {
         <table className="erp-table">
           <thead>
             <tr>
-              {COLUMNS.filter(c => isVisible(c.key)).map(c => <th key={c.key}>{c.label}</th>)}
+              {COLUMNS.filter(c => isVisible(c.key)).map(c => (
+                <th key={c.key}>
+                  {c.key === 'category' ? (
+                    <SearchableSelect className="erp-input py-1 text-xs font-normal min-w-[110px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                      <option value="">القسم (الكل)</option>
+                      {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </SearchableSelect>
+                  ) : c.label}
+                </th>
+              ))}
               <th></th>
             </tr>
           </thead>
