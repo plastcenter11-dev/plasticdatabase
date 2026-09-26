@@ -30,6 +30,7 @@ export default function CashPaymentsPage() {
   });
 
   const totalAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const selectedSupplier = suppliers.find(s => s.id === Number(form.supplier_id));
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -93,6 +94,11 @@ export default function CashPaymentsPage() {
                 <option value="">— اختر —</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </SearchableSelect>
+              {selectedSupplier && (
+                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 ${Number(selectedSupplier.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedSupplier.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                  رصيد المورد الحالي: <strong>{Number(selectedSupplier.balance).toLocaleString()} ج.م</strong>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
