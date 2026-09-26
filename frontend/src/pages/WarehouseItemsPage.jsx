@@ -203,8 +203,8 @@ export default function WarehouseItemsPage() {
               {COLUMNS.filter(c => isVisible(c.key)).map(c => (
                 <th key={c.key}>
                   {c.key === 'category' ? (
-                    <SearchableSelect className="erp-input py-1 text-xs font-normal min-w-[110px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                      <option value="">القسم (الكل)</option>
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                      <option value="">القسم</option>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </SearchableSelect>
                   ) : c.label}
