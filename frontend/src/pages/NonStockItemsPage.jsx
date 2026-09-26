@@ -11,6 +11,7 @@ const emptyForm = { code: '', name: '', unit: 'خدمة', purchase_price: '', se
 export default function NonStockItemsPage() {
   const { can } = useAuth();
   const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -20,20 +21,29 @@ export default function NonStockItemsPage() {
   const load = async () => {
     try {
       const [it, cat] = await Promise.all([api.get('/items'), api.get('/categories')]);
+      setAllItems(it.data);
       setItems(it.data.filter(i => !i.is_stockable));
       setCategories(cat.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { load(); }, []);
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+  // Matches the code convention used everywhere else items are created
+  // (ItemsPage, the assembly/purchase-invoice quick-add forms) - computed
+  // against every item, not just non-stock ones, so it can't collide.
+  const generateCode = () => {
+    const maxId = allItems.reduce((max, it) => Math.max(max, it.id || 0), 0);
+    return `ITM-${String(maxId + 1).padStart(4, '0')}`;
+  };
+
+  const openNew = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
   const openEdit = (item) => { setEditing(item.id); setForm({ ...item }); setShowModal(true); };
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.name) return toast.error('أدخل اسم الصنف');
     try {
-      const data = { ...form, is_stockable: false, purchase_price: Number(form.purchase_price || 0), sell_price: Number(form.sell_price || 0) };
+      const data = { ...form, code: form.code || generateCode(), is_stockable: false, purchase_price: Number(form.purchase_price || 0), sell_price: Number(form.sell_price || 0) };
       if (editing) await api.put(`/items/${editing}`, data);
       else await api.post('/items', data);
       toast.success(editing ? 'تم التعديل' : 'تم الإضافة');
