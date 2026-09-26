@@ -43,6 +43,26 @@ describe('POST /api/stock/assemblies — cost roll-up', () => {
     expect(Number(updated.purchase_price)).toBe(14);
   });
 
+  test('a negative component weight reduces the assembled item cost', async () => {
+    const compA = await makeItem({ purchase_price: 10 });
+    const compB = await makeItem({ purchase_price: 20 });
+    const assembled = await makeItem({ purchase_price: 0 });
+    await Stock.create({ item_id: compA.id, warehouse_id: warehouse.id, quantity: 100, weight: 100 });
+    await Stock.create({ item_id: compB.id, warehouse_id: warehouse.id, quantity: 100, weight: 100 });
+
+    // 100kg @10 = 1000, minus 10kg @20 = 200 -> 800 over 100kg = 8/kg.
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send({
+      date: '2026-01-01', assembled_item_id: assembled.id, assembled_qty: 10, assembled_weight: 100,
+      warehouse_id: warehouse.id, output_warehouse_id: warehouse.id,
+      components: [
+        { item_id: compA.id, quantity: 10, weight: 100, warehouse_id: warehouse.id },
+        { item_id: compB.id, quantity: 1, weight: -10, warehouse_id: warehouse.id },
+      ],
+    });
+    expect(res.status).toBe(201);
+    expect(Number((await Item.findByPk(assembled.id)).purchase_price)).toBe(8);
+  });
+
   test('falls back to quantity-based cost when the output has no weight', async () => {
     const comp = await makeItem({ purchase_price: 5 });
     const assembled = await makeItem({ purchase_price: 0 });

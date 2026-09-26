@@ -303,7 +303,7 @@ async function updateAssembledItemCost(data, components, t) {
   let totalCost = 0;
   for (const c of (components || [])) {
     const compItem = await Item.findByPk(c.item_id, { transaction: t });
-    const compUnit = Number(c.weight || 0) > 0 ? Number(c.weight) : Number(c.quantity || 0);
+    const compUnit = Number(c.weight || 0) !== 0 ? Number(c.weight) : Number(c.quantity || 0);
     totalCost += compUnit * Number(compItem?.purchase_price || 0);
   }
   const unitCost = Math.round((totalCost / outputUnit) * 100) / 100;
