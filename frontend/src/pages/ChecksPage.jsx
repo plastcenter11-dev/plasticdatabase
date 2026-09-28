@@ -40,6 +40,7 @@ export default function ChecksPage({ partyType = 'customer' }) {
   });
 
   const getPartyName = (ch) => parties.find(c => c.id === ch.party_id)?.name || '-';
+  const selectedParty = parties.find(p => p.id === Number(form.party_id));
   const isOverdue = (ch) => ch.status === 'pending' && ch.due_date < today;
   const pendingTotal = checks.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.amount), 0);
   const overdueCount = checks.filter(c => isOverdue(c)).length;
@@ -156,6 +157,14 @@ export default function ChecksPage({ partyType = 'customer' }) {
                 <option value="">— اختر —</option>
                 {parties.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </SearchableSelect>
+              {selectedParty && (
+                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 space-y-0.5 ${Number(selectedParty.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedParty.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                  <div>{isSupplier ? 'رصيد المورد الحالي' : 'رصيد العميل الحالي'}: <strong>{Number(selectedParty.balance).toLocaleString()} ج.م</strong></div>
+                  {Number(form.amount) > 0 && (
+                    <div>الرصيد المتوقع بعد الشيك: <strong>{(Number(selectedParty.balance) - Number(form.amount)).toLocaleString()} ج.م</strong></div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
