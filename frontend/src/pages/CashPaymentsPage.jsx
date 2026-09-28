@@ -95,8 +95,11 @@ export default function CashPaymentsPage() {
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </SearchableSelect>
               {selectedSupplier && (
-                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 ${Number(selectedSupplier.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedSupplier.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
-                  رصيد المورد الحالي: <strong>{Number(selectedSupplier.balance).toLocaleString()} ج.م</strong>
+                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 space-y-0.5 ${Number(selectedSupplier.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedSupplier.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
+                  <div>رصيد المورد الحالي: <strong>{Number(selectedSupplier.balance).toLocaleString()} ج.م</strong></div>
+                  {Number(form.amount) > 0 && (
+                    <div>الرصيد المتوقع بعد الدفعة: <strong>{(Number(selectedSupplier.balance) - Number(form.amount)).toLocaleString()} ج.م</strong></div>
+                  )}
                 </div>
               )}
             </div>
