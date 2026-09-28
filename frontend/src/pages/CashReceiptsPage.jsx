@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { MdAdd, MdDelete, MdSearch, MdShoppingCart } from 'react-icons/md';
+import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
 const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
 
 export default function CashReceiptsPage() {
-  const navigate = useNavigate();
   const { can } = useAuth();
   const [receipts, setReceipts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -55,7 +53,6 @@ export default function CashReceiptsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">حركات تحصيل نقدية</h1>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/delivery-notes', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> إذن تسليم جديد</button>
           {can('cash_receipts', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>}
         </div>
       </div>
