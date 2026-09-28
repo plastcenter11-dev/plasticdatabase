@@ -19,6 +19,7 @@ export default function ItemAssemblyPage() {
   const [editing, setEditing] = useState(null);
   const [showNewItem, setShowNewItem] = useState(false);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
+  const [assembledFilter, setAssembledFilter] = useState('');
   const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
   const [form, setForm] = useState(emptyForm);
 
@@ -96,6 +97,9 @@ export default function ItemAssemblyPage() {
     setShowModal(true);
   };
 
+  const assembledNames = [...new Set(assemblies.map(a => a.assembledItem?.name).filter(Boolean))].sort();
+  const filteredAssemblies = assemblies.filter(a => !assembledFilter || a.assembledItem?.name === assembledFilter);
+
   const handleDelete = async (id) => {
     if (!window.confirm('حذف عملية التركيب؟ سيتم إرجاع المكونات وسحب الصنف المركّب من المخزون.')) return;
     try { await api.delete(`/stock/assemblies/${id}`); toast.success('تم الحذف'); loadData(); }
@@ -115,10 +119,18 @@ export default function ItemAssemblyPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>التاريخ</th><th>الصنف المركّب</th><th>الوزن (كجم)</th><th>العدد</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - الوزن/العدد)</th><th>إجراءات</th></tr></thead>
+          <thead><tr>
+            <th>التاريخ</th>
+            <th>
+              <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[130px]" value={assembledFilter} onChange={e => setAssembledFilter(e.target.value)}>
+                <option value="">الصنف المركّب</option>
+                {assembledNames.map(n => <option key={n} value={n}>{n}</option>)}
+              </SearchableSelect>
+            </th>
+            <th>الوزن (كجم)</th><th>العدد</th><th>مخزن الإضافة</th><th>المكونات (الصنف - المخزن - الوزن/العدد)</th><th>إجراءات</th></tr></thead>
           <tbody>
-            {assemblies.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
-            {assemblies.map(a => (
+            {filteredAssemblies.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد عمليات تركيب</td></tr>}
+            {filteredAssemblies.map(a => (
               <tr key={a.id}>
                 <td>{a.date}</td>
                 <td className="font-bold">{a.assembledItem?.name || '-'}</td>
