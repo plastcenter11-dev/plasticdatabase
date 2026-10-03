@@ -38,6 +38,7 @@ export default function WarehouseItemsPage() {
   const [itemFilter, setItemFilter] = useState('');
   const [qtyFilter, setQtyFilter] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
+  const [widthFilter, setWidthFilter] = useState('');
   const [search, setSearch] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
   const [showColMenu, setShowColMenu] = useState(false);
@@ -66,6 +67,7 @@ export default function WarehouseItemsPage() {
     api.get('/warehouses').then(r => setWarehouses(r.data)).catch(() => {});
   }, []);
 
+  const widths = [...new Set(items.filter(i => i.width != null).map(i => Number(i.width)))].sort((a, b) => a - b);
   const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();
   // Only offer the types that actually exist within the selected category
   // (all types when no category is selected).
@@ -86,6 +88,7 @@ export default function WarehouseItemsPage() {
     if (categoryFilter && item.category_name !== categoryFilter) return false;
     if (activeTypeFilter && item.type_name !== activeTypeFilter) return false;
     if (itemFilter && String(item.item_id) !== itemFilter) return false;
+    if (widthFilter && String(Number(item.width)) !== widthFilter) return false;
     return true;
   });
 
@@ -222,6 +225,11 @@ export default function WarehouseItemsPage() {
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[100px]" value={activeTypeFilter} onChange={e => setTypeFilter(e.target.value)}>
                       <option value="">النوع</option>
                       {types.map(t => <option key={t} value={t}>{t}</option>)}
+                    </SearchableSelect>
+                  ) : c.key === 'width' ? (
+                    <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[100px]" value={widthFilter} onChange={e => setWidthFilter(e.target.value)}>
+                      <option value="">العرض (سم)</option>
+                      {widths.map(w => <option key={w} value={String(w)}>{w.toLocaleString()}</option>)}
                     </SearchableSelect>
                   ) : c.key === 'name' ? (
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[170px]" value={itemFilter} onChange={e => setItemFilter(e.target.value)}>
