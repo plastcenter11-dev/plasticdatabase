@@ -2,6 +2,9 @@
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import { SortTh } from '../components/SortButton';
+import { useSort } from '../hooks/useSort';
+import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -25,10 +28,24 @@ export default function SalesInvoicePage() {
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total: 0, pages: 1 });
   const PAGE_SIZE = 25;
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [partyFilter, setPartyFilter] = useState('');
+  const [employeeFilter, setEmployeeFilter] = useState('');
+  const [remainFilter, setRemainFilter] = useState('');
+  const { sortKey, sortDir, toggleSort, resetSort } = useSort();
+  const onSort = (k) => { toggleSort(k); setPage(1); };
+  const sort = { sortKey, sortDir, onSort };
+  const setFilter = (setter) => (e) => { setter(e.target.value); setPage(1); };
+  const anyFilter = !!(search || filterStatus || dateFrom || dateTo || partyFilter || employeeFilter || remainFilter || sortKey);
+  const clearFilters = () => {
+    setSearch(''); setFilterStatus(''); setDateFrom(''); setDateTo(''); setPartyFilter(''); setEmployeeFilter(''); setRemainFilter('');
+    resetSort(); setPage(1);
+  };
 
   const loadInvoices = async () => {
     try {
-      const r = await api.get('/sales-invoices', { params: { page, limit: PAGE_SIZE, search: search || undefined, status: filterStatus || undefined } });
+      const r = await api.get('/sales-invoices', { params: { page, limit: PAGE_SIZE, search: search || undefined, status: filterStatus || undefined, from: dateFrom || undefined, to: dateTo || undefined, party_id: partyFilter || undefined, employee_id: employeeFilter || undefined, remaining: remainFilter || undefined, sort: sortKey || undefined, dir: sortKey ? sortDir : undefined } });
       setInvoices(r.data.rows); setPageInfo({ total: r.data.total, pages: r.data.pages });
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
@@ -43,7 +60,7 @@ export default function SalesInvoicePage() {
   useEffect(() => {
     const t = setTimeout(loadInvoices, search ? 300 : 0);
     return () => clearTimeout(t);
-  }, [page, search, filterStatus]);
+  }, [page, search, filterStatus, dateFrom, dateTo, partyFilter, employeeFilter, remainFilter, sortKey, sortDir]);
 
   const filtered = invoices; // filtered and paged by the server
 
@@ -151,12 +168,25 @@ export default function SalesInvoicePage() {
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-        <select className="erp-input w-auto min-w-[130px]" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}><option value="">كل الحالات</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></select>
+        <label className="flex items-center gap-1 text-sm text-gray-500">من <input type="date" className="erp-input w-auto" value={dateFrom} onChange={setFilter(setDateFrom)} /></label>
+        <label className="flex items-center gap-1 text-sm text-gray-500">إلى <input type="date" className="erp-input w-auto" value={dateTo} onChange={setFilter(setDateTo)} /></label>
+        {anyFilter && <button type="button" onClick={clearFilters} className="erp-btn erp-btn-outline">مسح الفلاتر</button>}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
-          <thead><tr><th><input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} /></th><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>المندوب</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <thead><tr>
+            <th><input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} /></th>
+            <SortTh column="invoice_no" sort={sort}>رقم الفاتورة</SortTh>
+            <SortTh column="date" sort={sort}>التاريخ</SortTh>
+            <SortTh column="party" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[130px]`} value={partyFilter} onChange={setFilter(setPartyFilter)}><option value="">العميل</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
+            <SortTh><SearchableSelect className={`${HEADER_SELECT} min-w-[110px]`} value={employeeFilter} onChange={setFilter(setEmployeeFilter)}><option value="">المندوب</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</SearchableSelect></SortTh>
+            <SortTh column="total" sort={sort}>الإجمالي</SortTh>
+            <SortTh column="paid" sort={sort}>المدفوع</SortTh>
+            <SortTh column="remaining" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[100px]`} value={remainFilter} onChange={setFilter(setRemainFilter)}><option value="">المتبقي</option><option value="open">عليه متبقي</option><option value="paid">مسدد</option></SearchableSelect></SortTh>
+            <SortTh column="status" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[100px]`} value={filterStatus} onChange={setFilter(setFilterStatus)}><option value="">الحالة</option><option value="draft">مسودة</option><option value="posted">مرحّلة</option></SearchableSelect></SortTh>
+            <th>إجراءات</th>
+          </tr></thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد فواتير</td></tr>}
             {filtered.map(inv => (

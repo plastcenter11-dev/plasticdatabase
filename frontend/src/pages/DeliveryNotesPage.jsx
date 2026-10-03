@@ -3,6 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import { SortTh } from '../components/SortButton';
+import { useSort, sortRows } from '../hooks/useSort';
+import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -66,6 +69,14 @@ export default function DeliveryNotesPage() {
   useEffect(() => { loadData(); }, []);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [itemFilter, setItemFilter] = useState('');
+  const { sortKey, sortDir, toggleSort, resetSort } = useSort();
+  const sort = { sortKey, sortDir, onSort: toggleSort };
+  const anyFilter = !!(search || filterStatus || dateFrom || dateTo || customerFilter || itemFilter || sortKey);
+  const clearFilters = () => { setSearch(''); setFilterStatus(''); setDateFrom(''); setDateTo(''); setCustomerFilter(''); setItemFilter(''); resetSort(); };
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(null);
@@ -93,13 +104,28 @@ export default function DeliveryNotesPage() {
     }
   }, []);
 
-  const filtered = notes.filter(n => {
+  const matched = notes.filter(n => {
     const matchSearch = !search || String(n.note_no).includes(search) || n.Customer?.name?.includes(search);
     const matchStatus = !filterStatus || n.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchFrom = !dateFrom || n.date >= dateFrom;
+    const matchTo = !dateTo || n.date <= dateTo;
+    const matchCustomer = !customerFilter || String(n.customer_id) === customerFilter;
+    const matchItem = !itemFilter || (n.items || []).some(i => String(i.item_id) === itemFilter);
+    return matchSearch && matchStatus && matchFrom && matchTo && matchCustomer && matchItem;
   });
 
   const getCustomerName = (id) => customers.find(c => c.id === id)?.name || '-';
+  const sortVal = (n, key) => {
+    switch (key) {
+      case 'note_no': return Number(n.note_no);
+      case 'date': return n.date;
+      case 'customer': return n.Customer?.name || getCustomerName(n.customer_id);
+      case 'weight': return (n.items || []).reduce((s, i) => s + Number(i.net_weight), 0);
+      case 'status': return n.status;
+      default: return null;
+    }
+  };
+  const filtered = sortRows(matched, sortKey, sortDir, sortVal);
 
   const updateItem = (idx, field, value) => {
     const items = [...form.items];
@@ -327,16 +353,22 @@ export default function DeliveryNotesPage() {
             <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
             <input className="erp-input pr-10" placeholder="بحث بالرقم أو اسم العميل..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <select className="erp-input w-auto min-w-[150px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-            <option value="">كل الحالات</option>
-            <option value="pending">معلق</option>
-            <option value="delivered">تم التسليم</option>
-          </select>
+          <label className="flex items-center gap-1 text-sm text-gray-500">من <input type="date" className="erp-input w-auto" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></label>
+          <label className="flex items-center gap-1 text-sm text-gray-500">إلى <input type="date" className="erp-input w-auto" value={dateTo} onChange={e => setDateTo(e.target.value)} /></label>
+          {anyFilter && <button type="button" onClick={clearFilters} className="erp-btn erp-btn-outline">مسح الفلاتر</button>}
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-100">
           <table className="erp-table">
-            <thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>العميل</th><th>الأصناف</th><th>إجمالي الوزن</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <thead><tr>
+              <SortTh column="note_no" sort={sort}>رقم الإذن</SortTh>
+              <SortTh column="date" sort={sort}>التاريخ</SortTh>
+              <SortTh column="customer" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[130px]`} value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}><option value="">العميل</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
+              <SortTh><SearchableSelect className={`${HEADER_SELECT} min-w-[130px]`} value={itemFilter} onChange={e => setItemFilter(e.target.value)}><option value="">الأصناف</option>{allItems.map(m => <option key={m.id} value={m.id}>{m.name} ({m.code})</option>)}</SearchableSelect></SortTh>
+              <SortTh column="weight" sort={sort}>إجمالي الوزن</SortTh>
+              <SortTh column="status" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[100px]`} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">الحالة</option><option value="pending">معلق</option><option value="delivered">تم التسليم</option></SearchableSelect></SortTh>
+              <th>إجراءات</th>
+            </tr></thead>
             <tbody>
               {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد إذون تسليم</td></tr>}
               {filtered.map(n => (

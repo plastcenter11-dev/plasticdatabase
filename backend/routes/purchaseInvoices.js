@@ -6,7 +6,7 @@ const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 
 router.get('/', async (req, res) => {
   try {
-    res.json(await listInvoices(req, { Invoice: PurchaseInvoice, Party: Supplier, ItemModel: PurchaseInvoiceItem }));
+    res.json(await listInvoices(req, { Invoice: PurchaseInvoice, Party: Supplier, ItemModel: PurchaseInvoiceItem, partyKey: 'supplier_id' }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

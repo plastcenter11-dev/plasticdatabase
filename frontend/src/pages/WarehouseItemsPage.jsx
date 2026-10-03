@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdSearch, MdPrint, MdBarChart, MdViewColumn, MdArrowUpward, MdArrowDownward, MdUnfoldMore } from 'react-icons/md';
+import { MdSearch, MdPrint, MdBarChart, MdViewColumn } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
+import SortButton from '../components/SortButton';
 
 const COLUMNS = [
   { key: 'code', label: 'الكود' },
@@ -310,11 +311,7 @@ export default function WarehouseItemsPage() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </SearchableSelect>
                   ) : c.label}
-                  {SORTABLE.includes(c.key) && (
-                    <button type="button" onClick={() => toggleSort(c.key)} title="ترتيب من الأصغر للأكبر" className={`shrink-0 cursor-pointer ${sortKey === c.key ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
-                      {sortKey === c.key ? (sortDir === 'asc' ? <MdArrowUpward size={16} /> : <MdArrowDownward size={16} />) : <MdUnfoldMore size={16} />}
-                    </button>
-                  )}
+                  {SORTABLE.includes(c.key) && <SortButton column={c.key} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />}
                   </div>
                 </th>
               ))}

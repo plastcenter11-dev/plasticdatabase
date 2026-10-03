@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import { SortTh } from '../components/SortButton';
+import { useSort, sortRows } from '../hooks/useSort';
+import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
@@ -15,6 +18,13 @@ export default function ItemsPage() {
   const [types, setTypes] = useState([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
+  const [itemFilter, setItemFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const { sortKey, sortDir, toggleSort, resetSort } = useSort();
+  const sort = { sortKey, sortDir, onSort: toggleSort };
+  const anyFilter = !!(search || filterCat || itemFilter || typeFilter || unitFilter || sortKey);
+  const clearFilters = () => { setSearch(''); setFilterCat(''); setItemFilter(''); setTypeFilter(''); setUnitFilter(''); resetSort(); };
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -30,11 +40,15 @@ export default function ItemsPage() {
 
   useEffect(() => { loadData(); }, []);
 
-  const filtered = items.filter(i => {
+  const matched = items.filter(i => {
     const matchSearch = !search || i.name.includes(search) || i.code.includes(search);
     const matchCat = !filterCat || String(i.category_id) === filterCat;
-    return matchSearch && matchCat;
+    const matchItem = !itemFilter || String(i.id) === itemFilter;
+    const matchType = !typeFilter || String(i.type_id) === typeFilter;
+    const matchUnit = !unitFilter || i.unit === unitFilter;
+    return matchSearch && matchCat && matchItem && matchType && matchUnit;
   });
+  const units = [...new Set(items.map(i => i.unit).filter(Boolean))].sort();
 
   const generateCode = () => {
     const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
@@ -74,6 +88,19 @@ export default function ItemsPage() {
   };
 
   const getCatName = (catId) => categories.find(c => c.id === catId)?.name || '-';
+  const sortVal = (i, key) => {
+    switch (key) {
+      case 'code': return i.code;
+      case 'name': return i.name;
+      case 'category': return i.category_id ? getCatName(i.category_id) : null;
+      case 'unit': return i.unit;
+      case 'purchase_price': return Number(i.purchase_price);
+      case 'reorder_level': return Number(i.reorder_level);
+      case 'type': return i.ItemType?.name || null;
+      default: return null;
+    }
+  };
+  const filtered = sortRows(matched, sortKey, sortDir, sortVal);
 
   return (
     <div className="space-y-5">
@@ -92,16 +119,22 @@ export default function ItemsPage() {
             <MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} />
             <input className="erp-input pr-10" placeholder="بحث بالاسم أو الكود..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <SearchableSelect className="erp-input w-auto min-w-[150px]" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-            <option value="">كل الأقسام</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </SearchableSelect>
+          {anyFilter && <button type="button" onClick={clearFilters} className="erp-btn erp-btn-outline">مسح الفلاتر</button>}
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-100">
         <table className="erp-table">
           <thead>
-            <tr><th>الكود</th><th>اسم الصنف</th><th>القسم</th><th>الوحدة</th><th>سعر الشراء</th><th>حد الطلب</th><th>النوع</th><th>إجراءات</th></tr>
+            <tr>
+              <SortTh column="code" sort={sort}>الكود</SortTh>
+              <SortTh column="name" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[170px]`} value={itemFilter} onChange={e => setItemFilter(e.target.value)}><option value="">اسم الصنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</SearchableSelect></SortTh>
+              <SortTh column="category" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[110px]`} value={filterCat} onChange={e => setFilterCat(e.target.value)}><option value="">القسم</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
+              <SortTh column="unit" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[90px]`} value={unitFilter} onChange={e => setUnitFilter(e.target.value)}><option value="">الوحدة</option>{units.map(u => <option key={u} value={u}>{u}</option>)}</SearchableSelect></SortTh>
+              <SortTh column="purchase_price" sort={sort}>سعر الشراء</SortTh>
+              <SortTh column="reorder_level" sort={sort}>حد الطلب</SortTh>
+              <SortTh column="type" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[100px]`} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">النوع</option>{types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</SearchableSelect></SortTh>
+              <th>إجراءات</th>
+            </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا توجد أصناف</td></tr>}
