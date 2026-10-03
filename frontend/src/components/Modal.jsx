@@ -6,7 +6,7 @@ export default function Modal({ title, onClose, children, width = 'max-w-lg', zI
           <h2 className="font-bold text-gray-800">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-5" data-enter-scope>{children}</div>
       </div>
     </div>
   );

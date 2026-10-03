@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, Children } from 'react';
 import { createPortal } from 'react-dom';
+import { focusNextField } from '../utils/enterNav';
 
 function optionText(node) {
   if (node == null || typeof node === 'boolean') return '';
@@ -75,22 +76,42 @@ export default function SearchableSelect({ value, onChange, children, className 
     };
   }, [open]);
 
-  useEffect(() => { setActiveIndex(0); }, [query]);
+  // While typing, highlight the first real match (the blank "— اختر —" entry
+  // stays in the list but must not be what Enter picks).
+  const firstMatchIndex = (q) => {
+    const t = q.trim().toLowerCase();
+    if (!t) return 0;
+    const i = options.filter(o => o.value === '' || o.label.toLowerCase().includes(t)).findIndex(o => o.value !== '');
+    return i >= 0 ? i : 0;
+  };
 
-  const selectOption = (opt) => {
+  const advance = () => {
+    const el = inputRef.current;
+    if (el) setTimeout(() => focusNextField(el), 0);
+  };
+
+  const selectOption = (opt, andAdvance = false) => {
     if (!opt || opt.disabled) return;
     onChange({ target: { value: opt.value, name } });
     closeDropdown();
+    if (andAdvance) advance();
   };
 
   const handleKeyDown = (e) => {
     if (!open) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter') { e.preventDefault(); openDropdown(); }
+      if (e.key === 'Enter') { e.preventDefault(); if (currentValue) advance(); else openDropdown(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); openDropdown(); }
       return;
     }
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, filtered.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); selectOption(filtered[activeIndex]); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const opt = filtered[activeIndex];
+      // Typed text that matches nothing: stay put rather than silently clearing and skipping the field.
+      if (query.trim() && (!opt || opt.value === '')) return;
+      selectOption(opt, true);
+    }
     else if (e.key === 'Escape') { e.preventDefault(); closeDropdown(); }
     else if (e.key === 'Tab') { closeDropdown(); }
   };
@@ -112,7 +133,7 @@ export default function SearchableSelect({ value, onChange, children, className 
         disabled={disabled}
         onFocus={openDropdown}
         onClick={openDropdown}
-        onChange={e => { setQuery(e.target.value); if (!open) setOpen(true); }}
+        onChange={e => { setQuery(e.target.value); setActiveIndex(firstMatchIndex(e.target.value)); if (!open) setOpen(true); }}
         onKeyDown={handleKeyDown}
         autoComplete="off"
       />
