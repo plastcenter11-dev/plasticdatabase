@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdSearch, MdPrint, MdBarChart, MdViewColumn } from 'react-icons/md';
+import { MdSearch, MdPrint, MdBarChart, MdViewColumn, MdArrowUpward, MdArrowDownward, MdUnfoldMore } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -18,6 +18,10 @@ const COLUMNS = [
   { key: 'sale_price', label: 'سعر البيع' },
   { key: 'value', label: 'القيمة الإجمالية' },
 ];
+// Columns that can be sorted from the header arrow. qty/weight/value differ per
+// warehouse row, so those sort the rows inside an item and the items by their total.
+const SORTABLE = ['code', 'name', 'category', 'type', 'width', 'qty', 'weight', 'unit', 'purchase_price', 'sale_price', 'value'];
+const ROW_LEVEL = ['qty', 'weight', 'value'];
 const VISIBLE_COLS_KEY = 'warehouseItems.visibleCols';
 
 function loadVisibleCols() {
@@ -39,6 +43,8 @@ export default function WarehouseItemsPage() {
   const [qtyFilter, setQtyFilter] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
   const [widthFilter, setWidthFilter] = useState('');
+  const [sortKey, setSortKey] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
   const [search, setSearch] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadVisibleCols);
   const [showColMenu, setShowColMenu] = useState(false);
@@ -142,6 +148,53 @@ export default function WarehouseItemsPage() {
 
   const getValue = (item) => Number(item.weight || 0) * Number(item.purchase_price || 0);
 
+  // Header sort: one click = smallest to largest, second = largest to smallest, third = off.
+  const toggleSort = (key) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); }
+    else if (sortDir === 'asc') setSortDir('desc');
+    else { setSortKey(''); setSortDir('asc'); }
+  };
+  const sortVal = (r, key) => {
+    switch (key) {
+      case 'code': return r.item_code;
+      case 'name': return r.item_name;
+      case 'category': return r.category_name;
+      case 'type': return r.type_name;
+      case 'width': return r.width != null ? Number(r.width) : null;
+      case 'qty': return Number(r.qty);
+      case 'weight': return Number(r.weight);
+      case 'unit': return r.unit;
+      case 'purchase_price': return Number(r.purchase_price || 0);
+      case 'sale_price': return Number(r.sale_price || 0);
+      case 'value': return getValue(r);
+      default: return null;
+    }
+  };
+  if (sortKey) {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    // Empty values always go last, whichever direction is chosen.
+    const cmp = (a, b) => {
+      if (a == null || a === '' || b == null || b === '') return (a == null || a === '' ? 1 : 0) - (b == null || b === '' ? 1 : 0);
+      const c = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'ar', { numeric: true });
+      return c * dir;
+    };
+    const groups = [];
+    const byId = new Map();
+    displayRows.forEach(r => {
+      let g = byId.get(r.item_id);
+      if (!g) { g = { rows: [] }; byId.set(r.item_id, g); groups.push(g); }
+      g.rows.push(r);
+    });
+    groups.forEach(g => {
+      if (ROW_LEVEL.includes(sortKey)) {
+        g.rows.sort((a, b) => cmp(sortVal(a, sortKey), sortVal(b, sortKey)));
+        g.val = g.rows.reduce((sum, r) => sum + sortVal(r, sortKey), 0);
+      } else g.val = sortVal(g.rows[0], sortKey);
+    });
+    groups.sort((a, b) => cmp(a.val, b.val));
+    displayRows = groups.flatMap(g => g.rows.map((r, i) => ({ ...r, isFirst: i === 0, rowSpan: i === 0 ? g.rows.length : 0 })));
+  }
+
   const printCols = COLUMNS.filter(c => isVisible(c.key) && c.key !== 'sale_price');
   const printCellFor = (item, key) => {
     switch (key) {
@@ -216,6 +269,7 @@ export default function WarehouseItemsPage() {
             <tr>
               {COLUMNS.filter(c => isVisible(c.key)).map(c => (
                 <th key={c.key}>
+                  <div className="flex items-center gap-1">
                   {c.key === 'category' ? (
                     <SearchableSelect className="erp-input py-1 text-sm font-semibold text-gray-700 placeholder:text-gray-700 placeholder:font-semibold min-w-[110px]" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                       <option value="">القسم</option>
@@ -256,6 +310,12 @@ export default function WarehouseItemsPage() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </SearchableSelect>
                   ) : c.label}
+                  {SORTABLE.includes(c.key) && (
+                    <button type="button" onClick={() => toggleSort(c.key)} title="ترتيب من الأصغر للأكبر" className={`shrink-0 cursor-pointer ${sortKey === c.key ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                      {sortKey === c.key ? (sortDir === 'asc' ? <MdArrowUpward size={16} /> : <MdArrowDownward size={16} />) : <MdUnfoldMore size={16} />}
+                    </button>
+                  )}
+                  </div>
                 </th>
               ))}
               <th></th>
