@@ -8,6 +8,11 @@ import { useAuth } from '../hooks/useAuth';
 
 const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
 
+// Special entry in the component item list: an "extra expenses" line whose
+// quantity x price is added to the assembled item's cost (no stock effect).
+const EXPENSE_VALUE = '__expense__';
+const emptyComp = { item_id: '', warehouse_id: '', quantity: '', weight: '', is_expense: false, price: '' };
+
 export default function ItemAssemblyPage() {
   const { can } = useAuth();
   const [assemblies, setAssemblies] = useState([]);
@@ -20,7 +25,7 @@ export default function ItemAssemblyPage() {
   const [showNewItem, setShowNewItem] = useState(false);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
   const [assembledFilter, setAssembledFilter] = useState('');
-  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ item_id: '', warehouse_id: '', quantity: '', weight: '' }] };
+  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ ...emptyComp }] };
   const [form, setForm] = useState(emptyForm);
 
   const loadData = async () => {
@@ -67,18 +72,42 @@ export default function ItemAssemblyPage() {
     components[idx] = { ...components[idx], [field]: value };
     setForm({ ...form, components });
   };
-  const addComp = () => setForm({ ...form, components: [...form.components, { item_id: '', warehouse_id: '', quantity: '', weight: '' }] });
+  const pickCompItem = (idx, value) => {
+    const components = [...form.components];
+    const cur = components[idx];
+    components[idx] = value === EXPENSE_VALUE
+      ? { ...emptyComp, is_expense: true, quantity: cur.quantity, price: cur.price }
+      : { ...cur, item_id: value, is_expense: false, price: '' };
+    setForm({ ...form, components });
+  };
+  const addComp = () => setForm({ ...form, components: [...form.components, { ...emptyComp }] });
   const removeComp = (idx) => setForm({ ...form, components: form.components.filter((_, i) => i !== idx) });
+
+  // Same arithmetic the server uses to price the assembled item, so the figure
+  // shown while filling the form is the one that gets saved.
+  const componentsCost = form.components.reduce((sum, c) => {
+    if (c.is_expense) return sum;
+    const item = items.find(i => String(i.id) === String(c.item_id));
+    const unit = Number(c.weight || 0) !== 0 ? Number(c.weight) : Number(c.quantity || 0);
+    return sum + unit * Number(item?.purchase_price || 0);
+  }, 0);
+  const expensesCost = form.components.reduce((sum, c) => (c.is_expense ? sum + Number(c.quantity || 0) * Number(c.price || 0) : sum), 0);
+  const hasExpense = form.components.some(c => c.is_expense);
+  const outputUnit = Number(form.assembled_weight || 0) > 0 ? Number(form.assembled_weight) : Number(form.assembled_qty || 0);
+  const outputUnitCost = outputUnit > 0 ? Math.round(((componentsCost + expensesCost) / outputUnit) * 100) / 100 : null;
+  const money = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.assembled_item_id || !form.assembled_qty || !form.output_warehouse_id) return toast.error('أكمل البيانات');
-    if (form.components.some(c => !c.item_id || !c.quantity || !c.warehouse_id)) return toast.error('أكمل بيانات المكونات (بما فيها المخزن لكل مكون)');
+    if (form.components.some(c => (c.is_expense ? !(Number(c.quantity) > 0 && Number(c.price) > 0) : (!c.item_id || !c.quantity || !c.warehouse_id)))) return toast.error('أكمل بيانات المكونات (المخزن لكل مكون، والكمية والسعر للمصاريف الإضافية)');
     const payload = {
       assembled_item_id: Number(form.assembled_item_id), assembled_qty: Number(form.assembled_qty),
       assembled_weight: Number(form.assembled_weight || 0),
       output_warehouse_id: Number(form.output_warehouse_id), date: form.date,
-      components: form.components.map(c => ({ item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
+      components: form.components.map(c => (c.is_expense
+        ? { is_expense: true, quantity: Number(c.quantity), price: Number(c.price) }
+        : { item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
     };
     try {
       if (editing) { await api.put(`/stock/assemblies/${editing.id}`, payload); toast.success('تم تحديث التركيب'); }
@@ -92,7 +121,9 @@ export default function ItemAssemblyPage() {
     setForm({
       assembled_item_id: String(a.assembled_item_id), assembled_qty: a.assembled_qty, assembled_weight: a.assembled_weight || '',
       output_warehouse_id: String(a.output_warehouse_id || a.warehouse_id || ''), date: a.date,
-      components: (a.components || []).map(c => ({ item_id: String(c.item_id), warehouse_id: String(c.warehouse_id || ''), quantity: c.quantity, weight: c.weight || '' })),
+      components: (a.components || []).map(c => (c.is_expense
+        ? { ...emptyComp, is_expense: true, quantity: c.quantity, price: c.price }
+        : { ...emptyComp, item_id: String(c.item_id), warehouse_id: String(c.warehouse_id || ''), quantity: c.quantity, weight: c.weight || '' })),
     });
     setShowModal(true);
   };
@@ -137,7 +168,9 @@ export default function ItemAssemblyPage() {
                 <td>{Number(a.assembled_weight || 0).toLocaleString()}</td>
                 <td className="font-bold">{Number(a.assembled_qty).toLocaleString()}</td>
                 <td className="text-sm">{a.outputWarehouse?.name || a.Warehouse?.name || '-'}</td>
-                <td>{(a.components || []).map((c, i) => <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.weight || 0).toLocaleString()} كجم ({Number(c.quantity).toLocaleString()})</div>)}</td>
+                <td>{(a.components || []).map((c, i) => (c.is_expense
+                  ? <div key={i} className="text-sm text-amber-700">مصاريف إضافية: {Number(c.quantity).toLocaleString()} × {Number(c.price).toLocaleString()} = {(Number(c.quantity) * Number(c.price)).toLocaleString()} ج.م</div>
+                  : <div key={i} className="text-sm text-gray-600">{c.Item?.name || '-'} — {c.Warehouse?.name || '-'}: {Number(c.weight || 0).toLocaleString()} كجم ({Number(c.quantity).toLocaleString()})</div>))}</td>
                 <td>
                   <div className="flex gap-1">
                     {can('stock', 'edit') && <button onClick={() => openEdit(a)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
@@ -179,15 +212,32 @@ export default function ItemAssemblyPage() {
                   const stockByWh = getStockByWarehouse(comp.item_id);
                   return (
                   <tr key={idx}>
-                    <td><SearchableSelect className="erp-input py-1" value={comp.item_id} onChange={e => updateComp(idx, 'item_id', e.target.value)}><option value="">اختر صنف</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</SearchableSelect></td>
-                    <td><SearchableSelect className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => { const s = stockByWh[w.id]; const label = comp.item_id ? (s ? `${w.name} (رصيد: ${s.weight.toLocaleString()} كجم / ${s.quantity.toLocaleString()})` : `${w.name} (لا يوجد رصيد)`) : w.name; return <option key={w.id} value={w.id}>{label}</option>; })}</SearchableSelect></td>
-                    <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
-                    <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
+                    <td><SearchableSelect className="erp-input py-1" value={comp.is_expense ? EXPENSE_VALUE : comp.item_id} onChange={e => pickCompItem(idx, e.target.value)}><option value="">اختر صنف</option><option value={EXPENSE_VALUE}>مصاريف إضافية</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}</SearchableSelect></td>
+                    {comp.is_expense ? (
+                      <>
+                        <td><input type="number" step="0.01" className="erp-input py-1" placeholder="السعر (ج.م)" value={comp.price} onChange={e => updateComp(idx, 'price', e.target.value)} /></td>
+                        <td className="text-sm text-amber-700 whitespace-nowrap">= {money(Number(comp.quantity || 0) * Number(comp.price || 0))} ج.م</td>
+                        <td><input type="number" step="0.01" className="erp-input py-1 w-20" placeholder="الكمية" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
+                      </>
+                    ) : (
+                      <>
+                        <td><SearchableSelect className="erp-input py-1" value={comp.warehouse_id} onChange={e => updateComp(idx, 'warehouse_id', e.target.value)}><option value="">— اختر —</option>{warehouses.map(w => { const s = stockByWh[w.id]; const label = comp.item_id ? (s ? `${w.name} (رصيد: ${s.weight.toLocaleString()} كجم / ${s.quantity.toLocaleString()})` : `${w.name} (لا يوجد رصيد)`) : w.name; return <option key={w.id} value={w.id}>{label}</option>; })}</SearchableSelect></td>
+                        <td><input type="number" step="0.01" className="erp-input py-1 w-24" value={comp.weight} onChange={e => updateComp(idx, 'weight', e.target.value)} /></td>
+                        <td><input type="number" className="erp-input py-1 w-20" value={comp.quantity} onChange={e => updateComp(idx, 'quantity', e.target.value)} /></td>
+                      </>
+                    )}
                     <td>{form.components.length > 1 && <button type="button" onClick={() => removeComp(idx)} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
                   </tr>
                   );
                 })}</tbody>
               </table>
+              {hasExpense && <p className="text-xs text-gray-500 mt-1">المصاريف الإضافية: الكمية × السعر تُضاف لتكلفة الصنف المركّب فقط، ولا تُسحب من المخزن ولا تُضاف لكمية الناتج.</p>}
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 grid grid-cols-2 gap-x-4 gap-y-1">
+              <span>تكلفة المكونات: <strong>{money(componentsCost)} ج.م</strong></span>
+              <span>مصاريف إضافية: <strong>{money(expensesCost)} ج.م</strong></span>
+              <span>إجمالي التكلفة: <strong>{money(componentsCost + expensesCost)} ج.م</strong></span>
+              <span>تكلفة {Number(form.assembled_weight || 0) > 0 ? 'الكيلو' : 'الوحدة'} من الصنف المركّب: <strong>{outputUnitCost == null ? '—' : `${money(outputUnitCost)} ج.م`}</strong></span>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t">
               <button type="button" onClick={() => { setShowModal(false); setEditing(null); }} className="erp-btn erp-btn-secondary">إلغاء</button>

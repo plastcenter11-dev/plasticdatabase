@@ -264,6 +264,10 @@ const ItemAssemblyComponent = sequelize.define('ItemAssemblyComponent', {
   quantity: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   warehouse_id: { type: DataTypes.INTEGER, allowNull: true },
+  // "Extra expenses" line: quantity x price is added to the assembled item's
+  // cost. It has no item or warehouse and never touches stock.
+  is_expense: { type: DataTypes.BOOLEAN, defaultValue: false },
+  price: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
 });
 
 const OpeningBalance = sequelize.define('OpeningBalance', {

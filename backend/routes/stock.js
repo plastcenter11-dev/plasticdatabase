@@ -226,6 +226,17 @@ router.post('/transfers/:id/confirm', async (req, res) => {
 });
 
 // Item Assembly
+//
+// A component line with is_expense is an "extra expenses" line: quantity x price
+// is added to the assembled item's cost, and nothing else - no stock check, no
+// stock movement, and it adds nothing to the produced quantity.
+const stockComponents = (components) => (components || []).filter(c => !c.is_expense);
+const toComponentRow = (c, assemblyId) => (c.is_expense
+  ? { is_expense: true, quantity: c.quantity, price: c.price, weight: 0, item_id: null, warehouse_id: null, assembly_id: assemblyId }
+  : { ...c, is_expense: false, price: 0, assembly_id: assemblyId });
+const expenseError = (components) => ((components || []).some(c => c.is_expense && !(Number(c.quantity) > 0 && Number(c.price) > 0))
+  ? 'أدخل كمية وسعر المصاريف الإضافية' : null);
+
 router.get('/assemblies', async (req, res) => {
   try {
     res.json(await ItemAssembly.findAll({
@@ -246,12 +257,15 @@ router.post('/assemblies', async (req, res) => {
     const { components, ...data } = req.body;
     const outputWarehouseId = data.output_warehouse_id || data.warehouse_id;
 
+    const expErr = expenseError(components);
+    if (expErr) { await t.rollback(); return res.status(400).json({ error: expErr }); }
+
     // Each component can be issued from its own warehouse; fall back to the
     // assembly-level warehouse_id for older clients that don't send one.
     const componentWarehouseId = (c) => c.warehouse_id || data.warehouse_id;
 
     // Check available stock for every component before consuming anything
-    for (const c of (components || [])) {
+    for (const c of stockComponents(components)) {
       const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
       const availableQty = stock ? Number(stock.quantity) : 0;
       const availableWt = stock ? Number(stock.weight || 0) : 0;
@@ -263,10 +277,10 @@ router.post('/assemblies', async (req, res) => {
     }
 
     const assembly = await ItemAssembly.create(data, { transaction: t });
-    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
+    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => toComponentRow(c, assembly.id)), { transaction: t });
 
     // Consume components, each from its own warehouse
-    for (const c of (components || [])) {
+    for (const c of stockComponents(components)) {
       const whId = componentWarehouseId(c);
       const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
       await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
@@ -302,6 +316,7 @@ async function updateAssembledItemCost(data, components, t) {
   if (outputUnit <= 0) return;
   let totalCost = 0;
   for (const c of (components || [])) {
+    if (c.is_expense) { totalCost += Number(c.quantity || 0) * Number(c.price || 0); continue; }
     const compItem = await Item.findByPk(c.item_id, { transaction: t });
     const compUnit = Number(c.weight || 0) !== 0 ? Number(c.weight) : Number(c.quantity || 0);
     totalCost += compUnit * Number(compItem?.purchase_price || 0);
@@ -313,7 +328,7 @@ async function updateAssembledItemCost(data, components, t) {
 // Reverse an assembly's stock effect: give back the components, take back the produced item
 async function reverseAssembly(assembly, components, t) {
   const outputWarehouseId = assembly.output_warehouse_id || assembly.warehouse_id;
-  for (const c of components) {
+  for (const c of stockComponents(components)) {
     const whId = c.warehouse_id || assembly.warehouse_id;
     const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     await stock.update({ quantity: Number(stock.quantity) + Number(c.quantity || 0), weight: Number(stock.weight || 0) + Number(c.weight || 0) }, { transaction: t });
@@ -335,8 +350,11 @@ router.put('/assemblies/:id', async (req, res) => {
     const outputWarehouseId = data.output_warehouse_id || data.warehouse_id;
     const componentWarehouseId = (c) => c.warehouse_id || data.warehouse_id;
 
+    const expErr = expenseError(components);
+    if (expErr) { await t.rollback(); return res.status(400).json({ error: expErr }); }
+
     // Check available stock for every component (now that the old effect is reversed)
-    for (const c of (components || [])) {
+    for (const c of stockComponents(components)) {
       const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
       const availableQty = stock ? Number(stock.quantity) : 0;
       const availableWt = stock ? Number(stock.weight || 0) : 0;
@@ -349,13 +367,13 @@ router.put('/assemblies/:id', async (req, res) => {
 
     await assembly.update(data, { transaction: t });
     await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });
-    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => ({ ...c, assembly_id: assembly.id })), { transaction: t });
+    if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => toComponentRow(c, assembly.id)), { transaction: t });
 
     // The movement log for this assembly should reflect its current state only -
     // drop the old entries instead of stacking new ones on top of them.
     await StockMovement.destroy({ where: { reference: String(assembly.id), movement_type: 'تركيب' }, transaction: t });
 
-    for (const c of (components || [])) {
+    for (const c of stockComponents(components)) {
       const whId = componentWarehouseId(c);
       const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
       await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });

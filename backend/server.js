@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { sequelize, User } = require('./models');
 const { auth, requireModule, requireModuleByPath } = require('./middleware/auth');
+const { applySchemaPatches } = require('./utils/schemaPatches');
 
 const app = express();
 app.use(cors());
@@ -48,6 +49,8 @@ async function start() {
     console.log('Database connected');
     await sequelize.sync();
     console.log('Tables synced');
+    const addedColumns = await applySchemaPatches(sequelize);
+    if (addedColumns.length) console.log('Added columns:', addedColumns.join(', '));
 
     const adminExists = await User.findOne({ where: { username: 'admin' } });
     if (!adminExists) {

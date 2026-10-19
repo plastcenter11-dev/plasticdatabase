@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, Item, Stock } = require('../../models');
+const { sequelize, Item, Stock, StockMovement, ItemAssemblyComponent } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeWarehouse, makeItem } = require('../helpers/fixtures');
 
@@ -100,5 +100,74 @@ describe('POST /api/stock/assemblies — cost roll-up', () => {
     });
     expect(res.status).toBe(200);
     expect(Number((await Item.findByPk(assembled.id)).purchase_price)).toBe(20);
+  });
+});
+
+
+describe('item assembly - extra expenses line', () => {
+  const body = (assembled, comp, extra = []) => ({
+    date: '2026-01-01', assembled_item_id: assembled.id, assembled_qty: 10, assembled_weight: 100,
+    warehouse_id: warehouse.id, output_warehouse_id: warehouse.id,
+    components: [{ item_id: comp.id, quantity: 10, weight: 100, warehouse_id: warehouse.id }, ...extra],
+  });
+
+  test('quantity x price is added to the cost without touching stock or the produced quantity', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+    await Stock.create({ item_id: comp.id, warehouse_id: warehouse.id, quantity: 100, weight: 100 });
+
+    // 100kg @10 = 1000, plus 2 x 150 = 300 of extra expenses -> 1300 over 100kg = 13/kg.
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, [{ is_expense: true, quantity: 2, price: 150 }]));
+    expect(res.status).toBe(201);
+    expect(Number((await Item.findByPk(assembled.id)).purchase_price)).toBe(13);
+
+    // Only the real component and the output moved: no movement for the expense line.
+    const movements = await StockMovement.findAll({ where: { movement_type: 'تركيب' } });
+    expect(movements).toHaveLength(2);
+    const compStock = await Stock.findOne({ where: { item_id: comp.id, warehouse_id: warehouse.id } });
+    expect(Number(compStock.weight)).toBe(0);
+    const outStock = await Stock.findOne({ where: { item_id: assembled.id, warehouse_id: warehouse.id } });
+    expect(Number(outStock.weight)).toBe(100);
+    expect(Number(outStock.quantity)).toBe(10);
+
+    const rows = await ItemAssemblyComponent.findAll({ where: { assembly_id: res.body.id } });
+    const expense = rows.find(r => r.is_expense);
+    expect(expense.item_id).toBeNull();
+    expect(Number(expense.quantity)).toBe(2);
+    expect(Number(expense.price)).toBe(150);
+  });
+
+  test('editing re-prices with the new expense, and deleting reverses only the stock', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+    await Stock.create({ item_id: comp.id, warehouse_id: warehouse.id, quantity: 100, weight: 100 });
+
+    const created = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, [{ is_expense: true, quantity: 2, price: 150 }]));
+    expect(created.status).toBe(201);
+
+    // 1000 + 1 x 500 = 1500 over 100kg = 15/kg
+    const edited = await request(app).put('/api/stock/assemblies/' + created.body.id).set(auth()).send(body(assembled, comp, [{ is_expense: true, quantity: 1, price: 500 }]));
+    expect(edited.status).toBe(200);
+    expect(Number((await Item.findByPk(assembled.id)).purchase_price)).toBe(15);
+    const rows = await ItemAssemblyComponent.findAll({ where: { assembly_id: created.body.id } });
+    expect(rows.filter(r => r.is_expense)).toHaveLength(1);
+    expect(Number((await Stock.findOne({ where: { item_id: comp.id, warehouse_id: warehouse.id } })).weight)).toBe(0);
+
+    const del = await request(app).delete('/api/stock/assemblies/' + created.body.id).set(auth());
+    expect(del.status).toBe(200);
+    expect(Number((await Stock.findOne({ where: { item_id: comp.id, warehouse_id: warehouse.id } })).weight)).toBe(100);
+    expect(await ItemAssemblyComponent.count({ where: { assembly_id: created.body.id } })).toBe(0);
+  });
+
+  test('an expense line without a quantity and price is refused', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+    await Stock.create({ item_id: comp.id, warehouse_id: warehouse.id, quantity: 100, weight: 100 });
+
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, [{ is_expense: true, quantity: 2, price: 0 }]));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/المصاريف/);
+    // refused before anything was consumed
+    expect(Number((await Stock.findOne({ where: { item_id: comp.id, warehouse_id: warehouse.id } })).weight)).toBe(100);
   });
 });
