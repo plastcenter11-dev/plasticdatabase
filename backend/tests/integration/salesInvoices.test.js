@@ -1,12 +1,13 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, SalesInvoice, Item, Stock, Customer } = require('../../models');
+const { sequelize, SalesInvoice, Item, Stock, Customer, CashReceipt } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeWarehouse, makeItem, makeCustomer } = require('../helpers/fixtures');
 
 const app = express();
 app.use(express.json());
 app.use('/api/sales-invoices', require('../../routes/salesInvoices'));
+app.use('/api/customers', require('../../routes/customers'));
 
 let token, warehouse, item, customer;
 const auth = () => ({ Authorization: `Bearer ${token}` });
@@ -129,5 +130,43 @@ describe('DELETE /api/sales-invoices/:id', () => {
     await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
     const del = await request(app).delete(`/api/sales-invoices/${res.body.id}`).set(auth());
     expect(del.status).toBe(400);
+  });
+});
+
+
+describe('a payment entered on a sales invoice', () => {
+  test('posting records it as a cash receipt that reaches the statement and the balance', async () => {
+    const created = await request(app).post('/api/sales-invoices').set(auth()).send(payload({ invoice_no: 'SI-PAID-1', paid: 200, remaining: 370 }));
+    const posted = await request(app).post(`/api/sales-invoices/${created.body.id}/post`).set(auth());
+    expect(posted.status).toBe(200);
+
+    const receipts = await CashReceipt.findAll({ where: { customer_id: customer.id } });
+    expect(receipts).toHaveLength(1);
+    expect(Number(receipts[0].amount)).toBe(200);
+    expect(receipts[0].date).toBe('2026-03-01');
+    expect(receipts[0].notes).toMatch(/SI-PAID-1/);
+
+    const statement = await request(app).get(`/api/customers/${customer.id}/statement`).set(auth());
+    expect(statement.body.filter(r => r.type === 'تحصيل')).toHaveLength(1);
+    expect(statement.body[statement.body.length - 1].balance).toBe(370);
+
+    const customers = await request(app).get('/api/customers').set(auth());
+    expect(customers.body.find(c => c.id === customer.id).balance).toBe(370);
+  });
+
+  test('an unpaid invoice records no receipt', async () => {
+    const created = await request(app).post('/api/sales-invoices').set(auth()).send(payload({ invoice_no: 'SI-PAID-2' }));
+    await request(app).post(`/api/sales-invoices/${created.body.id}/post`).set(auth());
+    expect(await CashReceipt.count({ where: { customer_id: customer.id } })).toBe(0);
+  });
+
+  test('a refused posting leaves no receipt behind', async () => {
+    const created = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
+      invoice_no: 'SI-PAID-3', paid: 100, remaining: 470,
+      items: [{ item_id: item.id, quantity: 10, weight: 5000, price: 50, discount: 0, total: 500 }],
+    }));
+    const posted = await request(app).post(`/api/sales-invoices/${created.body.id}/post`).set(auth());
+    expect(posted.status).toBe(400);
+    expect(await CashReceipt.count({ where: { customer_id: customer.id } })).toBe(0);
   });
 });

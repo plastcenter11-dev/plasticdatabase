@@ -43,7 +43,7 @@ export default function NonStockItemsPage() {
     e.preventDefault();
     if (!form.name) return toast.error('أدخل اسم الصنف');
     try {
-      const data = { ...form, code: form.code || generateCode(), is_stockable: false, purchase_price: Number(form.purchase_price || 0), sell_price: Number(form.sell_price || 0) };
+      const data = { ...form, code: form.code || generateCode(), is_stockable: false, category_id: form.category_id ? Number(form.category_id) : null, purchase_price: Number(form.purchase_price || 0), sell_price: Number(form.sell_price || 0) };
       if (editing) await api.put(`/items/${editing}`, data);
       else await api.post('/items', data);
       toast.success(editing ? 'تم التعديل' : 'تم الإضافة');

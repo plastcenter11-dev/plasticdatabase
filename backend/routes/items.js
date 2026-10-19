@@ -40,9 +40,19 @@ router.get('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// An optional field left blank in a form arrives as '' which MySQL rejects for a
+// numeric column; treat it as "not set".
+const cleanItemBody = (body) => {
+  const data = { ...body };
+  for (const key of ['category_id', 'type_id', 'width']) {
+    if (data[key] === '') data[key] = null;
+  }
+  return data;
+};
+
 router.post('/', async (req, res) => {
   try {
-    const item = await Item.create(req.body);
+    const item = await Item.create(cleanItemBody(req.body));
     res.status(201).json(item);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -51,7 +61,7 @@ router.put('/:id', async (req, res) => {
   try {
     const item = await Item.findByPk(req.params.id);
     if (!item) return res.status(404).json({ error: 'غير موجود' });
-    await item.update(req.body);
+    await item.update(cleanItemBody(req.body));
     res.json(item);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

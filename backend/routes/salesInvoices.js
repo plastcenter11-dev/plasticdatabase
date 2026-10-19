@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, sequelize } = require('../models');
+const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, CashReceipt, sequelize } = require('../models');
 const { listInvoices } = require('../utils/invoiceList');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
@@ -96,6 +96,21 @@ router.post('/:id/post', async (req, res) => {
       if (customer) {
         const remaining = Number(inv.remaining != null ? inv.remaining : Number(inv.total || 0) - Number(inv.paid || 0));
         await customer.update({ balance: Number(customer.balance || 0) + remaining }, { transaction: t });
+      }
+
+      // A payment entered on the invoice is recorded as a cash receipt, the same
+      // way posting a purchase invoice records a cash payment. Without it the
+      // amount stays a number on the invoice and never reaches the customer's
+      // statement or balance. (The stored balance above already used the unpaid
+      // remainder, so it is not touched again here.)
+      const paidAmt = Number(inv.paid || 0);
+      if (paidAmt > 0) {
+        const crMax = await CashReceipt.max('id', { transaction: t }) || 0;
+        await CashReceipt.create({
+          receipt_no: `CR-${String(crMax + 1).padStart(6, '0')}`,
+          date: inv.date, customer_id: inv.customer_id, amount: paidAmt,
+          payment_method: 'نقدي', notes: `دفعة فاتورة بيع ${inv.invoice_no}`,
+        }, { transaction: t });
       }
     }
 
