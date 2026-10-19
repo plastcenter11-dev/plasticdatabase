@@ -81,6 +81,14 @@ export default function ItemAssemblyPage() {
     setForm({ ...form, components });
   };
   const addComp = () => setForm({ ...form, components: [...form.components, { ...emptyComp }] });
+  // "+ مصاريف إضافية": a ready-made expenses row (price + quantity). A blank row
+  // left at the end of the list is reused instead of leaving an empty one behind.
+  const addExpense = () => {
+    const last = form.components[form.components.length - 1];
+    const blank = last && !last.is_expense && !last.item_id && !last.quantity && !last.weight && !last.warehouse_id;
+    const expense = { ...emptyComp, is_expense: true };
+    setForm({ ...form, components: blank ? [...form.components.slice(0, -1), expense] : [...form.components, expense] });
+  };
   const removeComp = (idx) => setForm({ ...form, components: form.components.filter((_, i) => i !== idx) });
 
   // Same arithmetic the server uses to price the assembled item, so the figure
@@ -204,7 +212,10 @@ export default function ItemAssemblyPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="form-label mb-0">المكونات (لكل مكون مخزن صرف مستقل)</label>
-                <button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={addExpense} className="erp-btn erp-btn-outline py-1 px-2 text-xs text-amber-700">+ مصاريف إضافية</button>
+                  <button type="button" onClick={addComp} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ مكون</button>
+                </div>
               </div>
               <table className="erp-table">
                 <thead><tr><th>الصنف</th><th>مخزن الصرف</th><th>الوزن (كجم)</th><th>العدد</th><th></th></tr></thead>
