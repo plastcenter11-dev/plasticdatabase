@@ -264,17 +264,8 @@ router.post('/assemblies', async (req, res) => {
     // assembly-level warehouse_id for older clients that don't send one.
     const componentWarehouseId = (c) => c.warehouse_id || data.warehouse_id;
 
-    // Check available stock for every component before consuming anything
-    for (const c of stockComponents(components)) {
-      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
-      const availableQty = stock ? Number(stock.quantity) : 0;
-      const availableWt = stock ? Number(stock.weight || 0) : 0;
-      if (availableQty < Number(c.quantity || 0) || availableWt < Number(c.weight || 0)) {
-        await t.rollback();
-        const item = await Item.findByPk(c.item_id);
-        return res.status(400).json({ error: `الكمية المتاحة من "${item?.name || c.item_id}" غير كافية للتركيب` });
-      }
-    }
+    // No stock check on purpose: a component is often issued before its receipt has
+    // been entered, so the balance (kg or count) is allowed to go negative.
 
     const assembly = await ItemAssembly.create(data, { transaction: t });
     if (components?.length) await ItemAssemblyComponent.bulkCreate(components.map(c => toComponentRow(c, assembly.id)), { transaction: t });
@@ -353,17 +344,8 @@ router.put('/assemblies/:id', async (req, res) => {
     const expErr = expenseError(components);
     if (expErr) { await t.rollback(); return res.status(400).json({ error: expErr }); }
 
-    // Check available stock for every component (now that the old effect is reversed)
-    for (const c of stockComponents(components)) {
-      const stock = await Stock.findOne({ where: { item_id: c.item_id, warehouse_id: componentWarehouseId(c) }, transaction: t });
-      const availableQty = stock ? Number(stock.quantity) : 0;
-      const availableWt = stock ? Number(stock.weight || 0) : 0;
-      if (availableQty < Number(c.quantity || 0) || availableWt < Number(c.weight || 0)) {
-        await t.rollback();
-        const item = await Item.findByPk(c.item_id);
-        return res.status(400).json({ error: `الكمية المتاحة من "${item?.name || c.item_id}" غير كافية للتركيب` });
-      }
-    }
+    // No stock check on purpose: a component is often issued before its receipt has
+    // been entered, so the balance (kg or count) is allowed to go negative.
 
     await assembly.update(data, { transaction: t });
     await ItemAssemblyComponent.destroy({ where: { assembly_id: assembly.id }, transaction: t });

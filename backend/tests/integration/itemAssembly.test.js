@@ -171,3 +171,59 @@ describe('item assembly - extra expenses line', () => {
     expect(Number((await Stock.findOne({ where: { item_id: comp.id, warehouse_id: warehouse.id } })).weight)).toBe(100);
   });
 });
+
+
+describe('item assembly - components may be issued before they are received', () => {
+  const body = (assembled, comp, qty, weight) => ({
+    date: '2026-01-01', assembled_item_id: assembled.id, assembled_qty: 10, assembled_weight: 100,
+    warehouse_id: warehouse.id, output_warehouse_id: warehouse.id,
+    components: [{ item_id: comp.id, quantity: qty, weight, warehouse_id: warehouse.id }],
+  });
+  const stockOf = async (item) => Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
+
+  test('assembling more than the balance succeeds and leaves a negative kg and count balance', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+    await Stock.create({ item_id: comp.id, warehouse_id: warehouse.id, quantity: 4, weight: 30 });
+
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, 10, 100));
+    expect(res.status).toBe(201);
+    const stock = await stockOf(comp);
+    expect(Number(stock.weight)).toBe(-70);
+    expect(Number(stock.quantity)).toBe(-6);
+    // pricing is unaffected by the shortage: 100kg @10 over 100kg
+    expect(Number((await Item.findByPk(assembled.id)).purchase_price)).toBe(10);
+  });
+
+  test('a component with no stock record at all can still be issued', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, 10, 100));
+    expect(res.status).toBe(201);
+    const stock = await stockOf(comp);
+    expect(Number(stock.weight)).toBe(-100);
+    expect(Number(stock.quantity)).toBe(-10);
+  });
+
+  test('receiving the stock afterwards brings the balance back, and an edit or delete stays consistent', async () => {
+    const comp = await makeItem({ purchase_price: 10 });
+    const assembled = await makeItem({ purchase_price: 0 });
+
+    const created = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled, comp, 10, 100));
+    expect(created.status).toBe(201);
+    // the late receipt of 150kg / 15
+    const s = await stockOf(comp);
+    await s.update({ weight: Number(s.weight) + 150, quantity: Number(s.quantity) + 15 });
+
+    // edit down to 60kg / 6 : the old 100 is given back first, then 60 is issued
+    const edited = await request(app).put('/api/stock/assemblies/' + created.body.id).set(auth()).send(body(assembled, comp, 6, 60));
+    expect(edited.status).toBe(200);
+    expect(Number((await stockOf(comp)).weight)).toBe(90);
+    expect(Number((await stockOf(comp)).quantity)).toBe(9);
+
+    const del = await request(app).delete('/api/stock/assemblies/' + created.body.id).set(auth());
+    expect(del.status).toBe(200);
+    expect(Number((await stockOf(comp)).weight)).toBe(150);
+  });
+});
