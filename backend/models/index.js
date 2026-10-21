@@ -371,6 +371,9 @@ OpeningBalance.belongsTo(FinancialYear, { foreignKey: 'financial_year_id' });
 Expense.belongsTo(FinancialYear, { foreignKey: 'financial_year_id', allowNull: true });
 OtherIncome.belongsTo(FinancialYear, { foreignKey: 'financial_year_id', allowNull: true });
 
+// A blank form field ('') must mean "not set" for numeric / id / date columns, on every model.
+require('./blankToNull').registerBlankToNull(sequelize);
+
 module.exports = {
   sequelize, User, Warehouse, Category, ItemType, Item, Stock, Customer, Supplier, Employee,
   FinancialYear, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder,
