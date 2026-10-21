@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest --runInBand --forceExit",
     "test:unit": "jest tests/unit --forceExit",
-    "test:integration": "jest tests/integration --runInBand --forceExit"
+    "test:integration": "jest tests/integration --runInBand --forceExit",
+    "check:invariants": "node scripts/check_invariants.js"
   },
   "jest": {
     "testEnvironment": "node",

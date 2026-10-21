@@ -202,7 +202,9 @@ describe('صنف غير مخزني (is_stockable = false)', () => {
 // 5. فاتورة بدون مخزن — لا تأثير على المخزن
 // ================================================================
 describe('فاتورة شراء بدون مخزن (warehouse_id = null)', () => {
-  test('الفاتورة تُنشأ وتُرحَّل بنجاح', async () => {
+  // A posted invoice with stockable items and no warehouse used to post silently and
+  // add nothing to stock (PI-000015). Posting is now refused until a warehouse is chosen.
+  test('الفاتورة تُنشأ كمسودة لكن ترحيلها مرفوض بسبب غياب المخزن', async () => {
     const r1 = await postInvoice({
       supplier_id: supplierId,
       invoice_no: `EDGE-NOWH-${Date.now()}`,
@@ -212,7 +214,8 @@ describe('فاتورة شراء بدون مخزن (warehouse_id = null)', () => 
     });
     expect(r1.status).toBe(201);
     const r2 = await request(app).post(`/api/purchase-invoices/${r1.body.id}/post`).set(auth());
-    expect(r2.status).toBe(200);
+    expect(r2.status).toBe(400);
+    expect(r2.body.error).toMatch(/المخزن/);
   });
 
   test('المخزن لم يتغير — لا مخزن محدد', async () => {
