@@ -121,8 +121,9 @@ router.post('/:id/post', async (req, res) => {
         const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
-        if (qty <= 0) continue;
         const wt = Number(item.weight || 0);
+        // A line can carry only a weight (no roll count); it still leaves the warehouse.
+        if (qty <= 0 && wt <= 0) continue;
         const [stock] = await Stock.findOrCreate({
           where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
           defaults: { quantity: 0, weight: 0 },

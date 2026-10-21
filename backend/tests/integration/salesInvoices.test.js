@@ -170,3 +170,21 @@ describe('a payment entered on a sales invoice', () => {
     expect(await CashReceipt.count({ where: { customer_id: customer.id } })).toBe(0);
   });
 });
+
+describe('posting a line that has a weight but no roll count', () => {
+  test('still takes the weight out of the warehouse and records the movement', async () => {
+    const created = await request(app).post('/api/sales-invoices').set(auth()).send(payload({
+      invoice_no: 'SI-WEIGHT-ONLY', subtotal: 500, tax_amount: 0, total: 500, remaining: 500,
+      items: [{ item_id: item.id, quantity: 0, weight: 40, price: 12.5, discount: 0, total: 500 }],
+    }));
+    const posted = await request(app).post(`/api/sales-invoices/${created.body.id}/post`).set(auth());
+    expect(posted.status).toBe(200);
+    const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
+    expect(Number(stock.weight)).toBe(960);
+    expect(Number(stock.quantity)).toBe(100);
+    const { StockMovement } = require('../../models');
+    const moves = await StockMovement.findAll({ where: { item_id: item.id, movement_type: 'فاتورة بيع' } });
+    expect(moves).toHaveLength(1);
+    expect(Number(moves[0].weight)).toBe(40);
+  });
+});
