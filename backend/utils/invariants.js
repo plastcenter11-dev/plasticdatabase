@@ -91,7 +91,9 @@ function buildChecks({ models, sequelize, getJson }) {
       const found = await rows(`SELECT invoice_no, total, paid, remaining FROM ${tn(model)}`);
       examined += found.length;
       for (const r of found) {
-        if (num(r.paid) < 0 || num(r.paid) > num(r.total) + TOL) violations.push(err(`${label} ${r.invoice_no}: المدفوع ${fmt(r.paid)} خارج حدود الإجمالي ${fmt(r.total)}`));
+        if (num(r.paid) < 0) violations.push(err(`${label} ${r.invoice_no}: المدفوع ${fmt(r.paid)} سالب`));
+        // an overpayment can be deliberate (an advance), so it is only a warning
+        else if (num(r.paid) > num(r.total) + TOL) violations.push(warn(`${label} ${r.invoice_no}: المدفوع ${fmt(r.paid)} أكبر من الإجمالي ${fmt(r.total)}`));
         if (!near(r.remaining, num(r.total) - num(r.paid))) violations.push(err(`${label} ${r.invoice_no}: المتبقي ${fmt(r.remaining)} لا يساوي الإجمالي ${fmt(r.total)} ناقص المدفوع ${fmt(r.paid)}`));
       }
     }
