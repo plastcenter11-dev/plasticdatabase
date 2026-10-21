@@ -80,6 +80,13 @@ export default function SalesInvoicePage() {
   const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
   const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
 
+  // Same preview the cash receipt / payment forms give: the customer's balance now, and after this
+  // invoice (its total, which is rounded when saved, minus what is paid with it).
+  const selectedParty = customers.find(p => p.id === Number(form.customer_id));
+  const invoiceTotal = Math.round(calcTotal());
+  const expectedBalance = selectedParty ? Number(selectedParty.balance) + invoiceTotal - Number(form.paid || 0) : null;
+  const balanceTone = (v) => (Number(v) > 0 ? 'bg-red-50 text-red-700' : Number(v) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600');
+
   // Stock only moves when the invoice has a warehouse, so it's required as soon as
   // any line is a stockable item (service/fee-only invoices don't need one).
   const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
@@ -230,6 +237,12 @@ export default function SalesInvoicePage() {
               <div><label className="form-label">المخزن{needsWarehouse ? ' *' : ''}</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
+            {selectedParty && (
+              <div className={`text-sm rounded-lg px-3 py-1.5 flex flex-wrap gap-x-8 gap-y-0.5 ${balanceTone(selectedParty.balance)}`}>
+                <span>رصيد العميل الحالي: <strong>{Number(selectedParty.balance).toLocaleString()} ج.م</strong></span>
+                {invoiceTotal > 0 && <span>الرصيد المتوقع بعد الفاتورة: <strong>{expectedBalance.toLocaleString()} ج.م</strong></span>}
+              </div>
+            )}
             <div>
               <div className="flex items-center justify-between mb-2"><label className="form-label mb-0">الأصناف</label><button type="button" onClick={addFormItem} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button></div>
               <table className="erp-table">
