@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const {
   Item, Category, ItemType, Stock,
   SalesInvoiceItem, PurchaseInvoiceItem, SalesReturnItem, PurchaseReturnItem,
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
     if (req.query.category_id) where.category_id = req.query.category_id;
     const items = await Item.findAll({ where, include: [{ model: Category, attributes: ['id', 'name'] }, { model: ItemType, attributes: ['id', 'name'] }], order: [['id', 'DESC']] });
     res.json(items);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/reports/reorder', async (req, res) => {
@@ -29,7 +30,7 @@ router.get('/reports/reorder', async (req, res) => {
       return totalWeight <= Number(i.reorder_level);
     });
     res.json(below);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -37,7 +38,7 @@ router.get('/:id', async (req, res) => {
     const item = await Item.findByPk(req.params.id, { include: [Category, { model: Stock }] });
     if (!item) return res.status(404).json({ error: 'غير موجود' });
     res.json(item);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // An optional field left blank in a form arrives as '' which MySQL rejects for a
@@ -54,7 +55,7 @@ router.post('/', async (req, res) => {
   try {
     const item = await Item.create(cleanItemBody(req.body));
     res.status(201).json(item);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/:id', async (req, res) => {
@@ -63,7 +64,7 @@ router.put('/:id', async (req, res) => {
     if (!item) return res.status(404).json({ error: 'غير موجود' });
     await item.update(cleanItemBody(req.body));
     res.json(item);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -95,7 +96,7 @@ router.delete('/:id', async (req, res) => {
 
     await item.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;

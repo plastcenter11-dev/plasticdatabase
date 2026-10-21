@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const { Op } = require('sequelize');
 const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType, sequelize } = require('../models');
 
@@ -12,7 +13,7 @@ router.get('/adjustments', async (req, res) => {
   try {
     const where = { movement_type: req.query.type ? req.query.type : { [Op.in]: MANUAL_ADJUSTMENT_TYPES } };
     res.json(await StockMovement.findAll({ where, include: [{ model: Item, attributes: ['id', 'code', 'name'] }, { model: Warehouse, attributes: ['id', 'name'] }], order: [['id', 'DESC']] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/adjustments', async (req, res) => {
@@ -30,7 +31,7 @@ router.post('/adjustments', async (req, res) => {
     }
     await t.commit();
     res.status(201).json(movement);
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/adjustments/:id', async (req, res) => {
@@ -67,7 +68,7 @@ router.put('/adjustments/:id', async (req, res) => {
 
     await t.commit();
     res.json(old);
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/adjustments/:id', async (req, res) => {
@@ -91,7 +92,7 @@ router.delete('/adjustments/:id', async (req, res) => {
     await m.destroy({ transaction: t });
     await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Item movements report
@@ -118,14 +119,14 @@ router.get('/movements/:itemId', async (req, res) => {
       }
       return json;
     }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Stock balances (existing records only)
 router.get('/balances', async (req, res) => {
   try {
     res.json(await Stock.findAll({ include: [{ model: Item, attributes: ['id', 'code', 'name', 'unit'] }, { model: Warehouse, attributes: ['id', 'name'] }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // All items with stock per warehouse (includes items with zero stock)
@@ -153,7 +154,7 @@ router.get('/items-stock', async (req, res) => {
       return { item_id: item.id, item_code: item.code, item_name: item.name, unit: item.unit, reorder_level: item.reorder_level, purchase_price: item.purchase_price, sale_price: item.sale_price, width: item.width, category_name: item.Category?.name || null, type_name: item.ItemType?.name || null, total_quantity: totalQty, total_weight: totalWeight, warehouses: itemStocks };
     });
     res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Warehouse Transfers
@@ -163,7 +164,7 @@ router.get('/transfers', async (req, res) => {
       include: [{ model: Warehouse, as: 'fromWarehouse', attributes: ['id', 'name'] }, { model: Warehouse, as: 'toWarehouse', attributes: ['id', 'name'] }, { model: WarehouseTransferItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name'] }] }],
       order: [['id', 'DESC']],
     }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/transfers', async (req, res) => {
@@ -174,7 +175,7 @@ router.post('/transfers', async (req, res) => {
     if (items?.length) await WarehouseTransferItem.bulkCreate(items.map(i => ({ ...i, transfer_id: transfer.id })), { transaction: t });
     await t.commit();
     res.status(201).json(await WarehouseTransfer.findByPk(transfer.id, { include: [{ model: WarehouseTransferItem, as: 'items' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/transfers/:id/confirm', async (req, res) => {
@@ -214,7 +215,7 @@ router.post('/transfers/:id/confirm', async (req, res) => {
     await transfer.update({ status: 'confirmed' }, { transaction: t });
     await t.commit();
     res.json({ message: 'تم التأكيد' });
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Item Assembly
@@ -240,7 +241,7 @@ router.get('/assemblies', async (req, res) => {
       ],
       order: [['id', 'DESC']],
     }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/assemblies', async (req, res) => {
@@ -287,7 +288,7 @@ router.post('/assemblies', async (req, res) => {
 
     await t.commit();
     res.status(201).json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Roll up the assembled item's purchase price from what each component is
@@ -370,7 +371,7 @@ router.put('/assemblies/:id', async (req, res) => {
 
     await t.commit();
     res.json(await ItemAssembly.findByPk(assembly.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/assemblies/:id', async (req, res) => {
@@ -386,7 +387,7 @@ router.delete('/assemblies/:id', async (req, res) => {
 
     await t.commit();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;

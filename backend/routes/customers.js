@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, Item, CashReceipt, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
@@ -40,7 +41,7 @@ router.get('/', async (req, res) => {
       balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0) - (retMap[c.id] || 0) - (checkMap[c.id] || 0) + (openMap[c.id] || 0)) * 100) / 100,
     }));
     res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -48,12 +49,12 @@ router.get('/:id', async (req, res) => {
     const c = await Customer.findByPk(req.params.id);
     if (!c) return res.status(404).json({ error: 'غير موجود' });
     res.json(c);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/', async (req, res) => {
   try { res.status(201).json(await Customer.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/:id', async (req, res) => {
@@ -62,7 +63,7 @@ router.put('/:id', async (req, res) => {
     if (!c) return res.status(404).json({ error: 'غير موجود' });
     await c.update(req.body);
     res.json(c);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -71,7 +72,7 @@ router.delete('/:id', async (req, res) => {
     if (!c) return res.status(404).json({ error: 'غير موجود' });
     await c.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id/statement', async (req, res) => {
@@ -116,7 +117,7 @@ router.get('/:id/statement', async (req, res) => {
     if (carryForward || from) movements.unshift({ date: null, type: from ? 'رصيد مرحّل' : 'رصيد افتتاحي', reference: '-', debit: 0, credit: 0, balance: carryForward, isOpening: true });
     movements.forEach(m => { if (!m.isOpening) { balance += m.debit - m.credit; m.balance = balance; } });
     res.json(movements);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;

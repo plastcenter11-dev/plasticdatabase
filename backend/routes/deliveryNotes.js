@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, CashReceipt, Check, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
 
@@ -8,7 +9,7 @@ router.get('/', async (req, res) => {
       include: [{ model: Customer, attributes: ['id', 'name'] }, { model: DeliveryNoteItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name', 'sale_price'] }] }],
       order: [['id', 'DESC']],
     }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -16,7 +17,7 @@ router.get('/:id', async (req, res) => {
     const n = await DeliveryNote.findByPk(req.params.id, { include: [Customer, { model: DeliveryNoteItem, as: 'items', include: [Item] }] });
     if (!n) return res.status(404).json({ error: 'غير موجود' });
     res.json(n);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/', async (req, res) => {
@@ -29,7 +30,7 @@ router.post('/', async (req, res) => {
     if (items?.length) await DeliveryNoteItem.bulkCreate(items.map(i => ({ ...i, note_id: note.id })), { transaction: t });
     await t.commit();
     res.status(201).json(await DeliveryNote.findByPk(note.id, { include: [{ model: DeliveryNoteItem, as: 'items' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/:id', async (req, res) => {
@@ -39,7 +40,7 @@ router.put('/:id', async (req, res) => {
     if (note.status === 'delivered') return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' });
     await note.update(req.body);
     res.json(note);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/:id/deliver', async (req, res) => {
@@ -153,7 +154,7 @@ router.post('/:id/deliver', async (req, res) => {
     await t.commit();
 
     res.json({ message: 'تم الترحيل', invoice_id: inv.id, invoice_no: invoiceNumber });
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -163,7 +164,7 @@ router.delete('/:id', async (req, res) => {
     if (n.status === 'delivered') return res.status(400).json({ error: 'لا يمكن حذف إذن تم ترحيله' });
     await n.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;

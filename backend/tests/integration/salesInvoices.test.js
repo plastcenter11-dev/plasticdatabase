@@ -188,3 +188,19 @@ describe('posting a line that has a weight but no roll count', () => {
     expect(Number(moves[0].weight)).toBe(40);
   });
 });
+
+describe('errors the user can act on', () => {
+  test('a duplicate invoice number answers 400 and names the number, not just "Validation error"', async () => {
+    await request(app).post('/api/sales-invoices').set(auth()).send(payload({ invoice_no: 'SI-DUP-1' }));
+    const again = await request(app).post('/api/sales-invoices').set(auth()).send(payload({ invoice_no: 'SI-DUP-1' }));
+    expect(again.status).toBe(400);
+    expect(again.body.error).toBe('رقم الفاتورة «SI-DUP-1» مستخدم من قبل');
+    expect(await SalesInvoice.count({ where: { invoice_no: 'SI-DUP-1' } })).toBe(1);
+  });
+
+  test('a missing required field is named', async () => {
+    const res = await request(app).post('/api/sales-invoices').set(auth()).send(payload({ date: undefined }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/التاريخ/);
+  });
+});

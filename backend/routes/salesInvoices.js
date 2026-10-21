@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, CashReceipt, sequelize } = require('../models');
 const { listInvoices } = require('../utils/invoiceList');
 const { closedYearError } = require('../utils/financialYear');
@@ -7,7 +8,7 @@ const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 router.get('/', async (req, res) => {
   try {
     res.json(await listInvoices(req, { Invoice: SalesInvoice, Party: Customer, ItemModel: SalesInvoiceItem, partyKey: 'customer_id', extra: [{ model: Employee, attributes: ['id', 'name'] }] }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -15,7 +16,7 @@ router.get('/:id', async (req, res) => {
     const inv = await SalesInvoice.findByPk(req.params.id, { include: [Customer, Employee, { model: SalesInvoiceItem, as: 'items', include: [Item] }] });
     if (!inv) return res.status(404).json({ error: 'غير موجود' });
     res.json(inv);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/', async (req, res) => {
@@ -30,7 +31,7 @@ router.post('/', async (req, res) => {
     if (items?.length) await SalesInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
     await t.commit();
     res.status(201).json(await SalesInvoice.findByPk(inv.id, { include: [{ model: SalesInvoiceItem, as: 'items' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/:id', async (req, res) => {
@@ -49,7 +50,7 @@ router.put('/:id', async (req, res) => {
     await inv.update(data, { transaction: t });
     await t.commit();
     res.json(await SalesInvoice.findByPk(inv.id, { include: [{ model: SalesInvoiceItem, as: 'items' }] }));
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/:id/post', async (req, res) => {
@@ -153,7 +154,7 @@ router.post('/:id/post', async (req, res) => {
 
     await t.commit();
     res.json({ message: 'تم الترحيل' });
-  } catch (err) { if (!t.finished) await t.rollback(); res.status(500).json({ error: err.message }); }
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -163,7 +164,7 @@ router.delete('/:id', async (req, res) => {
     if (inv.status === 'posted') return res.status(400).json({ error: 'لا يمكن حذف فاتورة مرحّلة' });
     await inv.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/bulk-delete', async (req, res) => {
@@ -171,7 +172,7 @@ router.post('/bulk-delete', async (req, res) => {
     const { ids } = req.body;
     await SalesInvoice.destroy({ where: { id: ids } });
     res.json({ message: `تم حذف ${ids.length} فاتورة` });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;

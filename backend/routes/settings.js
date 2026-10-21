@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { describeError, errorStatus } = require('../utils/errors');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
@@ -32,7 +33,7 @@ const { adminOnly } = require('../middleware/auth');
 // Users (admin only — user accounts and permissions must not be viewable/editable by non-admins)
 router.get('/users', adminOnly, async (req, res) => {
   try { res.json(await User.findAll({ attributes: { exclude: ['password'] }, order: [['id', 'ASC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/users', adminOnly, async (req, res) => {
@@ -41,7 +42,7 @@ router.post('/users', adminOnly, async (req, res) => {
     const user = await User.create(req.body);
     const { password, ...safe } = user.toJSON();
     res.status(201).json(safe);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/users/:id', adminOnly, async (req, res) => {
@@ -52,7 +53,7 @@ router.put('/users/:id', adminOnly, async (req, res) => {
     await user.update(req.body);
     const { password, ...safe } = user.toJSON();
     res.json(safe);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/users/:id', adminOnly, async (req, res) => {
@@ -61,18 +62,18 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'غير موجود' });
     await user.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Employees
 router.get('/employees', async (req, res) => {
   try { res.json(await Employee.findAll({ order: [['id', 'DESC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/employees', async (req, res) => {
   try { res.status(201).json(await Employee.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/employees/:id', async (req, res) => {
@@ -81,7 +82,7 @@ router.put('/employees/:id', async (req, res) => {
     if (!e) return res.status(404).json({ error: 'غير موجود' });
     await e.update(req.body);
     res.json(e);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/employees/:id', async (req, res) => {
@@ -90,18 +91,18 @@ router.delete('/employees/:id', async (req, res) => {
     if (!e) return res.status(404).json({ error: 'غير موجود' });
     await e.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Financial Years
 router.get('/financial-years', async (req, res) => {
   try { res.json(await FinancialYear.findAll({ order: [['start_date', 'ASC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/financial-years', async (req, res) => {
   try { res.status(201).json(await FinancialYear.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/financial-years/:id', async (req, res) => {
@@ -110,7 +111,7 @@ router.put('/financial-years/:id', async (req, res) => {
     if (!y) return res.status(404).json({ error: 'غير موجود' });
     await y.update(req.body);
     res.json(y);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/financial-years/:id/activate', async (req, res) => {
@@ -119,7 +120,7 @@ router.post('/financial-years/:id/activate', async (req, res) => {
     const y = await FinancialYear.findByPk(req.params.id);
     await y.update({ is_active: true });
     res.json({ message: 'تم التنشيط' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/financial-years/:id/close', async (req, res) => {
@@ -141,7 +142,7 @@ router.post('/financial-years/:id/close', async (req, res) => {
     await current.update({ is_active: false, is_closed: true });
     await next.update({ is_active: true });
     res.json({ message: `تم إقفال ${current.name} وتنشيط ${next.name}` });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/financial-years/:id/reopen', async (req, res) => {
@@ -150,7 +151,7 @@ router.post('/financial-years/:id/reopen', async (req, res) => {
     if (!y) return res.status(404).json({ error: 'غير موجود' });
     await y.update({ is_closed: false });
     res.json({ message: `تم إعادة فتح ${y.name}` });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/financial-years/:id', async (req, res) => {
@@ -160,18 +161,18 @@ router.delete('/financial-years/:id', async (req, res) => {
     if (y.is_active) return res.status(400).json({ error: 'لا يمكن حذف السنة النشطة' });
     await y.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Opening Balances
 router.get('/opening-balances', async (req, res) => {
   try { res.json(await OpeningBalance.findAll({ include: [FinancialYear], order: [['id', 'DESC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/opening-balances', async (req, res) => {
   try { res.status(201).json(await OpeningBalance.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/opening-balances/:id', async (req, res) => {
@@ -180,7 +181,7 @@ router.delete('/opening-balances/:id', async (req, res) => {
     if (!ob) return res.status(404).json({ error: 'غير موجود' });
     await ob.destroy();
     res.json({ message: 'تم الحذف' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Settings
@@ -190,7 +191,7 @@ router.get('/settings', async (req, res) => {
     const obj = {};
     settings.forEach(s => { obj[s.key] = s.value; });
     res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/settings', adminOnly, async (req, res) => {
@@ -199,18 +200,18 @@ router.put('/settings', adminOnly, async (req, res) => {
       await Settings.upsert({ key, value });
     }
     res.json({ message: 'تم الحفظ' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Categories
 router.get('/categories', async (req, res) => {
   try { res.json(await require('../models').Category.findAll({ order: [['id', 'ASC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/categories', async (req, res) => {
   try { res.status(201).json(await require('../models').Category.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/categories/:id', async (req, res) => {
@@ -219,22 +220,22 @@ router.put('/categories/:id', async (req, res) => {
     if (!c) return res.status(404).json({ error: 'غير موجود' });
     await c.update(req.body);
     res.json(c);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/categories/:id', async (req, res) => {
   try { await require('../models').Category.destroy({ where: { id: req.params.id } }); res.json({ message: 'تم الحذف' }); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/item-types', async (req, res) => {
   try { res.json(await ItemType.findAll({ order: [['id', 'ASC']] })); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/item-types', async (req, res) => {
   try { res.status(201).json(await ItemType.create(req.body)); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.put('/item-types/:id', async (req, res) => {
@@ -243,12 +244,12 @@ router.put('/item-types/:id', async (req, res) => {
     if (!t) return res.status(404).json({ error: 'غير موجود' });
     await t.update(req.body);
     res.json(t);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.delete('/item-types/:id', async (req, res) => {
   try { await ItemType.destroy({ where: { id: req.params.id } }); res.json({ message: 'تم الحذف' }); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 // Restore — import .sql file via mysql
@@ -313,7 +314,7 @@ router.get('/backup/sql', adminOnly, async (req, res) => {
   proc.stdout.pipe(res);
   proc.stderr.on('data', () => {}); // suppress warnings
   proc.on('error', (err) => {
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(errorStatus(err)).json({ error: describeError(err) });
   });
 });
 
@@ -361,7 +362,7 @@ router.get('/backup', adminOnly, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="plasticdb-backup-${date}.json"`);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.json(backup);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 module.exports = router;
