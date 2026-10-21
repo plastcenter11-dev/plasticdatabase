@@ -191,16 +191,8 @@ router.post('/transfers/:id/confirm', async (req, res) => {
     if (!transfer) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (transfer.status === 'confirmed') { await t.rollback(); return res.status(400).json({ error: 'التحويل مؤكد مسبقاً' }); }
 
-    for (const item of transfer.items) {
-      const fromStock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, transaction: t });
-      const availableQty = fromStock ? Number(fromStock.quantity) : 0;
-      const availableWt = fromStock ? Number(fromStock.weight || 0) : 0;
-      if (availableQty < Number(item.quantity || 0) || availableWt < Number(item.weight || 0)) {
-        await t.rollback();
-        const fullItem = await Item.findByPk(item.item_id);
-        return res.status(400).json({ error: `الكمية المتاحة من "${fullItem?.name || item.item_id}" غير كافية للتحويل` });
-      }
-    }
+    // No stock check on purpose: a transfer is often entered before the receipt that
+    // feeds the source warehouse, so its balance (kg or count) is allowed to go negative.
 
     for (const item of transfer.items) {
       const [fromStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });

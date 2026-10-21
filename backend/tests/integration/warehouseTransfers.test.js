@@ -44,17 +44,28 @@ describe('POST /api/stock/transfers/:id/confirm', () => {
     expect(Number(to.weight)).toBe(200);
   });
 
-  test('rejects transfer exceeding available stock, leaving stock unchanged (never net-zero on error)', async () => {
-    const transfer = await createTransfer(999, 999);
-    const fromBefore = await Stock.findOne({ where: { item_id: item.id, warehouse_id: fromWh.id } });
+  test('a transfer beyond the source balance is allowed: the source goes negative and the destination receives it', async () => {
+    const transfer = await createTransfer(90, 900); // the source holds 50 / 500
     const res = await request(app).post(`/api/stock/transfers/${transfer.id}/confirm`).set(auth());
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const fromAfter = await Stock.findOne({ where: { item_id: item.id, warehouse_id: fromWh.id } });
     const toAfter = await Stock.findOne({ where: { item_id: item.id, warehouse_id: toWh.id } });
-    expect(Number(fromAfter.quantity)).toBe(Number(fromBefore.quantity));
-    expect(toAfter).toBeNull();
-    const t = await WarehouseTransfer.findByPk(transfer.id);
-    expect(t.status).toBe('pending');
+    expect(Number(fromAfter.quantity)).toBe(-40);
+    expect(Number(fromAfter.weight)).toBe(-400);
+    expect(Number(toAfter.quantity)).toBe(90);
+    expect(Number(toAfter.weight)).toBe(900);
+    expect((await WarehouseTransfer.findByPk(transfer.id)).status).toBe('confirmed');
+  });
+
+  test('a transfer from a warehouse that has no stock record for the item also goes through', async () => {
+    const other = await makeItem();
+    const created = await request(app).post('/api/stock/transfers').set(auth()).send({
+      date: '2026-03-05', from_warehouse_id: fromWh.id, to_warehouse_id: toWh.id, items: [{ item_id: other.id, quantity: 3, weight: 30 }],
+    });
+    const res = await request(app).post(`/api/stock/transfers/${created.body.id}/confirm`).set(auth());
+    expect(res.status).toBe(200);
+    const fromAfter = await Stock.findOne({ where: { item_id: other.id, warehouse_id: fromWh.id } });
+    expect(Number(fromAfter.weight)).toBe(-30);
   });
 
   test('confirming twice is rejected and does not double-move stock', async () => {
