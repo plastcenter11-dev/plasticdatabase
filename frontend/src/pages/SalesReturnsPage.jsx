@@ -15,15 +15,16 @@ export default function SalesReturnsPage() {
   const [customers, setCustomers] = useState([]);
   const [salesInvoices, setSalesInvoices] = useState([]);
   const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ customer_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ customer_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] });
 
   const loadData = async () => {
     try {
-      const [r, c, it] = await Promise.all([api.get('/returns/sales'), api.get('/customers'), api.get('/items')]);
-      setReturns(r.data); setCustomers(c.data); setItems(it.data);
+      const [r, c, it, wh] = await Promise.all([api.get('/returns/sales'), api.get('/customers'), api.get('/items'), api.get('/warehouses')]);
+      setReturns(r.data); setCustomers(c.data); setItems(it.data); setWarehouses(wh.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -58,7 +59,7 @@ export default function SalesReturnsPage() {
           total: unitNet * unit,
         };
       });
-      setForm(f => ({ ...f, invoice_id: invId, tax_rate: Number(inv.tax_rate || 0), invoice_discount: Number(inv.discount || 0), invoice_subtotal: Number(inv.subtotal || 0), items: mapped.length > 0 ? mapped : [{ ...emptyItem }] }));
+      setForm(f => ({ ...f, invoice_id: invId, warehouse_id: inv.warehouse_id ? String(inv.warehouse_id) : f.warehouse_id, tax_rate: Number(inv.tax_rate || 0), invoice_discount: Number(inv.discount || 0), invoice_subtotal: Number(inv.subtotal || 0), items: mapped.length > 0 ? mapped : [{ ...emptyItem }] }));
     } catch { }
   };
 
@@ -86,9 +87,14 @@ export default function SalesReturnsPage() {
   const calcTax = () => form.invoice_id ? 0 : calcSubtotal() * (Number(form.tax_rate) / 100);
   const calcTotal = () => calcSubtotal() + calcTax();
 
+  // Without a warehouse the return only changes the customer's account; the goods
+  // are put back into stock only when a warehouse is chosen.
+  const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
+    if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
     try {
       const taxAmt = calcTax();
@@ -96,6 +102,7 @@ export default function SalesReturnsPage() {
         ...form,
         customer_id: Number(form.customer_id),
         invoice_id: form.invoice_id ? Number(form.invoice_id) : null,
+        warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null,
         tax_rate: Number(form.tax_rate),
         tax_amount: taxAmt,
         total: calcTotal(),
@@ -133,7 +140,7 @@ export default function SalesReturnsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مرتجع مبيعات</h1>
-        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
+        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -205,6 +212,7 @@ export default function SalesReturnsPage() {
                   {salesInvoices.map(i => <option key={i.id} value={i.id}>{i.invoice_no} — {Number(i.total).toLocaleString()} ج.م</option>)}
                 </SearchableSelect>
               </div>
+              <div><label className="form-label">المخزن{needsWarehouse ? ' *' : ''}</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm(f => ({ ...f, warehouse_id: e.target.value }))}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div>
                 <label className="form-label">التاريخ *</label>
                 <input type="date" className="erp-input" required value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />

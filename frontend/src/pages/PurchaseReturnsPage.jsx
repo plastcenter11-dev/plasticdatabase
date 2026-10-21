@@ -14,15 +14,17 @@ export default function PurchaseReturnsPage() {
   const [returns, setReturns] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [purchaseInvoices, setPurchaseInvoices] = useState([]);
+  const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
+  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
 
   const loadData = async () => {
     try {
-      const [r, s] = await Promise.all([api.get('/returns/purchase'), api.get('/suppliers')]);
-      setReturns(r.data); setSuppliers(s.data);
+      const [r, s, it, wh] = await Promise.all([api.get('/returns/purchase'), api.get('/suppliers'), api.get('/items'), api.get('/warehouses')]);
+      setReturns(r.data); setSuppliers(s.data); setItems(it.data); setWarehouses(wh.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
@@ -65,7 +67,7 @@ export default function PurchaseReturnsPage() {
         };
       });
       const items = mapped.length > 0 ? mapped : [{ ...emptyItem }];
-      setForm({ ...form, invoice_id: invoiceId, items, invoice_tax_rate: Number(inv.tax_rate) || 0, invoice_discount: Number(inv.discount) || 0, invoice_subtotal: Number(inv.subtotal) || 0 });
+      setForm({ ...form, invoice_id: invoiceId, warehouse_id: inv.warehouse_id ? String(inv.warehouse_id) : form.warehouse_id, items, invoice_tax_rate: Number(inv.tax_rate) || 0, invoice_discount: Number(inv.discount) || 0, invoice_subtotal: Number(inv.subtotal) || 0 });
     } else { setForm({ ...form, invoice_id: invoiceId, items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); }
   };
 
@@ -94,19 +96,26 @@ export default function PurchaseReturnsPage() {
   const calcTax = () => form.invoice_id ? 0 : calcSubtotal() * (form.invoice_tax_rate / 100);
   const calcTotal = () => calcSubtotal() + calcTax();
 
+  // Without a warehouse the return only changes the supplier's account; the goods
+  // leave stock only when a warehouse is chosen.
+  const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
+    if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     const validItems = form.items.filter(i => Number(i.quantity) > 0);
     if (!validItems.length) return toast.error('أدخل كمية المرتجع');
+    if (validItems.some(i => !i.item_id)) return toast.error('اختر الصنف');
     try {
       await api.post('/returns/purchase', {
         supplier_id: Number(form.supplier_id), invoice_id: form.invoice_id ? Number(form.invoice_id) : null,
+        warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null,
         date: form.date, reason: form.reason,
         tax_rate: Number(form.invoice_tax_rate),
         tax_amount: calcTax(),
         total: calcTotal(),
-        items: validItems.map(i => ({ item_id: i.item_id, quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.total || 0) }))
+        items: validItems.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.total || 0) }))
       });
       toast.success('تم تسجيل مرتجع المشتريات');
       setShowModal(false); loadData();
@@ -139,7 +148,7 @@ export default function PurchaseReturnsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">مرتجع مشتريات</h1>
-        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
+        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
@@ -194,9 +203,10 @@ export default function PurchaseReturnsPage() {
       {showModal && (
         <Modal title="مرتجع مشتريات جديد" onClose={() => setShowModal(false)} width="max-w-3xl">
           <form onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div><label className="form-label">المورد *</label><SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => handleSupplierChange(e.target.value)}><option value="">— اختر —</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect></div>
-              <div><label className="form-label">فاتورة الشراء</label><SearchableSelect className="erp-input" value={form.invoice_id} onChange={e => handleInvoiceChange(e.target.value)}><option value="">— اختر —</option>{purchaseInvoices.map(inv => <option key={inv.id} value={inv.id}>{inv.invoice_no} ({inv.date})</option>)}</SearchableSelect></div>
+              <div><label className="form-label">فاتورة الشراء (اختياري)</label><SearchableSelect className="erp-input" value={form.invoice_id} onChange={e => handleInvoiceChange(e.target.value)}><option value="">— بدون فاتورة —</option>{purchaseInvoices.map(inv => <option key={inv.id} value={inv.id}>{inv.invoice_no} ({inv.date})</option>)}</SearchableSelect></div>
+              <div><label className="form-label">المخزن{needsWarehouse ? ' *' : ''}</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm(f => ({ ...f, warehouse_id: e.target.value }))}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -210,7 +220,31 @@ export default function PurchaseReturnsPage() {
               </div>
             </div>
             <div>
-              <label className="form-label mb-2">الأصناف المرتجعة</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label mb-0">الأصناف المرتجعة</label>
+                {!form.invoice_id && <button type="button" onClick={() => setForm(f => ({ ...f, items: [...f.items, { ...emptyItem }] }))} className="erp-btn erp-btn-outline py-1 px-2 text-xs">+ صنف</button>}
+              </div>
+              {!form.invoice_id ? (
+                <table className="erp-table">
+                  <thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>خصم %</th><th>الإجمالي</th><th></th></tr></thead>
+                  <tbody>{form.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <SearchableSelect className="erp-input py-1" value={item.item_id} onChange={e => updateItem(idx, 'item_id', e.target.value)}>
+                          <option value="">اختر صنف</option>
+                          {items.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}
+                        </SearchableSelect>
+                      </td>
+                      <td><input type="number" step="0.01" min="0" className="erp-input py-1 w-24" value={item.weight} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'weight', e.target.value)} /></td>
+                      <td><input type="number" min="0" className="erp-input py-1 w-20" value={item.quantity} onFocus={e => e.target.select()} onChange={e => updateItem(idx, 'quantity', e.target.value)} /></td>
+                      <td><input type="number" step="0.01" min="0" className="erp-input py-1 w-24" value={item.price} onChange={e => updateItem(idx, 'price', e.target.value)} /></td>
+                      <td><input type="number" min="0" max="100" className="erp-input py-1 w-16" value={item.discount} onChange={e => updateItem(idx, 'discount', e.target.value)} /></td>
+                      <td className="font-bold">{(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</td>
+                      <td>{form.items.length > 1 && <button type="button" onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))} className="text-red-500 text-xs cursor-pointer">حذف</button>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              ) : (
               <table className="erp-table">
                 <thead><tr><th>الصنف</th><th>الوزن المشترى</th><th>العدد المشترى</th><th>الوزن المرتجع</th><th>العدد المرتجع</th><th>السعر</th><th>خصم %</th><th>الإجمالي</th></tr></thead>
                 <tbody>{form.items.map((item, idx) => (
@@ -226,6 +260,7 @@ export default function PurchaseReturnsPage() {
                   </tr>
                 ))}</tbody>
               </table>
+              )}
               {form.invoice_id ? (
                 <div className="text-sm text-gray-500 border-t pt-3 mt-2 text-left">شامل الضريبة والخصم بنفس نسبتهما في الفاتورة الأصلية</div>
               ) : form.invoice_tax_rate > 0 && (

@@ -84,6 +84,15 @@ export async function field(page, label, value, nth = 0) {
   await setValue(page, el, value);
 }
 
+// the text a labelled field currently shows (e.g. the chosen option of a dropdown)
+export async function fieldValue(page, label, nth = 0) {
+  // an open dropdown shows what is being typed, not the chosen option: close any open one first
+  await page.evaluate(() => document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+  await sleep(200);
+  const el = await controlFor(page, label, nth);
+  return el.evaluate(e => e.value);
+}
+
 // a cell of the lines table inside the open form (rows and columns count from 0)
 export async function cell(page, tableIndex, row, col, value) {
   const handle = await page.evaluateHandle((SCOPE, tableIndex, row, col) => {

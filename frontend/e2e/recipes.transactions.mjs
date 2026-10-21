@@ -3,7 +3,7 @@
 // opening balances. Order matters a little: later recipes use what earlier ones
 // posted (e.g. the purchase return needs a posted purchase invoice).
 
-import { goto, clickText, field, cell, save, settle, sleep } from './lib.mjs';
+import { goto, clickText, field, fieldValue, cell, save, settle, sleep } from './lib.mjs';
 
 async function expectApi(c, url, predicate, what) {
   const data = await c.api('GET', url);
@@ -136,12 +136,24 @@ export const transactionRecipes = [
   {
     name: 'مرتجع بيع بدون فاتورة',
     run: async (c) => {
+      const before = await stockOf(c, c.items.a.id);
       await goto(c.page, c.base, '/sales-returns');
       await clickText(c.page, 'مرتجع جديد');
       await field(c.page, 'العميل', 'E2E عميل');
-      await cell(c.page, 0, 0, 0, 'E2E صنف أ'); await cell(c.page, 0, 0, 1, 10); await cell(c.page, 0, 0, 2, 1); await cell(c.page, 0, 0, 3, 15);
+      await cell(c.page, 0, 0, 0, 'E2E-A -'); await cell(c.page, 0, 0, 1, 10); await cell(c.page, 0, 0, 2, 1); await cell(c.page, 0, 0, 3, 15);
+      // a stockable item needs a warehouse: saving without one is refused by the form
+      c.w.reset();
+      await clickText(c.page, 'حفظ');
+      await sleep(600);
+      const refused = await c.page.evaluate(() => [...document.querySelectorAll('.Toastify__toast--error')].map(t => t.textContent.trim()));
+      if (!refused.some(t => t.includes('اختر المخزن'))) throw new Error('the form should ask for a warehouse, got: ' + refused.join(' | '));
+      // let that toast go away so it is not mistaken for the result of the real save
+      await c.page.waitForFunction(() => !document.querySelector('.Toastify__toast--error'), { timeout: 10000 });
+      await field(c.page, 'المخزن', 'E2E مخزن 1');
       await save(c.page, c.w);
       await expectApi(c, '/returns/sales', l => l.length > 0, 'a sales return');
+      const after = await stockOf(c, c.items.a.id);
+      if (Number(after.total_weight) - Number(before.total_weight) !== 10) throw new Error(`the returned 10 kg should be back in stock, stock moved by ${Number(after.total_weight) - Number(before.total_weight)}`);
     },
   },
 
@@ -165,16 +177,49 @@ export const transactionRecipes = [
   {
     name: 'مرتجع شراء على فاتورة',
     run: async (c) => {
-      const inv = (await c.api('GET', '/purchase-invoices')).find(x => x.status === 'posted');
-      if (!inv) throw new Error('needs a posted purchase invoice (the purchase recipe runs first)');
+      // its own posted invoice, so the recipe does not depend on the others
+      const created = await c.api('POST', '/purchase-invoices', {
+        supplier_id: c.supplier.id, warehouse_id: c.w1.id, invoice_no: 'E2E-PR-' + Date.now(), date: c.today, subtotal: 600, total: 600, paid: 0, remaining: 600,
+        items: [{ item_id: c.items.a.id, quantity: 30, weight: 300, price: 2, discount: 0, total: 600 }],
+      });
+      await c.api('POST', `/purchase-invoices/${created.id}/post`);
+      const before = await stockOf(c, c.items.a.id);
       await goto(c.page, c.base, '/purchase-returns');
       await clickText(c.page, 'مرتجع جديد');
       await field(c.page, 'المورد', 'E2E مورد');
-      await field(c.page, 'فاتورة الشراء', inv.invoice_no);
+      await field(c.page, 'فاتورة الشراء', created.invoice_no);
       await sleep(500);
+      const proposed = await fieldValue(c.page, 'المخزن');
+      if (!proposed.includes('E2E مخزن 1')) throw new Error('the invoice should propose its warehouse, the field shows: "' + proposed + '"');
       await cell(c.page, 0, 0, 3, 20); await cell(c.page, 0, 0, 4, 2);
       await save(c.page, c.w, 'حفظ المرتجع');
-      await expectApi(c, '/returns/purchase', l => l.length > 0, 'a purchase return');
+      await expectApi(c, '/returns/purchase', l => l.some(x => x.invoice_id === created.id), 'a purchase return on that invoice');
+      const after = await stockOf(c, c.items.a.id);
+      if (Number(before.total_weight) - Number(after.total_weight) !== 20) throw new Error(`the returned 20 kg should leave stock, stock moved by ${Number(after.total_weight) - Number(before.total_weight)}`);
+    },
+  },
+
+  {
+    // no invoice: free item rows, like the sales return
+    name: 'مرتجع شراء بدون فاتورة',
+    run: async (c) => {
+      const before = (await c.api('GET', '/returns/purchase')).length;
+      const stockBefore = await stockOf(c, c.items.a.id);
+      await goto(c.page, c.base, '/purchase-returns');
+      await clickText(c.page, 'مرتجع جديد');
+      await field(c.page, 'المورد', 'E2E مورد');
+      await field(c.page, 'المخزن', 'E2E مخزن 1');
+      await cell(c.page, 0, 0, 0, 'E2E-A -'); await cell(c.page, 0, 0, 1, 15); await cell(c.page, 0, 0, 2, 1); await cell(c.page, 0, 0, 3, 12);
+      await clickText(c.page, '+ صنف');
+      await cell(c.page, 0, 1, 0, 'E2E-B -'); await cell(c.page, 0, 1, 1, 5); await cell(c.page, 0, 1, 2, 1); await cell(c.page, 0, 1, 3, 20);
+      await save(c.page, c.w, 'حفظ المرتجع');
+      const list = await c.api('GET', '/returns/purchase');
+      if (list.length !== before + 1) throw new Error('the purchase return was not saved');
+      const saved = list[0];
+      if ((saved.items || []).length !== 2) throw new Error('expected two item lines, got ' + (saved.items || []).length);
+      if (Number(saved.total) !== 15 * 12 + 5 * 20) throw new Error('expected a total of 280, got ' + saved.total);
+      const stockAfter = await stockOf(c, c.items.a.id);
+      if (Number(stockBefore.total_weight) - Number(stockAfter.total_weight) !== 15) throw new Error('the returned 15 kg should leave stock');
     },
   },
 
