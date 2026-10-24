@@ -6,6 +6,7 @@ import { goto, clickText, field, save } from './lib.mjs';
 import { transactionRecipes } from './recipes.transactions.mjs';
 import { pageRecipes } from './recipes.pages.mjs';
 import { moreRecipes } from './recipes.more.mjs';
+import { editDeleteRecipes } from './recipes.editdelete.mjs';
 
 async function expectApi(c, url, predicate, what) {
   const data = await c.api('GET', url);
@@ -99,5 +100,6 @@ export const recipes = [
 
   ...transactionRecipes,
   ...moreRecipes,
+  ...editDeleteRecipes,
   ...pageRecipes,
 ];
