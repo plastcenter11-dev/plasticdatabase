@@ -6,9 +6,14 @@
 import { goto, clickText, field, fieldValue, cell, save, settle, sleep } from './lib.mjs';
 
 async function expectApi(c, url, predicate, what) {
-  const data = await c.api('GET', url);
-  const list = Array.isArray(data) ? data : (data.rows || data);
-  if (!predicate(list)) throw new Error(`expected ${what} but ${url} has no such record`);
+  // the app may still be saving when the click returns: look again for a few seconds
+  for (let i = 0; ; i++) {
+    const data = await c.api('GET', url);
+    const list = Array.isArray(data) ? data : (data.rows || data);
+    if (predicate(list)) return;
+    if (i >= 12) throw new Error(`expected ${what} but ${url} has no such record`);
+    await new Promise(r => setTimeout(r, 500));
+  }
 }
 
 const stockOf = async (c, itemId) => (await c.api('GET', '/stock/items-stock')).find(r => r.item_id === itemId);

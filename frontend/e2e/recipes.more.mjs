@@ -20,7 +20,16 @@ const makeCheck = (c, no, type, amount) => c.api('POST', '/finance/checks', {
   amount, due_date: '2027-03-01', date: c.today, status: 'pending',
 });
 
-const checkStatus = async (c, no) => (await c.api('GET', '/finance/checks')).find(x => x.check_no === no);
+// the check as it is now; waits (up to ~6 s) for it to leave 'pending'
+const checkStatus = async (c, no) => {
+  let ck;
+  for (let i = 0; i < 12; i++) {
+    ck = (await c.api('GET', '/finance/checks')).find(x => x.check_no === no);
+    if (ck && ck.status !== 'pending') break;
+    await sleep(500);
+  }
+  return ck;
+};
 
 export const moreRecipes = [
   {
