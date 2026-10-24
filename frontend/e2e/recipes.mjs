@@ -8,6 +8,7 @@ import { pageRecipes } from './recipes.pages.mjs';
 import { moreRecipes } from './recipes.more.mjs';
 import { editDeleteRecipes } from './recipes.editdelete.mjs';
 import { stockCountRecipes } from './recipes.stockcount.mjs';
+import { yearRecipes } from './recipes.years.mjs';
 
 async function expectApi(c, url, predicate, what) {
   // the app may still be saving when the click returns: look again for a few seconds
@@ -108,5 +109,6 @@ export const recipes = [
   ...moreRecipes,
   ...editDeleteRecipes,
   ...stockCountRecipes,
+  ...yearRecipes,
   ...pageRecipes,
 ];
