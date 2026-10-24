@@ -189,7 +189,7 @@ export const transactionRecipes = [
       await field(c.page, 'المورد', 'E2E مورد');
       await field(c.page, 'فاتورة الشراء', created.invoice_no);
       await sleep(500);
-      const proposed = await fieldValue(c.page, 'المخزن');
+      let proposed = ''; for (let i = 0; i < 10 && !proposed; i++) { await sleep(400); proposed = await fieldValue(c.page, 'المخزن'); }
       if (!proposed.includes('E2E مخزن 1')) throw new Error('the invoice should propose its warehouse, the field shows: "' + proposed + '"');
       await cell(c.page, 0, 0, 3, 20); await cell(c.page, 0, 0, 4, 2);
       await save(c.page, c.w, 'حفظ المرتجع');

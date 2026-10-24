@@ -5,6 +5,7 @@
 import { goto, clickText, field, save } from './lib.mjs';
 import { transactionRecipes } from './recipes.transactions.mjs';
 import { pageRecipes } from './recipes.pages.mjs';
+import { moreRecipes } from './recipes.more.mjs';
 
 async function expectApi(c, url, predicate, what) {
   const data = await c.api('GET', url);
@@ -44,8 +45,8 @@ export const recipes = [
     '/customers', l => l.some(x => x.name === 'E2E عميل جديد'), 'the new customer'),
 
   simple('مورد جديد', '/suppliers', 'إضافة مورد',
-    async (c) => { await field(c.page, 'اسم المورد', 'E2E مورد جديد'); },
-    '/suppliers', l => l.some(x => x.name === 'E2E مورد جديد'), 'the new supplier'),
+    async (c) => { await field(c.page, 'اسم المورد', 'E2E شركة توريد'); },
+    '/suppliers', l => l.some(x => x.name === 'E2E شركة توريد'), 'the new supplier'),
 
   simple('موظف جديد', '/employees', 'إضافة موظف',
     async (c) => { await field(c.page, 'الاسم', 'E2E موظف جديد'); await field(c.page, 'نسبة العمولة', 2); },
@@ -97,5 +98,6 @@ export const recipes = [
     '/finance/other-income', l => l.some(x => x.description === 'E2E إيراد'), 'the other income'),
 
   ...transactionRecipes,
+  ...moreRecipes,
   ...pageRecipes,
 ];

@@ -117,7 +117,7 @@ try {
     const w = watch(page);
     const started = Date.now();
     try {
-      await recipe.run({ page, base: BASE_URL, api, w, ...seeded });
+      await recipe.run({ page, browser, base: BASE_URL, apiUrl: API_URL, api, w, ...seeded });
       if (w.pageErrors.length) throw new Error(`page error: ${w.pageErrors.join(' | ')}`);
       results.push({ name: recipe.name, ok: true, ms: Date.now() - started });
       console.log(`  ok   ${recipe.name} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
