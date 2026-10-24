@@ -7,6 +7,7 @@ import { transactionRecipes } from './recipes.transactions.mjs';
 import { pageRecipes } from './recipes.pages.mjs';
 import { moreRecipes } from './recipes.more.mjs';
 import { editDeleteRecipes } from './recipes.editdelete.mjs';
+import { stockCountRecipes } from './recipes.stockcount.mjs';
 
 async function expectApi(c, url, predicate, what) {
   const data = await c.api('GET', url);
@@ -101,5 +102,6 @@ export const recipes = [
   ...transactionRecipes,
   ...moreRecipes,
   ...editDeleteRecipes,
+  ...stockCountRecipes,
   ...pageRecipes,
 ];
