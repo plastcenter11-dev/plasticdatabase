@@ -37,7 +37,7 @@ export const listRecipes = [
     name: 'قائمة فواتير البيع: ترقيم وبحث وفلاتر وترتيب',
     run: async (c) => {
       const tag = 'E2L' + String(Date.now()).slice(-5);
-      const customer = await c.api('POST', '/customers', { name: 'E2E عميل قوائم ' + tag });
+      const customer = await c.api('POST', '/customers', { name: 'E2E زبون قوائم ' + tag });
       const dates = ['2026-03-05', '2026-04-10', '2026-05-15'];
       for (let i = 0; i < 60; i++) {
         const total = (i + 1) * 10;
@@ -105,7 +105,7 @@ export const listRecipes = [
 
       // customer filter without any search
       await clickButton(c.page, 'مسح الفلاتر', false); await wait();
-      await pickInHeader(c.page, 'العميل', 'E2E عميل قوائم ' + tag);
+      await pickInHeader(c.page, 'العميل', 'E2E زبون قوائم ' + tag);
       info = await pager(c.page);
       if (!/60 فاتورة/.test(info)) throw new Error('the customer filter should leave the 60 invoices: ' + info);
       r = await rows(c.page);
