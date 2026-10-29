@@ -124,6 +124,7 @@ try {
     } catch (e) {
       const shot = path.join(artifacts, `${recipe.name.replace(/[^\w\u0600-\u06FF]+/g, '_')}.png`);
       try { await page.screenshot({ path: shot }); } catch { /* page already gone */ }
+      if (w.failed.length) e.message += ' | failed requests: ' + w.failed.slice(0, 5).join(' | ');
       results.push({ name: recipe.name, ok: false, error: e.message });
       console.log(`  FAIL ${recipe.name}\n       ${e.message}\n       screenshot: ${shot}`);
     } finally {
