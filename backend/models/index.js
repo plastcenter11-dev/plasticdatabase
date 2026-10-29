@@ -112,6 +112,7 @@ const DeliveryNoteItem = sequelize.define('DeliveryNoteItem', {
 const DeliveryNoteOrder = sequelize.define('DeliveryNoteOrder', {}, { timestamps: false });
 
 const SalesInvoice = sequelize.define('SalesInvoice', {
+  approved_at: { type: DataTypes.DATE, allowNull: true },
   invoice_no: { type: DataTypes.STRING, allowNull: false, unique: true },
   date: { type: DataTypes.DATEONLY, allowNull: false },
   status: { type: DataTypes.ENUM('draft', 'posted'), defaultValue: 'draft' },
@@ -134,6 +135,7 @@ const SalesInvoiceItem = sequelize.define('SalesInvoiceItem', {
 });
 
 const PurchaseInvoice = sequelize.define('PurchaseInvoice', {
+  approved_at: { type: DataTypes.DATE, allowNull: true },
   invoice_no: { type: DataTypes.STRING, allowNull: false, unique: true },
   date: { type: DataTypes.DATEONLY, allowNull: false },
   status: { type: DataTypes.ENUM('draft', 'posted'), defaultValue: 'draft' },

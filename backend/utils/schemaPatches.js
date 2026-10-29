@@ -8,6 +8,9 @@ const PATCHES = [
   // "Extra expenses" lines on item assemblies (quantity x price added to cost).
   { table: 'item_assembly_components', column: 'is_expense', definition: { type: DataTypes.BOOLEAN, defaultValue: false } },
   { table: 'item_assembly_components', column: 'price', definition: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 } },
+  // Invoice approval (settings option: an admin approves before posting).
+  { table: 'sales_invoices', column: 'approved_at', definition: { type: DataTypes.DATE, allowNull: true } },
+  { table: 'purchase_invoices', column: 'approved_at', definition: { type: DataTypes.DATE, allowNull: true } },
 ];
 
 async function applySchemaPatches(sequelize) {

@@ -8,6 +8,9 @@ export default function SettingsPage() {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(isAdmin() ? 'company' : 'password');
   const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '' });
+  const [opts, setOpts] = useState({ opt_credit_no_limit: '1', opt_auto_tax: '1', opt_block_below_cost: '0', opt_auto_numbering: '1', opt_require_approval: '0' });
+  const [protectUntil, setProtectUntil] = useState('');
+  const [protectDate, setProtectDate] = useState('');
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [categories, setCategories] = useState([]);
   const [types, setTypes] = useState([]);
@@ -58,8 +61,24 @@ export default function SettingsPage() {
         company_phone: r.data.company_phone || '',
         company_tax_no: r.data.company_tax_no || '',
       });
+      setOpts(o => ({ ...o, ...Object.fromEntries(Object.keys(o).filter(k => r.data[k] !== undefined).map(k => [k, r.data[k]])) }));
+      setProtectUntil(r.data.protect_until || '');
+      setProtectDate(r.data.protect_until || '');
     }).catch(() => {});
   }, []);
+
+  const saveOptions = async () => {
+    try { await api.put('/settings', opts); toast.success('تم حفظ الخيارات'); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ في الحفظ'); }
+  };
+
+  const saveProtection = async (value) => {
+    try {
+      await api.put('/settings', { protect_until: value });
+      setProtectUntil(value); setProtectDate(value);
+      toast.success(value ? `تم تفعيل حماية السجلات حتى ${value}` : 'تم إلغاء حماية السجلات');
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في الحفظ'); }
+  };
 
   const saveCompany = async () => {
     try { await api.put('/settings', company); toast.success('تم حفظ بيانات المنشأة'); }
@@ -124,13 +143,13 @@ export default function SettingsPage() {
           <div className="space-y-4 max-w-lg">
             <h2 className="text-lg font-bold text-gray-700">خيارات النظام</h2>
             <div className="space-y-3">
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /><span className="text-sm">السماح بالبيع بالآجل بدون حد ائتمان</span></label>
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /><span className="text-sm">تفعيل الضريبة تلقائياً على الفواتير</span></label>
-              <label className="flex items-center gap-2"><input type="checkbox" /><span className="text-sm">منع البيع بأقل من سعر التكلفة</span></label>
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /><span className="text-sm">ترقيم الفواتير تلقائياً</span></label>
-              <label className="flex items-center gap-2"><input type="checkbox" /><span className="text-sm">طلب اعتماد الفواتير قبل الترحيل</span></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={opts.opt_credit_no_limit === '1'} onChange={e => setOpts({ ...opts, opt_credit_no_limit: e.target.checked ? '1' : '0' })} /><span className="text-sm">السماح بالبيع بالآجل بدون حد ائتمان</span></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={opts.opt_auto_tax === '1'} onChange={e => setOpts({ ...opts, opt_auto_tax: e.target.checked ? '1' : '0' })} /><span className="text-sm">تفعيل الضريبة تلقائياً على الفواتير (14%)</span></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={opts.opt_block_below_cost === '1'} onChange={e => setOpts({ ...opts, opt_block_below_cost: e.target.checked ? '1' : '0' })} /><span className="text-sm">منع البيع بأقل من سعر التكلفة</span></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={opts.opt_auto_numbering === '1'} onChange={e => setOpts({ ...opts, opt_auto_numbering: e.target.checked ? '1' : '0' })} /><span className="text-sm">ترقيم الفواتير تلقائياً</span></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={opts.opt_require_approval === '1'} onChange={e => setOpts({ ...opts, opt_require_approval: e.target.checked ? '1' : '0' })} /><span className="text-sm">طلب اعتماد الفواتير قبل الترحيل</span></label>
             </div>
-            <button onClick={() => toast.success('تم حفظ الخيارات')} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
+            <button onClick={saveOptions} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
           </div>
         )}
 
@@ -217,9 +236,10 @@ export default function SettingsPage() {
             <h2 className="text-lg font-bold text-gray-700">حماية السجلات</h2>
             <p className="text-sm text-gray-600">حماية السجلات تمنع تعديل أو حذف الفواتير والحركات القديمة.</p>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="form-label">حماية حتى تاريخ</label><input type="date" className="erp-input" defaultValue="2026-05-31" /></div>
+              <div><label className="form-label">حماية حتى تاريخ</label><input type="date" className="erp-input" value={protectDate} onChange={e => setProtectDate(e.target.value)} /></div>
             </div>
-            <button onClick={() => toast.success('تم تفعيل حماية السجلات')} className="erp-btn erp-btn-danger flex items-center gap-1"><MdLock size={18} /> تفعيل الحماية</button>
+            <p className="text-sm">{protectUntil ? `الحماية مفعّلة حتى ${protectUntil}` : 'الحماية غير مفعّلة'}</p>
+            <button onClick={() => protectDate ? saveProtection(protectDate) : toast.error('اختر تاريخ الحماية')} className="erp-btn erp-btn-danger flex items-center gap-1"><MdLock size={18} /> تفعيل الحماية</button>
           </div>
         )}
 
@@ -227,7 +247,7 @@ export default function SettingsPage() {
           <div className="space-y-4 max-w-lg">
             <h2 className="text-lg font-bold text-gray-700">إلغاء حماية السجلات</h2>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">تحذير: إلغاء الحماية سيسمح بتعديل وحذف كل السجلات.</div>
-            <button onClick={() => { if (window.confirm('هل أنت متأكد من إلغاء حماية السجلات؟')) toast.success('تم إلغاء حماية السجلات'); }} className="erp-btn erp-btn-warning flex items-center gap-1"><MdLockOpen size={18} /> إلغاء الحماية</button>
+            <button onClick={() => { if (window.confirm('هل أنت متأكد من إلغاء حماية السجلات؟')) saveProtection(''); }} className="erp-btn erp-btn-warning flex items-center gap-1"><MdLockOpen size={18} /> إلغاء الحماية</button>
           </div>
         )}
 

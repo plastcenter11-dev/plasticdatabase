@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { PurchaseInvoice, PurchaseInvoiceItem, Supplier, Item, Stock, StockMovement, CashPayment, sequelize } = require('../models');
 const { listInvoices } = require('../utils/invoiceList');
+const { invoiceNumberError, approvalError } = require('../utils/invoiceRules');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 
@@ -26,6 +27,8 @@ router.post('/', async (req, res) => {
     if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
     const closedErr = await closedYearError(data.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    const numErr = await invoiceNumberError(data);
+    if (numErr) { await t.rollback(); return res.status(400).json({ error: numErr }); }
     const max = await PurchaseInvoice.max('id') || 0;
     data.invoice_no = data.invoice_no || `PI-${String(max + 1).padStart(6, '0')}`;
     const inv = await PurchaseInvoice.create(data, { transaction: t });
@@ -44,6 +47,7 @@ router.put('/:id', async (req, res) => {
     const { items, ...data } = req.body;
     const closedErr = await closedYearError(data.date || inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    data.approved_at = null; // an edited invoice has to be approved again
     if (items) {
       await PurchaseInvoiceItem.destroy({ where: { invoice_id: inv.id }, transaction: t });
       await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
@@ -54,6 +58,17 @@ router.put('/:id', async (req, res) => {
   } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
+router.post('/:id/approve', async (req, res) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'الاعتماد للمدير فقط' });
+    const inv = await PurchaseInvoice.findByPk(req.params.id);
+    if (!inv) return res.status(404).json({ error: 'غير موجود' });
+    if (inv.status === 'posted') return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' });
+    await inv.update({ approved_at: new Date() });
+    res.json({ message: 'تم اعتماد الفاتورة' });
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
 router.post('/:id/post', async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -62,6 +77,8 @@ router.post('/:id/post', async (req, res) => {
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const closedErr = await closedYearError(inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    const appErr = await approvalError(inv);
+    if (appErr) { await t.rollback(); return res.status(400).json({ error: appErr }); }
     const whErr = await missingWarehouseError(inv, t);
     if (whErr) { await t.rollback(); return res.status(400).json({ error: whErr }); }
 

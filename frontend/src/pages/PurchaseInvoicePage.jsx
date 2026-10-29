@@ -8,12 +8,14 @@ import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { useOptions } from '../hooks/useOptions';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
 
 export default function PurchaseInvoicePage() {
-  const { can } = useAuth();
+  const { can, isAdmin } = useAuth();
+  const { autoTaxRate, typedNumber, needsApproval } = useOptions();
   const [invoices, setInvoices] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [items, setItems] = useState([]);
@@ -24,7 +26,7 @@ export default function PurchaseInvoicePage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [form, setForm] = useState({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
   const [newItemRowIdx, setNewItemRowIdx] = useState(null);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
 
@@ -124,7 +126,7 @@ export default function PurchaseInvoicePage() {
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
     const payload = {
-      supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
+      supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, invoice_no: typedNumber ? form.invoice_no : undefined, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
       items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
     };
     try {
@@ -138,10 +140,15 @@ export default function PurchaseInvoicePage() {
     setEditing(inv);
     setForm({
       supplier_id: String(inv.supplier_id), warehouse_id: String(inv.warehouse_id || ''), date: inv.date,
-      discount: Number(inv.discount || 0), tax_rate: inv.tax_rate, paid: inv.paid,
+      discount: Number(inv.discount || 0), tax_rate: inv.tax_rate, invoice_no: inv.invoice_no, paid: inv.paid,
       items: (inv.items || []).map(i => ({ item_id: String(i.item_id), quantity: i.quantity, weight: i.weight || '', price: i.price, discount: i.discount || 0 })),
     });
     setShowModal(true);
+  };
+
+  const handleApprove = async (id) => {
+    try { await api.post(`/purchase-invoices/${id}/approve`); toast.success('تم اعتماد الفاتورة'); loadData(); }
+    catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
   const handlePost = async (id) => {
@@ -192,7 +199,7 @@ export default function PurchaseInvoicePage() {
         <h1 className="text-xl font-bold text-gray-800">فواتير الشراء</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && can('purchase_invoices', 'delete') && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          {can('purchase_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: 14, paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
+          {can('purchase_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
         </div>
       </div>
 
@@ -230,6 +237,8 @@ export default function PurchaseInvoicePage() {
                 <td>{inv.status === 'draft' ? <span className="badge badge-yellow">مسودة</span> : <span className="badge badge-green">مرحّلة</span>}</td>
                 <td>
                   <div className="flex gap-1">
+                    {needsApproval && inv.status === 'draft' && !inv.approved_at && isAdmin() && <button onClick={() => handleApprove(inv.id)} className="erp-btn erp-btn-warning py-1 px-2 text-xs">اعتماد</button>}
+                    {needsApproval && inv.status === 'draft' && inv.approved_at && <span className="badge badge-green">معتمدة</span>}
                     {inv.status === 'draft' && can('purchase_invoices', 'edit') && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
                     {inv.status === 'draft' && can('purchase_invoices', 'edit') && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
@@ -255,6 +264,7 @@ export default function PurchaseInvoicePage() {
             <div className="grid grid-cols-3 gap-3">
               <div><label className="form-label">المورد *</label><SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}><option value="">— اختر —</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</SearchableSelect></div>
               <div><label className="form-label">المخزن{needsWarehouse ? ' *' : ''}</label><SearchableSelect className="erp-input" value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}><option value="">— اختر —</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</SearchableSelect></div>
+              {typedNumber && <div><label className="form-label">رقم الفاتورة *</label><input className="erp-input" required value={form.invoice_no || ''} onChange={e => setForm({ ...form, invoice_no: e.target.value })} /></div>}
               <div><label className="form-label">التاريخ *</label><input type="date" className="erp-input" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             {selectedParty && (

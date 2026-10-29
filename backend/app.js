@@ -12,6 +12,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/options', auth, require('./routes/options'));
 app.use('/api/items', auth, requireModule('items'), require('./routes/items'));
 app.use('/api/warehouses', auth, requireModule('warehouses'), require('./routes/warehouses'));
 app.use('/api/customers', auth, requireModule('customers'), require('./routes/customers'));
