@@ -1,6 +1,6 @@
 // Settings screens, customer credit limits and the change-password flow.
 
-import { goto, clickText, field, settle, sleep } from './lib.mjs';
+import { goto, clickText, field, settle, sleep, eventually } from './lib.mjs';
 
 // the submit button is labelled exactly "تغيير" (the tab is "تغيير كلمة المرور")
 const submitChange = (page) => page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'تغيير').click());
@@ -20,8 +20,7 @@ async function lookupFlow(c, placeholder, apiUrl, label) {
   const input = await c.page.$(`input[placeholder="${placeholder}"]`);
   await input.type(name, { delay: 10 });
   await c.page.keyboard.press('Enter');
-  await sleep(900);
-  if (!(await c.api('GET', apiUrl)).some(x => x.name === name)) throw new Error(`the ${label} was not added`);
+  await eventually(async () => (await c.api('GET', apiUrl)).some(x => x.name === name), `the ${label} was not added`);
 
   const rowButton = (text, index) => c.page.evaluate((text, index) => {
     const row = [...document.querySelectorAll('div')].find(d => d.className.includes('bg-gray-50') && d.textContent.includes(text) && d.querySelector('button'));
@@ -35,12 +34,10 @@ async function lookupFlow(c, placeholder, apiUrl, label) {
   await c.page.keyboard.down('Control'); await c.page.keyboard.press('KeyA'); await c.page.keyboard.up('Control');
   await c.page.keyboard.type(renamed, { delay: 10 });
   await c.page.keyboard.press('Enter');
-  await sleep(900);
-  if (!(await c.api('GET', apiUrl)).some(x => x.name === renamed)) throw new Error(`the ${label} was not renamed`);
+  await eventually(async () => (await c.api('GET', apiUrl)).some(x => x.name === renamed), `the ${label} was not renamed`);
 
   if (!await rowButton(renamed, 1)) throw new Error(`no delete button on the ${label} row`);
-  await sleep(1000);
-  if ((await c.api('GET', apiUrl)).some(x => x.name === renamed)) throw new Error(`the ${label} was not deleted`);
+  await eventually(async () => !(await c.api('GET', apiUrl)).some(x => x.name === renamed), `the ${label} was not deleted`);
 }
 
 export const settingsRecipes = [
@@ -56,8 +53,7 @@ export const settingsRecipes = [
         await field(c.page, 'الهاتف', '0123456789');
         await clickText(c.page, 'حفظ');
         await settle(c.page, c.w, 1000);
-        const now = await c.api('GET', '/settings');
-        if (now.company_name !== name || now.company_phone !== '0123456789') throw new Error('the company data was not saved: ' + JSON.stringify(now));
+        await eventually(async () => { const now = await c.api('GET', '/settings'); return now.company_name === name && now.company_phone === '0123456789'; }, 'the company data was not saved');
         // survives a reload
         await goto(c.page, c.base, '/settings/options');
         await clickText(c.page, 'بيانات المنشأة').catch(() => {});

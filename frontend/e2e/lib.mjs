@@ -157,3 +157,14 @@ export function watch(page) {
   page.on('pageerror', (e) => w.pageErrors.push(e.message));
   return w;
 }
+
+// Re-run `check` until it returns a truthy value (the app may still be saving when
+// a click returns). Throws `what` if it never does within `ms`.
+export async function eventually(check, what, ms = 8000) {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    if (await check()) return;
+    if (Date.now() > deadline) throw new Error(what);
+    await sleep(400);
+  }
+}

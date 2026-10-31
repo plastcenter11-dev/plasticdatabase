@@ -10,20 +10,20 @@ const rows = (page) => page.evaluate(() => [...document.querySelectorAll('tbody 
     const num = (s) => Number(s.replace(/[^\d.]/g, ''));
     return { no: t[1], date: t[2], customer: t[3], total: num(t[5]), paid: num(t[6]), remaining: num(t[7]) };
   }));
-const pager = (page) => page.evaluate(() => (document.body.innerText.match(/صفحة \d+ من \d+ — [\d,]+ فاتورة/) || [''])[0]);
-const setInput = (page, el, value) => el.evaluate((e, v) => {
+export const pager = (page) => page.evaluate(() => (document.body.innerText.match(/صفحة \d+ من \d+ — [\d,]+ فاتورة/) || [''])[0]);
+export const setInput = (page, el, value) => el.evaluate((e, v) => {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, v);
   e.dispatchEvent(new Event('input', { bubbles: true }));
   e.dispatchEvent(new Event('change', { bubbles: true }));
 }, value);
-const wait = () => sleep(900);
-const clickButton = (page, text, exact = true) => page.evaluate((text, exact) => {
+export const wait = () => sleep(900);
+export const clickButton = (page, text, exact = true) => page.evaluate((text, exact) => {
   const b = [...document.querySelectorAll('button')].find(x => (exact ? x.textContent.trim() === text : x.textContent.includes(text)));
   if (!b) throw new Error('no button ' + text);
   b.click();
 }, text, exact);
 
-async function pickInHeader(page, header, optionText) {
+export async function pickInHeader(page, header, optionText) {
   // header dropdowns are SearchableSelects whose placeholder / value is the column name
   const handle = await page.evaluateHandle((header) => [...document.querySelectorAll('thead input.erp-select')].find(i => i.placeholder === header || i.value === header) || null, header);
   const el = handle.asElement();

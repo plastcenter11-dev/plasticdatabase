@@ -5,4 +5,4 @@ dist/
 database/
 
 # browser smoke tests: screenshots of failed recipes
-e2e/artifacts/
+**/e2e/artifacts/

@@ -7,7 +7,7 @@ const stockOf = async (c, itemId) => (await c.api('GET', '/stock/items-stock')).
 const weightOf = async (c, itemId) => Number((await stockOf(c, itemId) || {}).total_weight || 0);
 
 // click the edit (outline) or delete (danger) button of the row containing `text`
-async function rowAction(page, text, kind) {
+export async function rowAction(page, text, kind) {
   const cls = kind === 'edit' ? 'erp-btn-outline' : 'erp-btn-danger';
   const ok = await page.evaluate((text, cls) => {
     const tr = [...document.querySelectorAll('tbody tr')].find(r => r.textContent.includes(text));
@@ -19,7 +19,7 @@ async function rowAction(page, text, kind) {
   await sleep(400);
 }
 
-const search = async (page, text) => {
+export const search = async (page, text) => {
   const box = await page.$('input[placeholder*="بحث"]');
   if (!box) return;
   await box.evaluate((e, v) => {
