@@ -181,7 +181,7 @@ export default function PurchaseInvoicePage() {
     table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #333;padding:8px;text-align:right}
     th{background:#f0f0f0}.totals{margin-top:15px;text-align:left;font-size:14px}.totals div{margin:4px 0}.total-line{font-size:18px;font-weight:bold}</style></head><body>
     <h1>فاتورة شراء</h1>
-    <div class="info"><span>المورد: <strong>${sup}</strong></span><span>التاريخ: ${inv.date}</span></div>
+    <div class="info"><span>رقم الفاتورة: <strong>${inv.invoice_no}</strong></span><span>المورد: <strong>${sup}</strong></span><span>التاريخ: ${inv.date}</span></div>
     <table><thead><tr><th>#</th><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الخصم</th><th>الإجمالي</th></tr></thead>
     <tbody>${invItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.Item?.name || '-'}</td><td>${Number(item.weight || 0) > 0 ? Number(item.weight).toLocaleString() : '—'}</td><td>${Number(item.quantity).toLocaleString()}</td><td>${item.price}</td><td>${item.discount}</td><td>${Number(item.total).toLocaleString()}</td></tr>`).join('')}</tbody></table>
     <div class="totals">
