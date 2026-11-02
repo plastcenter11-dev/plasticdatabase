@@ -9,6 +9,7 @@ import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep, MdPrin
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
+import { invoiceTotals, expectedBalance as balanceAfter } from '../utils/invoiceCalc';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
@@ -101,18 +102,18 @@ export default function PurchaseInvoicePage() {
   const addFormItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
-  const lineDiscount = (i) => (Number(i.weight) || 0) * (Number(i.price) || 0) * (Number(i.discount || 0) / 100);
-  const calcGross = () => form.items.reduce((sum, i) => sum + (Number(i.weight) || 0) * (Number(i.price) || 0), 0);
-  const calcSubtotal = () => form.items.reduce((sum, i) => sum + ((Number(i.weight) || 0) * (Number(i.price) || 0) - lineDiscount(i)), 0);
-  const calcDiscountAmount = () => Number(form.discount || 0);
-  const calcTax = () => calcGross() * (Number(form.tax_rate) || 0) / 100;
-  const calcTotal = () => calcSubtotal() - calcDiscountAmount() + calcTax();
+  // the totals math lives in utils/invoiceCalc.js (unit-tested)
+  const calcGross = () => invoiceTotals(form.items, form).gross;
+  const calcSubtotal = () => invoiceTotals(form.items, form).subtotal;
+  const calcDiscountAmount = () => invoiceTotals(form.items, form).discount;
+  const calcTax = () => invoiceTotals(form.items, form).tax;
+  const calcTotal = () => invoiceTotals(form.items, form).total;
 
   // Same preview the cash receipt / payment forms give: the supplier's balance now, and after this
   // invoice (its total, which is rounded when saved, minus what is paid with it).
   const selectedParty = suppliers.find(p => p.id === Number(form.supplier_id));
   const invoiceTotal = Math.round(calcTotal());
-  const expectedBalance = selectedParty ? Number(selectedParty.balance) + invoiceTotal - Number(form.paid || 0) : null;
+  const expectedBalance = selectedParty ? balanceAfter(selectedParty.balance, calcTotal(), form.paid) : null;
   const balanceTone = (v) => (Number(v) > 0 ? 'bg-red-50 text-red-700' : Number(v) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600');
 
   // Stock only moves when the invoice has a warehouse, so it's required as soon as
