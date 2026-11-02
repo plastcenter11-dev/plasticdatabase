@@ -5,7 +5,7 @@ import {
   MdDashboard, MdInventory, MdWarehouse, MdPeople, MdLocalShipping,
   MdReceipt, MdShoppingCart, MdAssignment, MdPayment, MdAccountBalance,
   MdAttachMoney, MdTrendingDown, MdBarChart, MdSettings, MdLogout,
-  MdCalendarMonth, MdPersonSearch, MdBuild, MdExpandMore,
+  MdCalendarMonth, MdPersonSearch, MdBuild, MdExpandMore, MdMenu,
 } from 'react-icons/md';
 
 const menuGroups = [
@@ -169,6 +169,8 @@ function Dropdown({ group, openMenu, setOpenMenu }) {
 
 export default function Layout() {
   const [openMenu, setOpenMenu] = useState(null);
+  // the shortcuts panel is always shown on wide screens; on a phone it is opened from a button
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const { user, logout, isAdmin, can } = useAuth();
   const navigate = useNavigate();
 
@@ -194,6 +196,9 @@ export default function Layout() {
             <h1 className="text-sm font-bold text-gray-800">PlasticDB</h1>
           </div>
           <div className="flex-1" />
+          <button onClick={() => setShowShortcuts(v => !v)} className="md:hidden text-gray-500 hover:text-primary cursor-pointer" title="اختصارات" aria-label="اختصارات">
+            <MdMenu size={22} />
+          </button>
           <span className="text-xs text-gray-500">{user?.username || 'مستخدم'}</span>
           <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 cursor-pointer transition" title="تسجيل الخروج">
             <MdLogout size={20} />
@@ -225,9 +230,9 @@ export default function Layout() {
         </nav>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Shortcuts sidebar */}
-        <aside className="w-48 bg-[#e2e7ed] border-l border-gray-300 no-print flex flex-col py-4 gap-0.5 overflow-y-auto order-first">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Shortcuts sidebar: beside the content on wide screens, a drawer over it on a phone */}
+        <aside onClick={() => setShowShortcuts(false)} className={`${showShortcuts ? 'flex' : 'hidden'} md:flex max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-30 max-md:shadow-lg w-48 bg-[#e2e7ed] border-l border-gray-300 no-print flex-col py-4 gap-0.5 overflow-y-auto order-first`}>
           <p className="px-4 text-xs text-gray-400 font-medium mb-2 pb-2 border-b border-gray-100">اختصارات</p>
           {[
             { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping, module: 'stock' },
@@ -252,7 +257,7 @@ export default function Layout() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 min-w-0 overflow-y-auto p-3 md:p-5">
           <Outlet />
         </main>
       </div>
