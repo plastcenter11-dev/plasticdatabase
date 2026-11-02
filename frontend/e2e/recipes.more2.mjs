@@ -19,11 +19,10 @@ export const more2Recipes = [
       await field(c.page, 'العميل', 'E2E زبون افتتاحي');
       await field(c.page, 'مدين', 750);
       await save(c.page, c.w);
-      const after = await customerBalance(c, cust.id);
-      if (after - before !== 750) throw new Error(`the customer balance moved by ${after - before}, expected +750`);
+      await eventually(async () => (await customerBalance(c, cust.id)) - before === 750, 'the customer balance did not move by +750');
       await rowAction(c.page, 'E2E زبون افتتاحي', 'delete');
       await settle(c.page, c.w, 1200);
-      if (await customerBalance(c, cust.id) !== before) throw new Error('deleting the opening balance did not restore the customer balance');
+      await eventually(async () => (await customerBalance(c, cust.id)) === before, 'deleting the opening balance did not restore the customer balance');
     },
   },
 

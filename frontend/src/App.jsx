@@ -143,8 +143,6 @@ function AppRoutes() {
         <Route path="settings/change-password" element={<SettingsPage />} />
         <Route path="settings/unlock-records" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/backup" element={<AdminRoute><SettingsPage /></AdminRoute>} />
-        <Route path="settings/reset-balances" element={<AdminRoute><SettingsPage /></AdminRoute>} />
-        <Route path="settings/item-setup" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/company" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="financial-years" element={<ModuleRoute module="financial_years"><FinancialYearsPage /></ModuleRoute>} />
         <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />

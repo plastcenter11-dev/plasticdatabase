@@ -64,6 +64,16 @@ export const settingsRecipes = [
       }
     },
   },
+  {
+    // these two tabs only showed a success message without doing anything, so they were removed
+    name: 'الإعدادات: لا توجد تبويبات شكلية',
+    run: async (c) => {
+      await goto(c.page, c.base, '/settings/options');
+      const tabs = await c.page.evaluate(() => [...document.querySelectorAll('main button')].map(b => b.textContent.trim()).join('|'));
+      for (const gone of ['إعادة ضبط الأرصدة', 'ضبط بيان الأصناف']) if (tabs.includes(gone)) throw new Error(`the "${gone}" tab is back`);
+      for (const kept of ['بيانات المنشأة', 'خيارات', 'الأقسام والأنواع', 'تغيير كلمة المرور', 'حماية السجلات', 'إلغاء حماية', 'النسخة الاحتياطية']) if (!tabs.includes(kept)) throw new Error(`the "${kept}" tab is missing: ${tabs}`);
+    },
+  },
   { name: 'الإعدادات: الأقسام إضافة وتعديل وحذف', run: (c) => lookupFlow(c, 'اسم القسم الجديد', '/categories', 'قسم') },
   { name: 'الإعدادات: الأنواع إضافة وتعديل وحذف', run: (c) => lookupFlow(c, 'اسم النوع الجديد', '/item-types', 'نوع') },
   {

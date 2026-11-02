@@ -108,8 +108,6 @@ const menuGroups = [
       { path: '/settings/change-password', label: 'تغيير كلمة المرور', icon: MdSettings },
       { path: '/settings/unlock-records', label: 'إلغاء حماية السجلات', icon: MdSettings, adminOnly: true },
       { path: '/settings/backup', label: 'النسخة الاحتياطية', icon: MdSettings, adminOnly: true },
-      { path: '/settings/reset-balances', label: 'إعادة ضبط الأرصدة', icon: MdSettings, adminOnly: true },
-      { path: '/settings/item-setup', label: 'ضبط بيان الأصناف', icon: MdSettings, adminOnly: true },
       { path: '/settings/company', label: 'بيانات المنشأة', icon: MdSettings, adminOnly: true },
       { path: '/financial-years', label: 'السنوات المالية', icon: MdCalendarMonth, module: 'financial_years' },
     ]

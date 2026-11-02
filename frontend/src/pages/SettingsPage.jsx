@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdRefresh, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
+import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
@@ -106,8 +106,6 @@ export default function SettingsPage() {
     { key: 'protection', label: 'حماية السجلات', icon: MdLock },
     { key: 'unlock', label: 'إلغاء حماية', icon: MdLockOpen },
     { key: 'backup', label: 'النسخة الاحتياطية', icon: MdBackup },
-    { key: 'reset', label: 'إعادة ضبط الأرصدة', icon: MdRefresh },
-    { key: 'items-setup', label: 'ضبط بيان الأصناف', icon: MdInventory },
   ];
   // Every settings tab except "change password" is admin-only.
   const tabs = isAdmin() ? allTabs : allTabs.filter(t => t.key === 'password');
@@ -351,22 +349,6 @@ export default function SettingsPage() {
                 <span className="text-sm text-gray-400">ملفات .sql فقط</span>
               </div>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'reset' && (
-          <div className="space-y-4 max-w-lg">
-            <h2 className="text-lg font-bold text-gray-700">إعادة ضبط الأرصدة</h2>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">تحذير: سيتم إعادة حساب أرصدة العملاء والموردين والمخزون من الحركات.</div>
-            <button onClick={() => { if (window.confirm('هل أنت متأكد؟ سيتم إعادة حساب كل الأرصدة.')) toast.success('تم إعادة ضبط الأرصدة'); }} className="erp-btn erp-btn-danger flex items-center gap-1"><MdRefresh size={18} /> إعادة ضبط</button>
-          </div>
-        )}
-
-        {activeTab === 'items-setup' && (
-          <div className="space-y-4 max-w-lg">
-            <h2 className="text-lg font-bold text-gray-700">ضبط بيان الأصناف</h2>
-            <p className="text-sm text-gray-600">إعادة حساب أرصدة الأصناف في كل المخازن.</p>
-            <button onClick={() => { if (window.confirm('سيتم إعادة حساب أرصدة كل الأصناف.')) toast.success('تم ضبط بيان الأصناف'); }} className="erp-btn erp-btn-warning flex items-center gap-1"><MdRefresh size={18} /> ضبط الأصناف</button>
           </div>
         )}
       </div>
