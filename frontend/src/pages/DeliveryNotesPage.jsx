@@ -138,7 +138,7 @@ export default function DeliveryNotesPage() {
       items[idx].gross_weight = value;
     } else if (field !== 'gross_weight') {
       const nw = Number(items[idx].net_weight || 0);
-      const cw = Number(items[idx].core_weight || 0);
+      const cw = Number(items[idx].core_weight || 0) * Number(items[idx].roll_count || 0);
       const ww = Number(items[idx].wood_weight || 0);
       const sw = Number(items[idx].stretch_weight || 0);
       items[idx].gross_weight = Math.round((nw + cw + ww + sw) * 10) / 10;
@@ -337,7 +337,7 @@ export default function DeliveryNotesPage() {
             details += `<div class="detail-line">${name} ${code}</div>`;
             if (item.batch_no) details += `<div class="detail-line"><span class="detail-label">رقم الباتش :</span> ${item.batch_no}</div>`;
             if (rc) details += `<div class="detail-line"><span class="detail-label">عدد</span> ${rc} بكرة</div>`;
-            if (cw) details += `<div class="detail-line"><span class="detail-label">وزن الكور</span> ${cw} كجم</div>`;
+            if (cw) details += `<div class="detail-line"><span class="detail-label">وزن الكور للبكرة</span> ${cw} كجم</div>`;
             if (ww) details += `<div class="detail-line"><span class="detail-label">وزن الخشب</span> ${ww} كجم</div>`;
             if (sw) details += `<div class="detail-line"><span class="detail-label">وزن الاسترتش</span> ${sw} كجم</div>`;
             if (gw) details += `<div class="detail-line" style="font-size:13px;color:#000">الوزن القائم  ${gw} كجم</div>`;
@@ -505,7 +505,7 @@ export default function DeliveryNotesPage() {
                       <input type="number" className="erp-input" value={item.roll_count} onChange={e => updateItem(idx, 'roll_count', e.target.value)} />
                     </div>
                     <div>
-                      <label className="form-label">وزن الكور</label>
+                      <label className="form-label">وزن الكور للبكرة</label>
                       <input type="number" step="0.1" className="erp-input" value={item.core_weight} onChange={e => updateItem(idx, 'core_weight', e.target.value)} />
                     </div>
                     <div>
