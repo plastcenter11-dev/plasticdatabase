@@ -34,13 +34,22 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const note = await DeliveryNote.findByPk(req.params.id);
-    if (!note) return res.status(404).json({ error: 'غير موجود' });
-    if (note.status === 'delivered') return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' });
-    await note.update(req.body);
-    res.json(note);
-  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+    const note = await DeliveryNote.findByPk(req.params.id, { transaction: t });
+    if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' }); }
+    const { items, ...data } = req.body;
+    delete data.note_no;
+    await note.update(data, { transaction: t });
+    // the lines are replaced by the edited ones
+    if (Array.isArray(items)) {
+      await DeliveryNoteItem.destroy({ where: { note_id: note.id }, transaction: t });
+      if (items.length) await DeliveryNoteItem.bulkCreate(items.map(({ id, ...i }) => ({ ...i, note_id: note.id })), { transaction: t });
+    }
+    await t.commit();
+    res.json(await DeliveryNote.findByPk(note.id, { include: [{ model: DeliveryNoteItem, as: 'items' }] }));
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/:id/deliver', async (req, res) => {

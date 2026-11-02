@@ -174,3 +174,28 @@ describe('DELETE /api/delivery-notes/:id', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('PUT /api/delivery-notes/:id', () => {
+  test('editing a pending note saves the header and replaces the lines', async () => {
+    const note = (await createNote()).body;
+    const res = await request(app).put(`/api/delivery-notes/${note.id}`).set(auth()).send({
+      date: '2026-03-05', driver_name: 'سائق جديد', customer_id: customer.id,
+      items: [{ item_id: item.id, net_weight: 250, roll_count: 20, core_weight: 1.5 }],
+    });
+    expect(res.status).toBe(200);
+    const saved = await request(app).get(`/api/delivery-notes/${note.id}`).set(auth());
+    expect(saved.body.driver_name).toBe('سائق جديد');
+    expect(saved.body.items).toHaveLength(1);
+    expect(Number(saved.body.items[0].net_weight)).toBe(250);
+    expect(Number(saved.body.items[0].core_weight)).toBe(1.5);
+    expect(saved.body.note_no).toBe(note.note_no);
+  });
+
+  test('editing a delivered note is rejected and changes nothing', async () => {
+    const note = (await createNote()).body;
+    await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({});
+    const res = await request(app).put(`/api/delivery-notes/${note.id}`).set(auth()).send({ items: [{ item_id: item.id, net_weight: 5 }] });
+    expect(res.status).toBe(400);
+    expect(await DeliveryNoteItem.count({ where: { note_id: note.id } })).toBe(1);
+  });
+});
