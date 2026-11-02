@@ -149,6 +149,28 @@ export default function DeliveryNotesPage() {
   const addItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
+  // this customer's earlier delivery notes, newest first, to start a new note from one of them
+  const previousNotes = form.customer_id ? notes.filter(n => String(n.customer_id) === String(form.customer_id)).sort((a, b) => b.id - a.id).slice(0, 15) : [];
+  const noteKg = (n) => (n.items || []).reduce((sum, i) => sum + Number(i.net_weight || 0), 0);
+
+  // copy the lines of an earlier note into the form (new batch numbers are typed again); the date stays today
+  const copyFromNote = (noteId) => {
+    const note = notes.find(n => String(n.id) === String(noteId));
+    if (!note) return;
+    if (form.items.some(i => i.item_id || i.net_weight) && !window.confirm('استبدال الأصناف الحالية بأصناف الإذن المختار؟')) return;
+    setForm(f => ({
+      ...f,
+      driver_name: f.driver_name || note.driver_name || '', car_no: f.car_no || note.car_no || '',
+      items: (note.items || []).map(i => ({
+        item_id: String(i.item_id), item_name: i.Item?.name || '', item_code: i.Item?.code || '',
+        net_weight: i.net_weight, batch_no: '', roll_count: i.roll_count || '',
+        core_weight: i.core_weight || '', wood_weight: i.wood_weight || '',
+        stretch_weight: i.stretch_weight || '', gross_weight: i.gross_weight || '',
+        product_description: i.product_description || '',
+      })),
+    }));
+  };
+
   const openEdit = (note) => {
     setEditing(note);
     setForm({
@@ -429,6 +451,18 @@ export default function DeliveryNotesPage() {
                 <input className="erp-input" value={form.car_no} onChange={e => setForm({ ...form, car_no: e.target.value })} />
               </div>
             </div>
+
+            {!editing && previousNotes.length > 0 && (
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-wrap items-center gap-3">
+                <label className="form-label mb-0 text-blue-800">نسخ من إذن سابق لهذا العميل</label>
+                <div className="min-w-[320px]">
+                  <SearchableSelect className="erp-input" value="" onChange={e => copyFromNote(e.target.value)}>
+                    <option value="">— اختر إذناً —</option>
+                    {previousNotes.map(n => <option key={n.id} value={n.id}>({n.note_no}) {n.date} — {noteKg(n).toLocaleString()} كجم — {(n.items || []).map(i => i.Item?.name).filter(Boolean).join('، ')}</option>)}
+                  </SearchableSelect>
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">

@@ -8,7 +8,7 @@ const ROUTES = [
   '/warehouse-transfers', '/item-assembly', '/reorder-level', '/warehouse-items', '/item-inquiry',
   '/delivery-notes', '/sales-invoices', '/sales-returns', '/purchase-invoices', '/purchase-returns',
   '/customers', '/suppliers', '/opening-balances', '/customer-credit-limits',
-  '/reports/customer-statement', '/reports/supplier-statement', '/reports/customers', '/reports/suppliers',
+  '/reports/customer-statement', '/reports/supplier-statement', '/reports/customers', '/reports/silent-customers', '/reports/suppliers',
   '/cash-receipts', '/cash-payments', '/checks', '/supplier-checks', '/reports/overdue-checks',
   '/expenses', '/other-income', '/reports/expenses', '/employees', '/employee-commissions', '/warehouses',
   '/document-cycle', '/reports/item-movement', '/reports/reorder',
