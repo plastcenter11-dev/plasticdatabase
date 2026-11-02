@@ -9,7 +9,7 @@ import { rowAction, search } from './recipes.editdelete.mjs';
 const BAD = /undefined|NaN|\[object|\bnull\b/;
 
 // run `click` and return { html, text } of the window it opens
-async function printedWindow(c, click) {
+export async function printedWindow(c, click) {
   const opened = new Promise((resolve) => c.browser.once('targetcreated', async (t) => resolve(await t.page())));
   await click();
   const child = await Promise.race([opened, sleep(8000).then(() => null)]);
@@ -21,14 +21,14 @@ async function printedWindow(c, click) {
   return { html, text };
 }
 
-function expectPrinted({ html, text }, mustContain, what) {
+export function expectPrinted({ html, text }, mustContain, what) {
   if (!text.trim()) throw new Error(`${what}: the print window is empty`);
   if (BAD.test(text)) throw new Error(`${what}: the print shows a broken value (${(text.match(BAD) || [])[0]}): ${text.slice(0, 200).replace(/\s+/g, ' ')}`);
   if (!/dir="rtl"/i.test(html)) throw new Error(`${what}: the print is not right-to-left`);
   for (const s of mustContain) if (!text.includes(s)) throw new Error(`${what}: the print is missing "${s}": ${text.slice(0, 300).replace(/\s+/g, ' ')}`);
 }
 
-const rowPrint = (c, text) => () => c.page.evaluate((text) => {
+export const rowPrint = (c, text) => () => c.page.evaluate((text) => {
   const tr = [...document.querySelectorAll('tbody tr')].find(r => r.textContent.includes(text));
   const outline = tr && [...tr.querySelectorAll('button')].filter(b => b.classList.contains('erp-btn-outline'));
   if (!outline || !outline.length) throw new Error('no print button in the row');
@@ -151,3 +151,25 @@ export const printRecipes = [
     },
   },
 ];
+
+printRecipes.push({
+  name: 'طباعة مرتجع بيع ومرتجع شراء',
+  run: async (c) => {
+    const customer = await c.api('POST', '/customers', { name: 'E2E زبون مرتجع طباعة' });
+    const supplier = await c.api('POST', '/suppliers', { name: 'E2E تاجر مرتجع طباعة' });
+    const sale = await c.api('POST', '/returns/sales', {
+      customer_id: customer.id, warehouse_id: c.w1.id, date: c.today, reason: 'للطباعة',
+      items: [{ item_id: c.items.a.id, quantity: 2, weight: 20, price: 15, discount: 0, total: 300 }],
+    });
+    const buy = await c.api('POST', '/returns/purchase', {
+      supplier_id: supplier.id, warehouse_id: c.w1.id, date: c.today, reason: 'للطباعة',
+      items: [{ item_id: c.items.b.id, quantity: 1, weight: 10, price: 12, discount: 0, total: 120 }],
+    });
+    await goto(c.page, c.base, '/sales-returns');
+    let printed = await printedWindow(c, rowPrint(c, 'E2E زبون مرتجع طباعة'));
+    expectPrinted(printed, [sale.return_no, 'E2E زبون مرتجع طباعة', 'E2E صنف أ', '300'], 'sales return print');
+    await goto(c.page, c.base, '/purchase-returns');
+    printed = await printedWindow(c, rowPrint(c, 'E2E تاجر مرتجع طباعة'));
+    expectPrinted(printed, [buy.return_no, 'E2E تاجر مرتجع طباعة', 'E2E صنف ب', '120'], 'purchase return print');
+  },
+});
