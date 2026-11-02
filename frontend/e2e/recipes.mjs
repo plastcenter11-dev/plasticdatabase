@@ -16,6 +16,7 @@ import { more2Recipes } from './recipes.more2.mjs';
 import { printRecipes } from './recipes.print.mjs';
 import { narrowRecipes } from './recipes.narrow.mjs';
 import { yearCloseRecipes } from './recipes.yearclose.mjs';
+import { optionsRecipes } from './recipes.options.mjs';
 
 async function expectApi(c, url, predicate, what) {
   // the app may still be saving when the click returns: look again for a few seconds
@@ -124,5 +125,6 @@ export const recipes = [
   ...printRecipes,
   ...narrowRecipes,
   ...yearCloseRecipes,
+  ...optionsRecipes,
   ...pageRecipes,
 ];
