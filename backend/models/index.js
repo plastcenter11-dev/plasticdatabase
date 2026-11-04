@@ -45,6 +45,7 @@ const Customer = sequelize.define('Customer', {
   address: { type: DataTypes.TEXT, defaultValue: '' },
   balance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   credit_limit: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  sales_rep: { type: DataTypes.STRING(100), allowNull: true },
   is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
 });
 

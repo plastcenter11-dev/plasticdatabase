@@ -9,7 +9,7 @@ import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyForm = { name: '', phone: '', address: '', credit_limit: '', is_active: true };
+const emptyForm = { name: '', phone: '', address: '', sales_rep: '', credit_limit: '', is_active: true };
 
 export default function CustomersPage() {
   const { can } = useAuth();
@@ -53,7 +53,7 @@ export default function CustomersPage() {
   const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (c) => {
     setEditing(c);
-    setForm({ name: c.name, phone: c.phone || '', address: c.address || '', credit_limit: c.credit_limit, is_active: c.is_active });
+    setForm({ name: c.name, phone: c.phone || '', address: c.address || '', sales_rep: c.sales_rep || '', credit_limit: c.credit_limit, is_active: c.is_active });
     setShowModal(true);
   };
 
@@ -102,6 +102,7 @@ export default function CustomersPage() {
             <th>#</th>
             <SortTh column="name" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[150px]`} value={nameFilter} onChange={e => setNameFilter(e.target.value)}><option value="">اسم العميل</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
             <SortTh column="phone" sort={sort}>الهاتف</SortTh>
+            <th>المندوب</th>
             <th>العنوان</th>
             <SortTh column="balance" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[110px]`} value={balanceFilter} onChange={e => setBalanceFilter(e.target.value)}><option value="">الرصيد</option><option value="debit">مدين (عليه)</option><option value="credit">دائن (له)</option><option value="zero">صفر</option></SearchableSelect></SortTh>
             <SortTh column="credit_limit" sort={sort}>حد الائتمان</SortTh>
@@ -109,12 +110,13 @@ export default function CustomersPage() {
             <th>إجراءات</th>
           </tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">لا يوجد عملاء</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">لا يوجد عملاء</td></tr>}
             {filtered.map((c, i) => (
               <tr key={c.id}>
                 <td className="text-gray-400">{i + 1}</td>
                 <td className="font-medium">{c.name}</td>
                 <td className="font-mono text-sm">{c.phone}</td>
+                <td className="text-sm">{c.sales_rep}</td>
                 <td className="text-gray-600 text-sm">{c.address}</td>
                 <td className={Number(c.balance) > 0 ? 'text-red-600 font-bold' : 'text-green-600'}>{Number(c.balance).toLocaleString()} ج.م</td>
                 <td>{Number(c.credit_limit).toLocaleString()} ج.م</td>
@@ -139,6 +141,7 @@ export default function CustomersPage() {
               <div><label className="form-label">الهاتف</label><input className="erp-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
               <div><label className="form-label">حد الائتمان</label><input type="number" className="erp-input" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} /></div>
             </div>
+            <div><label className="form-label">مندوب البيع</label><input className="erp-input" value={form.sales_rep} onChange={e => setForm({ ...form, sales_rep: e.target.value })} /></div>
             <div><label className="form-label">العنوان</label><input className="erp-input" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />

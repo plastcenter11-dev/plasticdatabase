@@ -11,6 +11,8 @@ const PATCHES = [
   // Invoice approval (settings option: an admin approves before posting).
   { table: 'sales_invoices', column: 'approved_at', definition: { type: DataTypes.DATE, allowNull: true } },
   { table: 'purchase_invoices', column: 'approved_at', definition: { type: DataTypes.DATE, allowNull: true } },
+  // Sales representative name on the customer.
+  { table: 'customers', column: 'sales_rep', definition: { type: DataTypes.STRING(100), allowNull: true } },
 ];
 
 async function applySchemaPatches(sequelize) {
