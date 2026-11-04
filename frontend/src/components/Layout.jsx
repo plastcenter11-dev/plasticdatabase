@@ -48,8 +48,7 @@ const menuGroups = [
       { path: '/customers', label: 'تعريف عملاء', icon: MdPeople, module: 'customers' },
       { path: '/suppliers', label: 'تعريف موردين', icon: MdPeople, module: 'suppliers' },
       { path: '/opening-balances', label: 'الأرصدة الافتتاحية', icon: MdAccountBalance, module: 'financial_years' },
-      { path: '/reports/customer-statement', label: 'كشف حساب', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/supplier-statement', label: 'كشف حساب م', icon: MdBarChart, module: 'suppliers' },
+      { path: '/reports/statement', label: 'كشف حساب', icon: MdBarChart, module: 'customers' },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
       { path: '/reports/silent-customers', label: 'عملاء توقفوا وعليهم رصيد', icon: MdBarChart, module: 'customers' },
       { path: '/reports/rep-statements', label: 'كشوف حساب مندوب', icon: MdBarChart, module: 'customers' },
@@ -92,8 +91,7 @@ const menuGroups = [
   {
     label: 'التقارير', icon: MdBarChart,
     items: [
-      { path: '/reports/customer-statement', label: 'كشف حساب عميل', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: MdBarChart, module: 'suppliers' },
+      { path: '/reports/statement', label: 'كشف حساب', icon: MdBarChart, module: 'customers' },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
       { path: '/reports/silent-customers', label: 'عملاء توقفوا وعليهم رصيد', icon: MdBarChart, module: 'customers' },
       { path: '/reports/rep-statements', label: 'كشوف حساب مندوب', icon: MdBarChart, module: 'customers' },

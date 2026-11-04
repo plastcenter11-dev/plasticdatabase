@@ -22,6 +22,7 @@ import ItemAssemblyPage from './pages/ItemAssemblyPage';
 import CustomerStatementPage from './pages/CustomerStatementPage';
 import SupplierStatementPage from './pages/SupplierStatementPage';
 import SilentCustomersPage from './pages/SilentCustomersPage';
+import AccountStatementPage from './pages/AccountStatementPage';
 import RepStatementsPage from './pages/RepStatementsPage';
 import CustomerSummaryPage from './pages/CustomerSummaryPage';
 import SupplierSummaryPage from './pages/SupplierSummaryPage';
@@ -108,6 +109,7 @@ function AppRoutes() {
         <Route path="suppliers" element={<ModuleRoute module="suppliers"><SuppliersPage /></ModuleRoute>} />
         <Route path="opening-balances" element={<ModuleRoute module="financial_years"><OpeningBalancesPage /></ModuleRoute>} />
         <Route path="customer-credit-limits" element={<ModuleRoute module="customers"><CustomerCreditPage /></ModuleRoute>} />
+        <Route path="reports/statement" element={<AccountStatementPage />} />
         <Route path="reports/customer-statement" element={<ModuleRoute module="customers"><CustomerStatementPage /></ModuleRoute>} />
         <Route path="reports/customer-statement-summary" element={<ModuleRoute module="customers"><CustomerStatementPage /></ModuleRoute>} />
         <Route path="reports/supplier-statement" element={<ModuleRoute module="suppliers"><SupplierStatementPage /></ModuleRoute>} />
