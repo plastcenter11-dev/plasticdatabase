@@ -37,7 +37,7 @@ export default function SupplierStatementPage() {
     <style>body{font-family:Cairo,sans-serif;padding:40px;direction:rtl}h1{font-size:20px;text-align:center}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f9f9f9;font-size:12px;color:#555}.info{display:flex;justify-content:space-between;margin:15px 0;font-size:14px}</style></head><body>
     <h1>كشف حساب مورد</h1>
     <div class="info"><span>المورد: <strong>${supplierName}</strong></span><span>من: ${dateFrom} إلى: ${dateTo}</span></div>
-    <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (منه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
+    <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (عليه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
     <tbody>${rows.map(r => `
       <tr><td>${r.date || ''}</td><td>${r.type} ${r.reference}${r.check_due_date ? ` — استحقاق: ${r.check_due_date}` : ''}${r.check_bounced_date ? ` — ارتداد: ${r.check_bounced_date}` : ''}${r.check_status ? ` (${r.check_status === 'bounced' ? 'مرتد' : r.check_status === 'collected' ? 'تم التحصيل' : 'قيد الانتظار'})` : ''}</td><td>${r.debit ? Number(r.debit).toLocaleString() : ''}</td><td>${r.credit ? Number(r.credit).toLocaleString() : ''}</td><td>${fmt(balSplit(r.balance).debit)}</td><td>${fmt(balSplit(r.balance).credit)}</td></tr>
       ${r.items?.length ? `<tr class="sub"><td colspan="6"><table style="width:100%;font-size:12px"><thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${r.items.map(it => `<tr><td>${it.Item?.name || ''}</td><td>${Number(it.weight || 0) > 0 ? Number(it.weight).toLocaleString() : '—'}</td><td>${Number(it.quantity).toLocaleString()}</td><td>${Number(it.price).toLocaleString()}</td><td>${Number(it.total).toLocaleString()}</td></tr>`).join('')}</tbody></table></td></tr>` : ''}
@@ -67,7 +67,7 @@ export default function SupplierStatementPage() {
       {supplierId && (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="erp-table">
-            <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (منه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
+            <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (عليه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
             <tbody>
               {rows.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">لا توجد حركات</td></tr>}
               {rows.map((r, i) => (
