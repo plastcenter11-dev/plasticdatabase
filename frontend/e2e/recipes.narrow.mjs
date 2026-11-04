@@ -9,7 +9,7 @@ const ROUTES = [
   '/stock-adjustments', '/stock-issue', '/stock-receive', '/warehouse-transfers', '/item-assembly', '/warehouse-items',
   '/delivery-notes', '/sales-invoices', '/sales-returns', '/purchase-invoices', '/purchase-returns',
   '/cash-receipts', '/cash-payments', '/checks', '/supplier-checks', '/expenses', '/other-income',
-  '/reports/customer-statement', '/reports/supplier-statement', '/reports/customers', '/reports/silent-customers', '/reports/suppliers',
+  '/reports/customer-statement', '/reports/supplier-statement', '/reports/customers', '/reports/silent-customers', '/reports/rep-statements', '/reports/suppliers',
   '/reports/item-movement', '/reports/reorder', '/reports/expenses',
   '/opening-balances', '/opening-inventory', '/customer-credit-limits', '/financial-years', '/users', '/settings/options',
 ];

@@ -22,6 +22,7 @@ import ItemAssemblyPage from './pages/ItemAssemblyPage';
 import CustomerStatementPage from './pages/CustomerStatementPage';
 import SupplierStatementPage from './pages/SupplierStatementPage';
 import SilentCustomersPage from './pages/SilentCustomersPage';
+import RepStatementsPage from './pages/RepStatementsPage';
 import CustomerSummaryPage from './pages/CustomerSummaryPage';
 import SupplierSummaryPage from './pages/SupplierSummaryPage';
 import ItemMovementPage from './pages/ItemMovementPage';
@@ -111,6 +112,7 @@ function AppRoutes() {
         <Route path="reports/customer-statement-summary" element={<ModuleRoute module="customers"><CustomerStatementPage /></ModuleRoute>} />
         <Route path="reports/supplier-statement" element={<ModuleRoute module="suppliers"><SupplierStatementPage /></ModuleRoute>} />
         <Route path="reports/customers" element={<ModuleRoute module="customers"><CustomerSummaryPage /></ModuleRoute>} />
+        <Route path="reports/rep-statements" element={<ModuleRoute module="customers"><RepStatementsPage /></ModuleRoute>} />
         <Route path="reports/silent-customers" element={<ModuleRoute module="customers"><SilentCustomersPage /></ModuleRoute>} />
         <Route path="reports/suppliers" element={<ModuleRoute module="suppliers"><SupplierSummaryPage /></ModuleRoute>} />
 

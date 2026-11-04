@@ -52,6 +52,7 @@ const menuGroups = [
       { path: '/reports/supplier-statement', label: 'كشف حساب م', icon: MdBarChart, module: 'suppliers' },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
       { path: '/reports/silent-customers', label: 'عملاء توقفوا وعليهم رصيد', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/rep-statements', label: 'كشوف حساب مندوب', icon: MdBarChart, module: 'customers' },
       { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
       { path: '/customer-credit-limits', label: 'حدود الائتمان العملاء', icon: MdPeople, module: 'customers' },
     ]
@@ -95,6 +96,7 @@ const menuGroups = [
       { path: '/reports/supplier-statement', label: 'كشف حساب مورد', icon: MdBarChart, module: 'suppliers' },
       { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
       { path: '/reports/silent-customers', label: 'عملاء توقفوا وعليهم رصيد', icon: MdBarChart, module: 'customers' },
+      { path: '/reports/rep-statements', label: 'كشوف حساب مندوب', icon: MdBarChart, module: 'customers' },
       { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
       { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
       { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart, module: 'expenses' },
