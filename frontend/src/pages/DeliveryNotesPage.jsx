@@ -283,7 +283,7 @@ export default function DeliveryNotesPage() {
 
   const handlePrint = (note, showCompany = true) => {
     const coName = co('company_name', '') || 'شركة بلاست سنتر';
-    const coAddress = co('company_address', '') || 'قطعة 171 ب منطقة الصاعات الكيماوية بالمنطقة الصناعية التجمع الثالث - القاهرة';
+    const coAddress = co('company_address', '');
     const coActivity = co('company_activity', 'إنتاج وطباعة مواد التعبئة والتغليف');
     const idLines = [['س . ت', co('company_commercial_reg', '293219')], ['بطاقة ضريبية', co('company_tax_card', '5974')], ['ضريبة القيمة المضافة', co('company_vat_no', '018/461/100')]]
       .filter(([, v]) => v).map(([l, v]) => `<div>${l} : ${v}</div>`).join('');
