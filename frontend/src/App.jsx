@@ -23,6 +23,7 @@ import CustomerStatementPage from './pages/CustomerStatementPage';
 import SupplierStatementPage from './pages/SupplierStatementPage';
 import SilentCustomersPage from './pages/SilentCustomersPage';
 import AccountStatementPage from './pages/AccountStatementPage';
+import CashDiscountsPage from './pages/CashDiscountsPage';
 import RepStatementsPage from './pages/RepStatementsPage';
 import CustomerSummaryPage from './pages/CustomerSummaryPage';
 import SupplierSummaryPage from './pages/SupplierSummaryPage';
@@ -119,6 +120,7 @@ function AppRoutes() {
         <Route path="reports/suppliers" element={<ModuleRoute module="suppliers"><SupplierSummaryPage /></ModuleRoute>} />
 
         {/* أوراق مالية */}
+        <Route path="cash-discounts" element={<CashDiscountsPage />} />
         <Route path="cash-receipts" element={<ModuleRoute module="cash_receipts"><CashReceiptsPage /></ModuleRoute>} />
         <Route path="cash-payments" element={<ModuleRoute module="cash_payments"><CashPaymentsPage /></ModuleRoute>} />
         <Route path="checks" element={<ModuleRoute module="checks"><ChecksPage key="customer" partyType="customer" /></ModuleRoute>} />

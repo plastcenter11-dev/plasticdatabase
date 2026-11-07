@@ -60,6 +60,7 @@ const menuGroups = [
     label: 'أوراق مالية', icon: MdAccountBalance,
     items: [
       { path: '/cash-receipts', label: 'حركات تحصيل نقدية', icon: MdPayment, module: 'cash_receipts' },
+      { path: '/cash-discounts', label: 'خصومات نقدية', icon: MdPayment, module: 'cash_receipts' },
       { path: '/checks', label: 'حركات تحصيل شيكات', icon: MdAccountBalance, module: 'checks' },
       { path: '/cash-payments', label: 'حركات دفع نقدية', icon: MdPayment, module: 'cash_payments' },
       { path: '/supplier-checks', label: 'حركات دفع شيكات', icon: MdAccountBalance, module: 'checks' },

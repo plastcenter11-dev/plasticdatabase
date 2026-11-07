@@ -14,8 +14,12 @@ async function applyCheckBalance(check, sign, t) {
 }
 
 // Cash Receipts
+// cash discounts are stored as receipts/payments with this method but listed apart (?kind=discount)
+const DISCOUNT = 'خصم نقدي';
+const methodFilter = (req) => ({ payment_method: req.query.kind === 'discount' ? DISCOUNT : { [Op.ne]: DISCOUNT } });
+
 router.get('/cash-receipts', async (req, res) => {
-  try { res.json(await CashReceipt.findAll({ include: [{ model: Customer, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
+  try { res.json(await CashReceipt.findAll({ where: methodFilter(req), include: [{ model: Customer, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -47,7 +51,7 @@ router.delete('/cash-receipts/:id', async (req, res) => {
 
 // Cash Payments
 router.get('/cash-payments', async (req, res) => {
-  try { res.json(await CashPayment.findAll({ include: [{ model: Supplier, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
+  try { res.json(await CashPayment.findAll({ where: methodFilter(req), include: [{ model: Supplier, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
