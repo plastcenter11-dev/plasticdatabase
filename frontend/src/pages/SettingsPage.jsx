@@ -141,7 +141,7 @@ export default function SettingsPage() {
               <h3 className="font-bold text-gray-600">ترويسة أذون التسليم المطبوعة</h3>
               <div><label className="form-label">وصف النشاط (تحت اسم المنشأة)</label><input className="erp-input" value={company.company_activity} onChange={e => setCompany({ ...company, company_activity: e.target.value })} /></div>
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="form-label">السجل التجاري (م . ت)</label><input className="erp-input" value={company.company_commercial_reg} onChange={e => setCompany({ ...company, company_commercial_reg: e.target.value })} /></div>
+                <div><label className="form-label">السجل التجاري (س . ت)</label><input className="erp-input" value={company.company_commercial_reg} onChange={e => setCompany({ ...company, company_commercial_reg: e.target.value })} /></div>
                 <div><label className="form-label">البطاقة الضريبية</label><input className="erp-input" value={company.company_tax_card} onChange={e => setCompany({ ...company, company_tax_card: e.target.value })} /></div>
                 <div><label className="form-label">ضريبة القيمة المضافة</label><input className="erp-input" value={company.company_vat_no} onChange={e => setCompany({ ...company, company_vat_no: e.target.value })} /></div>
               </div>

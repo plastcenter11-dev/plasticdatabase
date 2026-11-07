@@ -285,7 +285,7 @@ export default function DeliveryNotesPage() {
     const coName = co('company_name', '') || 'شركة بلاست سنتر';
     const coAddress = co('company_address', '') || 'قطعة 171 ب منطقة الصاعات الكيماوية بالمنطقة الصناعية التجمع الثالث - القاهرة';
     const coActivity = co('company_activity', 'إنتاج وطباعة مواد التعبئة والتغليف');
-    const idLines = [['م . ت', co('company_commercial_reg', '293219')], ['بطاقة ضريبية', co('company_tax_card', '5974')], ['ضريبة القيمة المضافة', co('company_vat_no', '018/461/100')]]
+    const idLines = [['س . ت', co('company_commercial_reg', '293219')], ['بطاقة ضريبية', co('company_tax_card', '5974')], ['ضريبة القيمة المضافة', co('company_vat_no', '018/461/100')]]
       .filter(([, v]) => v).map(([l, v]) => `<div>${l} : ${v}</div>`).join('');
     const cust = getCustomerName(note.customer_id);
     const printContent = `
