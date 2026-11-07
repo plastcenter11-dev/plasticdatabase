@@ -1,6 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const { sequelize, OpeningBalance, SalesInvoice, SalesInvoiceItem } = require('../../models');
+const { sequelize, OpeningBalance, SalesInvoice, SalesInvoiceItem, CashReceipt } = require('../../models');
 const { syncDb, truncateAll } = require('../helpers/db');
 const { makeAuthToken, makeCustomer, makeItem, makeWarehouse } = require('../helpers/fixtures');
 
@@ -78,5 +78,17 @@ describe('GET /api/customers/:id/statement', () => {
 
     expect(future.body.length).toBe(1);
     expect(Number(future.body[0].balance)).toBe(finalBalance);
+  });
+});
+
+describe('cash discount receipts', () => {
+  test('a cash discount lowers what the customer owes and is labelled as a discount', async () => {
+    await makePostedInvoice('2026-03-01', 1000);
+    await CashReceipt.create({ receipt_no: 'CR-D1', date: '2026-03-05', amount: 100, customer_id: customer.id, payment_method: 'خصم نقدي' });
+    await CashReceipt.create({ receipt_no: 'CR-D2', date: '2026-03-06', amount: 200, customer_id: customer.id, payment_method: 'نقدي' });
+    const res = await request(app).get(`/api/customers/${customer.id}/statement`).set(auth());
+    const types = res.body.map(r => r.type);
+    expect(types).toEqual(['فاتورة بيع', 'خصم نقدي', 'تحصيل']);
+    expect(Number(res.body[res.body.length - 1].balance)).toBe(700);
   });
 });

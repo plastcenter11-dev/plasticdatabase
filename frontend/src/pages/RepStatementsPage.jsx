@@ -36,7 +36,7 @@ export default function RepStatementsPage() {
     const opening = rows.find(r => r.isOpening);
     const moves = rows.filter(r => !r.isOpening);
     const invoices = moves.filter(r => r.type === 'فاتورة بيع');
-    const returns = moves.filter(r => r.type === 'مرتجع بيع');
+    const returns = moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي');
     const paid = moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك');
     return {
       customer, rows, opening: Number(opening?.balance || 0),
@@ -62,12 +62,12 @@ export default function RepStatementsPage() {
           return `<tr><td>${r.date || ''}</td><td>${r.type} ${r.reference || ''}</td><td></td><td></td><td></td><td></td><td>${r.credit ? fmt(r.credit) : ''}</td></tr>`;
         }).join('')}
         </tbody></table>
-        <div class="totals"><span>إجمالي المبيعات: <strong>${fmt(s.sales)}</strong></span><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المرتجعات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span><span>الرصيد في آخر الشهر: <strong>${fmt(s.closing)}</strong></span></div>
+        <div class="totals"><span>إجمالي المبيعات: <strong>${fmt(s.sales)}</strong></span><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span><span>الرصيد في آخر الشهر: <strong>${fmt(s.closing)}</strong></span></div>
       </section>`;
     const summaryPage = `
       <section>
         <h1>ملخص شهر ${month} — مندوب: ${rep}</h1>
-        <table><thead><tr><th>العميل</th><th>الوزن (كجم)</th><th>المبيعات</th><th>المرتجعات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead><tbody>
+        <table><thead><tr><th>العميل</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead><tbody>
         ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.closing)}</td></tr>`).join('')}
         <tr class="sub"><td>الإجمالي</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('closing'))}</td></tr>
         </tbody></table>
@@ -99,7 +99,7 @@ export default function RepStatementsPage() {
       {rep && !loading && (
         <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
           <table className="erp-table">
-            <thead><tr><th>العميل</th><th>رصيد أول الشهر</th><th>الوزن (كجم)</th><th>المبيعات</th><th>المرتجعات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead>
+            <thead><tr><th>العميل</th><th>رصيد أول الشهر</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead>
             <tbody>
               {summaries.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا يوجد عملاء لهذا المندوب</td></tr>}
               {summaries.map(s => (
