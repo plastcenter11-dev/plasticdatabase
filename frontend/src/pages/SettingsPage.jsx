@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 export default function SettingsPage() {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(isAdmin() ? 'company' : 'password');
-  const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '' });
+  const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '', company_activity: '', company_commercial_reg: '', company_tax_card: '', company_vat_no: '' });
   const [opts, setOpts] = useState({ opt_credit_no_limit: '1', opt_auto_tax: '1', opt_block_below_cost: '0', opt_auto_numbering: '1', opt_require_approval: '0' });
   const [protectUntil, setProtectUntil] = useState('');
   const [protectDate, setProtectDate] = useState('');
@@ -60,6 +60,10 @@ export default function SettingsPage() {
         company_address: r.data.company_address || '',
         company_phone: r.data.company_phone || '',
         company_tax_no: r.data.company_tax_no || '',
+        company_activity: r.data.company_activity ?? 'إنتاج وطباعة مواد التعبئة والتغليف',
+        company_commercial_reg: r.data.company_commercial_reg ?? '293219',
+        company_tax_card: r.data.company_tax_card ?? '5974',
+        company_vat_no: r.data.company_vat_no ?? '018/461/100',
       });
       setOpts(o => ({ ...o, ...Object.fromEntries(Object.keys(o).filter(k => r.data[k] !== undefined).map(k => [k, r.data[k]])) }));
       setProtectUntil(r.data.protect_until || '');
@@ -132,6 +136,16 @@ export default function SettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">الهاتف</label><input className="erp-input" value={company.company_phone} onChange={e => setCompany({ ...company, company_phone: e.target.value })} /></div>
               <div><label className="form-label">الرقم الضريبي</label><input className="erp-input" value={company.company_tax_no} onChange={e => setCompany({ ...company, company_tax_no: e.target.value })} /></div>
+            </div>
+            <div className="pt-3 border-t space-y-3">
+              <h3 className="font-bold text-gray-600">ترويسة أذون التسليم المطبوعة</h3>
+              <div><label className="form-label">وصف النشاط (تحت اسم المنشأة)</label><input className="erp-input" value={company.company_activity} onChange={e => setCompany({ ...company, company_activity: e.target.value })} /></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="form-label">السجل التجاري (م . ت)</label><input className="erp-input" value={company.company_commercial_reg} onChange={e => setCompany({ ...company, company_commercial_reg: e.target.value })} /></div>
+                <div><label className="form-label">البطاقة الضريبية</label><input className="erp-input" value={company.company_tax_card} onChange={e => setCompany({ ...company, company_tax_card: e.target.value })} /></div>
+                <div><label className="form-label">ضريبة القيمة المضافة</label><input className="erp-input" value={company.company_vat_no} onChange={e => setCompany({ ...company, company_vat_no: e.target.value })} /></div>
+              </div>
+              <p className="text-xs text-gray-500">اسم المنشأة والعنوان من الحقول اللي فوق. أي حقل تسيبه فاضي مش بيتطبع.</p>
             </div>
             <button onClick={saveCompany} className="erp-btn erp-btn-primary flex items-center gap-1"><MdSave size={18} /> حفظ</button>
           </div>

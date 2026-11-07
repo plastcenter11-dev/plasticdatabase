@@ -276,7 +276,17 @@ export default function DeliveryNotesPage() {
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
+  // printed header/footer text comes from the company settings (defaults = the original wording)
+  const [companyInfo, setCompanyInfo] = useState({});
+  useEffect(() => { api.get('/settings').then(r => setCompanyInfo(r.data)).catch(() => {}); }, []);
+  const co = (key, fallback) => (companyInfo[key] ?? fallback);
+
   const handlePrint = (note, showCompany = true) => {
+    const coName = co('company_name', '') || 'شركة بلاست سنتر';
+    const coAddress = co('company_address', '') || 'قطعة 171 ب منطقة الصاعات الكيماوية بالمنطقة الصناعية التجمع الثالث - القاهرة';
+    const coActivity = co('company_activity', 'إنتاج وطباعة مواد التعبئة والتغليف');
+    const idLines = [['م . ت', co('company_commercial_reg', '293219')], ['بطاقة ضريبية', co('company_tax_card', '5974')], ['ضريبة القيمة المضافة', co('company_vat_no', '018/461/100')]]
+      .filter(([, v]) => v).map(([l, v]) => `<div>${l} : ${v}</div>`).join('');
     const cust = getCustomerName(note.customer_id);
     const printContent = `
       <html dir="rtl"><head><title>إذن استلام بضاعة (${note.note_no})</title>
@@ -305,13 +315,11 @@ export default function DeliveryNotesPage() {
       </style></head><body>
       ${showCompany ? `<div class="header">
         <div class="header-right">
-          <div class="company-name">شركة بلاست سنتر</div>
-          <div class="company-desc">إنتاج وطباعة مواد التعبئة والتغليف</div>
+          <div class="company-name">${coName}</div>
+          ${coActivity ? `<div class="company-desc">${coActivity}</div>` : ''}
         </div>
         <div class="header-left">
-          <div>م . ت : 293219</div>
-          <div>بطاقة ضريبية : 5974</div>
-          <div>ضريبة القيمة المضافة : 018/461/100</div>
+          ${idLines}
         </div>
       </div>` : ''}
       <h1>اذن استلام بضاعة</h1>
@@ -353,7 +361,7 @@ export default function DeliveryNotesPage() {
         <div>رقم السيارة / ${note.car_no || '_______________'}</div>
         <div>التوقيع / _______________</div>
       </div>
-      ${showCompany ? '<div class="address">قطعة 171 ب منطقة الصاعات الكيماوية بالمنطقة الصناعية التجمع الثالث - القاهرة</div>' : ''}
+      ${showCompany && coAddress ? `<div class="address">${coAddress}</div>` : ''}
       </body></html>`;
     const win = window.open('', '_blank');
     win.document.write(printContent);
