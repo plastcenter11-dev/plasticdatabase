@@ -5,82 +5,97 @@ import SearchableSelect from '../components/SearchableSelect';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kgOf = (items) => (items || []).reduce((s, it) => s + Number(it.weight || 0), 0);
-const lastDay = (month) => { const [y, m] = month.split('-').map(Number); return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`; };
+const today = () => new Date().toISOString().split('T')[0];
+const monthStart = () => today().slice(0, 8) + '01';
+const balSplit = (b) => { const n = Number(b || 0); return { debit: n > 0 ? n : 0, credit: n < 0 ? -n : 0 }; };
+const checkLabel = (s) => (s === 'bounced' ? 'مرتد' : s === 'collected' ? 'تم التحصيل' : 'قيد الانتظار');
+const typeColor = (type) => {
+  if (type === 'فاتورة بيع' || type === 'شيك مرتد') return 'text-red-600';
+  if (type === 'مرتجع بيع') return 'text-green-600';
+  return 'text-blue-600';
+};
 
-// Monthly statement for every customer of one sales representative: quantities, prices and payments.
+// Account movements for every customer of one sales representative over a chosen period.
+// Only customers that actually had movement in the period are shown.
 export default function RepStatementsPage() {
   const [customers, setCustomers] = useState([]);
   const [rep, setRep] = useState('');
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [dateFrom, setDateFrom] = useState(monthStart());
+  const [dateTo, setDateTo] = useState(today());
   const [data, setData] = useState([]);
+  const [repCount, setRepCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { api.get('/customers').then(r => setCustomers(r.data)).catch(() => {}); }, []);
   const reps = [...new Set(customers.map(c => (c.sales_rep || '').trim()).filter(Boolean))].sort();
-  const from = `${month}-01`;
-  const to = lastDay(month);
 
   useEffect(() => {
-    if (!rep || !month) { setData([]); return; }
+    if (!rep || !dateFrom || !dateTo) { setData([]); setRepCount(0); return; }
     let cancelled = false;
     setLoading(true);
-    const mine = customers.filter(c => (c.sales_rep || '').trim() === rep);
-    Promise.all(mine.map(c => api.get(`/customers/${c.id}/statement`, { params: { from, to } })
+    const mine = customers.filter(c => (c.sales_rep || '').trim() === rep).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    setRepCount(mine.length);
+    Promise.all(mine.map(c => api.get(`/customers/${c.id}/statement`, { params: { from: dateFrom, to: dateTo } })
       .then(r => ({ customer: c, rows: r.data })).catch(() => ({ customer: c, rows: [] }))))
-      .then(list => { if (!cancelled) setData(list); })
+      .then(list => { if (!cancelled) setData(list.filter(x => x.rows.some(r => !r.isOpening))); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [rep, month, customers]);
+  }, [rep, dateFrom, dateTo, customers]);
 
   const summarize = ({ customer, rows }) => {
     const opening = rows.find(r => r.isOpening);
     const moves = rows.filter(r => !r.isOpening);
     const invoices = moves.filter(r => r.type === 'فاتورة بيع');
-    const returns = moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي');
-    const paid = moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك');
+    const sum = (list, k) => list.reduce((s, r) => s + Number(r[k] || 0), 0);
     return {
-      customer, rows, opening: Number(opening?.balance || 0),
+      customer, rows, moves,
+      opening: Number(opening?.balance || 0),
       kg: invoices.reduce((s, r) => s + kgOf(r.items), 0),
-      sales: invoices.reduce((s, r) => s + Number(r.debit), 0),
-      returns: returns.reduce((s, r) => s + Number(r.credit), 0),
-      paid: paid.reduce((s, r) => s + Number(r.credit), 0),
+      sales: sum(invoices, 'debit'),
+      returns: sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit'),
+      paid: sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit'),
+      bounced: sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit'),
+      debit: sum(moves, 'debit'),
+      credit: sum(moves, 'credit'),
       closing: Number(rows.length ? rows[rows.length - 1].balance : 0),
     };
   };
   const summaries = data.map(summarize);
   const total = (key) => summaries.reduce((s, x) => s + x[key], 0);
 
+  const describe = (r) => `${r.type} ${r.reference || ''}${r.check_due_date ? ` — استحقاق: ${r.check_due_date}` : ''}${r.check_bounced_date ? ` — ارتداد: ${r.check_bounced_date}` : ''}${r.check_status ? ` (${checkLabel(r.check_status)})` : ''}`;
+
   const handlePrint = () => {
     const section = (s) => `
       <section>
         <h2>${s.customer.name}</h2>
-        <div class="info"><span>المندوب: <strong>${rep}</strong></span><span>عن شهر ${month} (من ${from} إلى ${to})</span><span>رصيد أول الشهر: <strong>${fmt(s.opening)}</strong></span></div>
-        <table><thead><tr><th>التاريخ</th><th>البيان</th><th>الصنف</th><th>الوزن (كجم)</th><th>السعر</th><th>الإجمالي</th><th>مدفوع</th></tr></thead><tbody>
-        ${s.rows.filter(r => !r.isOpening).map(r => {
-          if (r.items?.length) return r.items.map((it, i) => `<tr><td>${i === 0 ? r.date : ''}</td><td>${i === 0 ? `${r.type} ${r.reference}` : ''}</td><td>${it.Item?.name || ''}</td><td>${Number(it.weight || 0) > 0 ? Number(it.weight).toLocaleString() : '—'}</td><td>${fmt(it.price)}</td><td>${fmt(it.total)}</td><td></td></tr>`).join('')
-            + ((r.discount > 0 || r.tax_amount > 0) ? `<tr class="sub"><td colspan="7">${r.discount > 0 ? `خصم: ${fmt(r.discount)}  ` : ''}${r.tax_amount > 0 ? `ضريبة (${r.tax_rate}%): ${fmt(r.tax_amount)}  ` : ''}إجمالي ${r.type}: ${fmt(r.debit || r.credit)}</td></tr>` : '');
-          return `<tr><td>${r.date || ''}</td><td>${r.type} ${r.reference || ''}</td><td></td><td></td><td></td><td></td><td>${r.credit ? fmt(r.credit) : ''}</td></tr>`;
-        }).join('')}
+        <div class="info"><span>المندوب: <strong>${rep}</strong></span><span>من ${dateFrom} إلى ${dateTo}</span></div>
+        <table><thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (عليه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead><tbody>
+        ${s.rows.map(r => `
+          <tr${r.isOpening ? ' class="sub"' : ''}><td>${r.date || ''}</td><td>${r.isOpening ? r.type : describe(r)}</td><td>${r.debit ? fmt(r.debit) : ''}</td><td>${r.credit ? fmt(r.credit) : ''}</td><td>${fmt(balSplit(r.balance).debit)}</td><td>${fmt(balSplit(r.balance).credit)}</td></tr>
+          ${r.items?.length ? `<tr class="items"><td></td><td colspan="5"><table><thead><tr><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${r.items.map(it => `<tr><td>${it.Item?.name || ''}</td><td>${Number(it.weight || 0) > 0 ? Number(it.weight).toLocaleString() : '—'}</td><td>${Number(it.quantity).toLocaleString()}</td><td>${fmt(it.price)}</td><td>${fmt(it.total)}</td></tr>`).join('')}</tbody></table>${(r.discount > 0 || r.tax_amount > 0) ? `<div class="note">${r.discount > 0 ? `خصم: ${fmt(r.discount)}  ` : ''}${r.tax_amount > 0 ? `ضريبة (${r.tax_rate}%): ${fmt(r.tax_amount)}` : ''}</div>` : ''}</td></tr>` : ''}`).join('')}
+        <tr class="sub"><td colspan="2">الإجمالي / الرصيد النهائي</td><td>${fmt(s.debit)}</td><td>${fmt(s.credit)}</td><td>${fmt(balSplit(s.closing).debit)}</td><td>${fmt(balSplit(s.closing).credit)}</td></tr>
         </tbody></table>
-        <div class="totals"><span>إجمالي المبيعات: <strong>${fmt(s.sales)}</strong></span><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span><span>الرصيد في آخر الشهر: <strong>${fmt(s.closing)}</strong></span></div>
+        <div class="totals"><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المبيعات: <strong>${fmt(s.sales)}</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span>${s.bounced ? `<span>شيكات مرتدة: <strong>${fmt(s.bounced)}</strong></span>` : ''}</div>
       </section>`;
     const summaryPage = `
       <section>
-        <h1>ملخص شهر ${month} — مندوب: ${rep}</h1>
-        <table><thead><tr><th>العميل</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead><tbody>
-        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.closing)}</td></tr>`).join('')}
-        <tr class="sub"><td>الإجمالي</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('closing'))}</td></tr>
+        <h1>حركة عملاء المندوب: ${rep}</h1>
+        <div class="info"><span>من ${dateFrom} إلى ${dateTo}</span><span>عملاء لهم حركة: ${summaries.length} من ${repCount}</span></div>
+        <table><thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>الرصيد آخر المدة</th></tr></thead><tbody>
+        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${fmt(s.opening)}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.bounced)}</td><td>${fmt(s.closing)}</td></tr>`).join('')}
+        <tr class="sub"><td>الإجمالي</td><td>${fmt(total('opening'))}</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('bounced'))}</td><td>${fmt(total('closing'))}</td></tr>
         </tbody></table>
       </section>`;
-    const html = `<html dir="rtl"><head><title>كشوف حساب المندوب ${rep} - ${month}</title>
-    <style>body{font-family:Cairo,sans-serif;padding:30px;direction:rtl}h1{font-size:20px;text-align:center}h2{font-size:18px;margin:0 0 8px}section{page-break-after:always}section:last-child{page-break-after:auto}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #333;padding:5px 7px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f9f9f9;font-size:12px;color:#555;font-weight:bold}.info,.totals{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0;font-size:14px}.totals{border-top:2px solid #333;padding-top:8px}</style></head><body>
+    const html = `<html dir="rtl"><head><title>حركة عملاء المندوب ${rep}</title>
+    <style>body{font-family:Cairo,sans-serif;padding:30px;direction:rtl}h1{font-size:20px;text-align:center}h2{font-size:18px;margin:0 0 8px}section{page-break-after:always}section:last-child{page-break-after:auto}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #333;padding:5px 7px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f3f3f3;font-weight:bold}.items td{font-size:12px}.items table{margin:4px 0}.items th,.items td{border-color:#999;padding:3px 6px}.note{font-size:12px;color:#555}.info,.totals{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0;font-size:14px}.totals{border-top:2px solid #333;padding-top:8px}</style></head><body>
     ${summaryPage}${summaries.map(section).join('')}</body></html>`;
     const win = window.open('', '_blank'); win.document.write(html); win.document.close(); win.print();
   };
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-800">كشوف حساب شهرية لعملاء مندوب</h1>
+      <h1 className="text-xl font-bold text-gray-800">كشوف حساب مندوب — حركة عملائه خلال الفترة</h1>
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[200px]">
           <label className="form-label">المندوب</label>
@@ -89,33 +104,95 @@ export default function RepStatementsPage() {
             {reps.map(r => <option key={r} value={r}>{r}</option>)}
           </SearchableSelect>
         </div>
-        <div><label className="form-label">الشهر</label><input type="month" className="erp-input" value={month} onChange={e => setMonth(e.target.value)} /></div>
-        {rep && summaries.length > 0 && <button onClick={handlePrint} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة كل الكشوف</button>}
+        <div><label className="form-label">من</label><input type="date" className="erp-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
+        <div><label className="form-label">إلى</label><input type="date" className="erp-input" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
+        {rep && summaries.length > 0 && <button onClick={handlePrint} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>}
       </div>
 
-      {!rep && <div className="text-center py-16 text-gray-400">{reps.length ? 'اختر المندوب والشهر' : 'لم يُكتب مندوب لأي عميل بعد (تعريف العملاء ← مندوب البيع)'}</div>}
+      {!rep && <div className="text-center py-16 text-gray-400">{reps.length ? 'اختر المندوب والفترة' : 'لم يُكتب مندوب لأي عميل بعد (تعريف العملاء ← مندوب البيع)'}</div>}
       {rep && loading && <div className="text-center py-8 text-gray-400">جارٍ التحميل...</div>}
 
       {rep && !loading && (
-        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table className="erp-table">
-            <thead><tr><th>العميل</th><th>رصيد أول الشهر</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>الرصيد آخر الشهر</th></tr></thead>
-            <tbody>
-              {summaries.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا يوجد عملاء لهذا المندوب</td></tr>}
-              {summaries.map(s => (
-                <tr key={s.customer.id}>
-                  <td className="font-medium">{s.customer.name}</td><td>{fmt(s.opening)}</td><td>{s.kg.toLocaleString()}</td>
-                  <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td className="font-bold">{fmt(s.closing)}</td>
-                </tr>
-              ))}
-            </tbody>
-            {summaries.length > 0 && (
-              <tfoot><tr className="bg-gray-100 font-bold">
-                <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('closing'))}</td>
-              </tr></tfoot>
-            )}
-          </table>
-        </div>
+        <>
+          <div className="text-sm text-gray-500">عملاء لهم حركة في الفترة: <strong className="text-gray-800">{summaries.length}</strong> من {repCount} عميل للمندوب</div>
+          {summaries.length === 0 && <div className="bg-white rounded-xl shadow-sm text-center py-10 text-gray-400">لا توجد حركة لعملاء هذا المندوب في الفترة المختارة</div>}
+
+          {summaries.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+              <table className="erp-table">
+                <thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>الرصيد آخر المدة</th></tr></thead>
+                <tbody>
+                  {summaries.map(s => (
+                    <tr key={s.customer.id}>
+                      <td className="font-medium"><a href={`#rep-cust-${s.customer.id}`} className="text-primary hover:underline">{s.customer.name}</a></td>
+                      <td>{fmt(s.opening)}</td><td>{s.kg.toLocaleString()}</td>
+                      <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td>{fmt(s.bounced)}</td><td className="font-bold">{fmt(s.closing)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="bg-gray-100 font-bold">
+                  <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('bounced'))}</td><td>{fmt(total('closing'))}</td>
+                </tr></tfoot>
+              </table>
+            </div>
+          )}
+
+          {summaries.map(s => (
+            <div key={s.customer.id} id={`rep-cust-${s.customer.id}`} className="bg-white rounded-xl shadow-sm overflow-x-auto">
+              <div className="px-4 py-3 border-b flex justify-between flex-wrap gap-2">
+                <h2 className="font-bold text-gray-800">{s.customer.name}</h2>
+                <span className="text-sm text-gray-500">الوزن المباع: {s.kg.toLocaleString()} كجم</span>
+              </div>
+              <table className="erp-table">
+                <thead><tr><th>التاريخ</th><th>البيان</th><th>مدين (عليه)</th><th>دائن (له)</th><th>رصيد مدين</th><th>رصيد دائن</th></tr></thead>
+                <tbody>
+                  {s.rows.map((r, i) => (
+                    <tr key={i} className={r.isOpening ? 'bg-gray-50' : ''}>
+                      <td>{r.date}</td>
+                      <td>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`font-medium ${r.isOpening ? 'text-gray-700' : typeColor(r.type)}`}>{r.type}</span>
+                            {!r.isOpening && <span className="font-mono text-sm text-gray-600">{r.reference}</span>}
+                            {r.check_status && <span className={`badge text-xs ${r.check_status === 'bounced' ? 'badge-red' : r.check_status === 'collected' ? 'badge-green' : 'badge-yellow'}`}>{checkLabel(r.check_status)}</span>}
+                          </div>
+                          {r.check_due_date && <div className="text-xs text-gray-500">تاريخ الاستحقاق: {r.check_due_date}</div>}
+                          {r.check_bounced_date && <div className="text-xs text-red-500">تاريخ الارتداد: {r.check_bounced_date}</div>}
+                          {r.items?.length > 0 && (
+                            <div className="text-xs text-gray-500 pr-2 border-r-2 border-blue-200 space-y-0.5 mt-0.5">
+                              {r.items.map((it, j) => {
+                                const wt = Number(it.weight || 0);
+                                const unit = wt > 0 ? `${wt.toLocaleString()} كجم` : `${Number(it.quantity).toLocaleString()} عدد`;
+                                return <div key={j}>{it.Item?.name || it.item_id} — {unit} × {Number(it.price).toLocaleString()} = <span className="text-gray-700 font-medium">{fmt(it.total)} ج.م</span></div>;
+                              })}
+                              {(r.discount > 0 || r.tax_amount > 0) && (
+                                <div className="flex gap-3 pt-0.5 border-t border-gray-200 flex-wrap">
+                                  {r.discount > 0 && <span className="text-red-500">خصم: {fmt(r.discount)} ج.م</span>}
+                                  {r.tax_amount > 0 && <span className="text-green-600">ضريبة ({r.tax_rate}%): {fmt(r.tax_amount)} ج.م</span>}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className={r.debit ? 'text-red-600 font-medium' : ''}>{r.debit ? fmt(r.debit) : ''}</td>
+                      <td className={r.credit ? 'text-green-600 font-medium' : ''}>{r.credit ? fmt(r.credit) : ''}</td>
+                      <td className="font-bold">{fmt(balSplit(r.balance).debit)}</td>
+                      <td className="font-bold">{fmt(balSplit(r.balance).credit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="bg-gray-100 font-bold">
+                  <td colSpan={2}>الرصيد النهائي</td>
+                  <td className="text-red-600">{fmt(s.debit)}</td>
+                  <td className="text-green-600">{fmt(s.credit)}</td>
+                  <td className="text-primary">{fmt(balSplit(s.closing).debit)}</td>
+                  <td className="text-primary">{fmt(balSplit(s.closing).credit)}</td>
+                </tr></tfoot>
+              </table>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );
