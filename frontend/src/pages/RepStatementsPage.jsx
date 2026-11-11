@@ -11,6 +11,8 @@ const balSplit = (b) => { const n = Number(b || 0); return { debit: n > 0 ? n : 
 const checkLabel = (s) => (s === 'bounced' ? 'مرتد' : s === 'collected' ? 'تم التحصيل' : 'قيد الانتظار');
 // Cliché / cylinder lines are deducted from the customer's payments before the rep's commission.
 const isPlate = (name) => /(كلاش|كلش|كليش|سلندر|سليندر)/.test(name || '');
+// Commission is not paid on VAT: the net after deductions is divided by 1.14 first.
+const TAX_DIVISOR = 1.14;
 const typeColor = (type) => {
   if (type === 'فاتورة بيع' || type === 'شيك مرتد') return 'text-red-600';
   if (type === 'مرتجع بيع') return 'text-green-600';
@@ -64,9 +66,10 @@ export default function RepStatementsPage() {
     const bounced = sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit');
     const plates = invoices.reduce((s, r) => s + (r.items || []).filter(it => isPlate(it.Item?.name)).reduce((a, it) => a + Number(it.total || 0), 0), 0);
     const base = paid - bounced - returns - plates;
+    const exTax = base / TAX_DIVISOR;
     return {
-      customer, rows, moves, paid, returns, bounced, plates, base,
-      commission: base * ratePct / 100,
+      customer, rows, moves, paid, returns, bounced, plates, base, exTax,
+      commission: exTax * ratePct / 100,
       opening: Number(opening?.balance || 0),
       kg: invoices.reduce((s, r) => s + kgOf(r.items), 0),
       sales: sum(invoices, 'debit'),
@@ -92,15 +95,15 @@ export default function RepStatementsPage() {
         <tr class="sub"><td colspan="2">الإجمالي / الرصيد النهائي</td><td>${fmt(s.debit)}</td><td>${fmt(s.credit)}</td><td>${fmt(balSplit(s.closing).debit)}</td><td>${fmt(balSplit(s.closing).credit)}</td></tr>
         </tbody></table>
         <div class="totals"><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المبيعات: <strong>${fmt(s.sales)}</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span>${s.bounced ? `<span>شيكات مرتدة: <strong>${fmt(s.bounced)}</strong></span>` : ''}</div>
-        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = <strong>${fmt(s.base)}</strong> × ${ratePct}% = <strong>${fmt(s.commission)}</strong></div>
+        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = ${fmt(s.base)} ÷ ${TAX_DIVISOR} = <strong>${fmt(s.exTax)}</strong> × ${ratePct}% =<strong>${fmt(s.commission)}</strong></div>
       </section>`;
     const summaryPage = `
       <section>
         <h1>حركة عملاء المندوب: ${rep}</h1>
         <div class="info"><span>من ${dateFrom} إلى ${dateTo}</span><span>عملاء لهم حركة: ${summaries.length} من ${repCount}</span></div>
-        <table><thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>صافي للعمولة</th><th>العمولة (${ratePct}%)</th></tr></thead><tbody>
-        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${fmt(s.opening)}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.bounced)}</td><td>${fmt(s.plates)}</td><td>${fmt(s.closing)}</td><td>${fmt(s.base)}</td><td>${fmt(s.commission)}</td></tr>`).join('')}
-        <tr class="sub"><td>الإجمالي</td><td>${fmt(total('opening'))}</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('bounced'))}</td><td>${fmt(total('plates'))}</td><td>${fmt(total('closing'))}</td><td>${fmt(total('base'))}</td><td>${fmt(total('commission'))}</td></tr>
+        <table><thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>الصافي</th><th>الصافي بدون ضريبة</th><th>العمولة (${ratePct}%)</th></tr></thead><tbody>
+        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${fmt(s.opening)}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.bounced)}</td><td>${fmt(s.plates)}</td><td>${fmt(s.closing)}</td><td>${fmt(s.base)}</td><td>${fmt(s.exTax)}</td><td>${fmt(s.commission)}</td></tr>`).join('')}
+        <tr class="sub"><td>الإجمالي</td><td>${fmt(total('opening'))}</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('bounced'))}</td><td>${fmt(total('plates'))}</td><td>${fmt(total('closing'))}</td><td>${fmt(total('base'))}</td><td>${fmt(total('exTax'))}</td><td>${fmt(total('commission'))}</td></tr>
         </tbody></table>
         <div class="comm big">إجمالي عمولة المندوب ${rep} عن الفترة: <strong>${fmt(total('commission'))}</strong></div>
       </section>`;
@@ -144,18 +147,18 @@ export default function RepStatementsPage() {
           {summaries.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
               <table className="erp-table">
-                <thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>صافي للعمولة</th><th>العمولة ({ratePct}%)</th></tr></thead>
+                <thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>الصافي</th><th>الصافي بدون ضريبة</th><th>العمولة ({ratePct}%)</th></tr></thead>
                 <tbody>
                   {summaries.map(s => (
                     <tr key={s.customer.id}>
                       <td className="font-medium"><a href={`#rep-cust-${s.customer.id}`} className="text-primary hover:underline">{s.customer.name}</a></td>
                       <td>{fmt(s.opening)}</td><td>{s.kg.toLocaleString()}</td>
-                      <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td>{fmt(s.bounced)}</td><td>{fmt(s.plates)}</td><td className="font-bold">{fmt(s.closing)}</td><td>{fmt(s.base)}</td><td className="font-bold text-primary">{fmt(s.commission)}</td>
+                      <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td>{fmt(s.bounced)}</td><td>{fmt(s.plates)}</td><td className="font-bold">{fmt(s.closing)}</td><td>{fmt(s.base)}</td><td>{fmt(s.exTax)}</td><td className="font-bold text-primary">{fmt(s.commission)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot><tr className="bg-gray-100 font-bold">
-                  <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('bounced'))}</td><td>{fmt(total('plates'))}</td><td>{fmt(total('closing'))}</td><td>{fmt(total('base'))}</td><td className="text-primary">{fmt(total('commission'))}</td>
+                  <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('bounced'))}</td><td>{fmt(total('plates'))}</td><td>{fmt(total('closing'))}</td><td>{fmt(total('base'))}</td><td>{fmt(total('exTax'))}</td><td className="text-primary">{fmt(total('commission'))}</td>
                 </tr></tfoot>
               </table>
               <div className="px-4 py-3 border-t bg-blue-50 text-lg font-bold text-gray-800 flex justify-between flex-wrap gap-2">
@@ -224,7 +227,8 @@ export default function RepStatementsPage() {
                 {s.bounced > 0 && <span>− شيكات مرتدة {fmt(s.bounced)}</span>}
                 <span>− مرتجعات وخصم نقدي {fmt(s.returns)}</span>
                 <span>− أكلاشيهات وسلندرات {fmt(s.plates)}</span>
-                <span>= <strong>{fmt(s.base)}</strong></span>
+                <span>= {fmt(s.base)}</span>
+                <span>÷ {TAX_DIVISOR} (بدون ضريبة) = <strong>{fmt(s.exTax)}</strong></span>
                 <span>× {ratePct}% =</span>
                 <span className="font-bold text-primary text-base">{fmt(s.commission)} ج.م</span>
               </div>
