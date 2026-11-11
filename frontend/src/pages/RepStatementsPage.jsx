@@ -9,6 +9,8 @@ const today = () => new Date().toISOString().split('T')[0];
 const monthStart = () => today().slice(0, 8) + '01';
 const balSplit = (b) => { const n = Number(b || 0); return { debit: n > 0 ? n : 0, credit: n < 0 ? -n : 0 }; };
 const checkLabel = (s) => (s === 'bounced' ? 'مرتد' : s === 'collected' ? 'تم التحصيل' : 'قيد الانتظار');
+// Cliché / cylinder lines are deducted from the customer's payments before the rep's commission.
+const isPlate = (name) => /(كلاش|كلش|كليش|سلندر|سليندر)/.test(name || '');
 const typeColor = (type) => {
   if (type === 'فاتورة بيع' || type === 'شيك مرتد') return 'text-red-600';
   if (type === 'مرتجع بيع') return 'text-green-600';
@@ -25,9 +27,19 @@ export default function RepStatementsPage() {
   const [data, setData] = useState([]);
   const [repCount, setRepCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [rate, setRate] = useState(null);
 
-  useEffect(() => { api.get('/customers').then(r => setCustomers(r.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    api.get('/customers').then(r => setCustomers(r.data)).catch(() => {});
+    api.get('/employees').then(r => setEmployees(r.data)).catch(() => {});
+  }, []);
   const reps = [...new Set(customers.map(c => (c.sales_rep || '').trim()).filter(Boolean))].sort();
+  // The rep's commission % comes from the employee with the same name (شاشة الموظفين).
+  const repEmployee = employees.find(e => (e.name || '').trim() === rep);
+  // `rate` is null until the reviewer types an override; picking another rep clears it.
+  const shownRate = rate ?? (repEmployee ? String(Number(repEmployee.commission_rate || 0)) : '');
+  const ratePct = Number(shownRate || 0);
 
   useEffect(() => {
     if (!rep || !dateFrom || !dateTo) { setData([]); setRepCount(0); return; }
@@ -47,14 +59,17 @@ export default function RepStatementsPage() {
     const moves = rows.filter(r => !r.isOpening);
     const invoices = moves.filter(r => r.type === 'فاتورة بيع');
     const sum = (list, k) => list.reduce((s, r) => s + Number(r[k] || 0), 0);
+    const paid = sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit');
+    const returns = sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit');
+    const bounced = sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit');
+    const plates = invoices.reduce((s, r) => s + (r.items || []).filter(it => isPlate(it.Item?.name)).reduce((a, it) => a + Number(it.total || 0), 0), 0);
+    const base = paid - bounced - returns - plates;
     return {
-      customer, rows, moves,
+      customer, rows, moves, paid, returns, bounced, plates, base,
+      commission: base * ratePct / 100,
       opening: Number(opening?.balance || 0),
       kg: invoices.reduce((s, r) => s + kgOf(r.items), 0),
       sales: sum(invoices, 'debit'),
-      returns: sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit'),
-      paid: sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit'),
-      bounced: sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit'),
       debit: sum(moves, 'debit'),
       credit: sum(moves, 'credit'),
       closing: Number(rows.length ? rows[rows.length - 1].balance : 0),
@@ -77,18 +92,20 @@ export default function RepStatementsPage() {
         <tr class="sub"><td colspan="2">الإجمالي / الرصيد النهائي</td><td>${fmt(s.debit)}</td><td>${fmt(s.credit)}</td><td>${fmt(balSplit(s.closing).debit)}</td><td>${fmt(balSplit(s.closing).credit)}</td></tr>
         </tbody></table>
         <div class="totals"><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المبيعات: <strong>${fmt(s.sales)}</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span>${s.bounced ? `<span>شيكات مرتدة: <strong>${fmt(s.bounced)}</strong></span>` : ''}</div>
+        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = <strong>${fmt(s.base)}</strong> × ${ratePct}% = <strong>${fmt(s.commission)}</strong></div>
       </section>`;
     const summaryPage = `
       <section>
         <h1>حركة عملاء المندوب: ${rep}</h1>
         <div class="info"><span>من ${dateFrom} إلى ${dateTo}</span><span>عملاء لهم حركة: ${summaries.length} من ${repCount}</span></div>
-        <table><thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>الرصيد آخر المدة</th></tr></thead><tbody>
-        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${fmt(s.opening)}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.bounced)}</td><td>${fmt(s.closing)}</td></tr>`).join('')}
-        <tr class="sub"><td>الإجمالي</td><td>${fmt(total('opening'))}</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('bounced'))}</td><td>${fmt(total('closing'))}</td></tr>
+        <table><thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>صافي للعمولة</th><th>العمولة (${ratePct}%)</th></tr></thead><tbody>
+        ${summaries.map(s => `<tr><td>${s.customer.name}</td><td>${fmt(s.opening)}</td><td>${s.kg.toLocaleString()}</td><td>${fmt(s.sales)}</td><td>${fmt(s.returns)}</td><td>${fmt(s.paid)}</td><td>${fmt(s.bounced)}</td><td>${fmt(s.plates)}</td><td>${fmt(s.closing)}</td><td>${fmt(s.base)}</td><td>${fmt(s.commission)}</td></tr>`).join('')}
+        <tr class="sub"><td>الإجمالي</td><td>${fmt(total('opening'))}</td><td>${total('kg').toLocaleString()}</td><td>${fmt(total('sales'))}</td><td>${fmt(total('returns'))}</td><td>${fmt(total('paid'))}</td><td>${fmt(total('bounced'))}</td><td>${fmt(total('plates'))}</td><td>${fmt(total('closing'))}</td><td>${fmt(total('base'))}</td><td>${fmt(total('commission'))}</td></tr>
         </tbody></table>
+        <div class="comm big">إجمالي عمولة المندوب ${rep} عن الفترة: <strong>${fmt(total('commission'))}</strong></div>
       </section>`;
     const html = `<html dir="rtl"><head><title>حركة عملاء المندوب ${rep}</title>
-    <style>body{font-family:Cairo,sans-serif;padding:30px;direction:rtl}h1{font-size:20px;text-align:center}h2{font-size:18px;margin:0 0 8px}section{page-break-after:always}section:last-child{page-break-after:auto}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #333;padding:5px 7px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f3f3f3;font-weight:bold}.items td{font-size:12px}.items table{margin:4px 0}.items th,.items td{border-color:#999;padding:3px 6px}.note{font-size:12px;color:#555}.info,.totals{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0;font-size:14px}.totals{border-top:2px solid #333;padding-top:8px}</style></head><body>
+    <style>body{font-family:Cairo,sans-serif;padding:30px;direction:rtl}h1{font-size:20px;text-align:center}h2{font-size:18px;margin:0 0 8px}section{page-break-after:always}section:last-child{page-break-after:auto}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #333;padding:5px 7px;text-align:right;font-size:13px}th{background:#f0f0f0}.sub td{background:#f3f3f3;font-weight:bold}.items td{font-size:12px}.items table{margin:4px 0}.items th,.items td{border-color:#999;padding:3px 6px}.note{font-size:12px;color:#555}.info,.totals{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:10px 0;font-size:14px}.totals{border-top:2px solid #333;padding-top:8px}.comm{margin-top:8px;padding:8px;border:1px solid #333;background:#f7f7f7;font-size:14px}.comm.big{font-size:17px;text-align:center}</style></head><body>
     ${summaryPage}${summaries.map(section).join('')}</body></html>`;
     const win = window.open('', '_blank'); win.document.write(html); win.document.close(); win.print();
   };
@@ -99,13 +116,19 @@ export default function RepStatementsPage() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="min-w-[200px]">
           <label className="form-label">المندوب</label>
-          <SearchableSelect className="erp-input" value={rep} onChange={e => setRep(e.target.value)}>
+          <SearchableSelect className="erp-input" value={rep} onChange={e => { setRep(e.target.value); setRate(null); }}>
             <option value="">— اختر المندوب —</option>
             {reps.map(r => <option key={r} value={r}>{r}</option>)}
           </SearchableSelect>
         </div>
         <div><label className="form-label">من</label><input type="date" className="erp-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
         <div><label className="form-label">إلى</label><input type="date" className="erp-input" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
+        {rep && (
+          <div className="w-32">
+            <label className="form-label">نسبة العمولة %</label>
+            <input type="number" step="0.1" className="erp-input" value={shownRate} onChange={e => setRate(e.target.value)} />
+          </div>
+        )}
         {rep && summaries.length > 0 && <button onClick={handlePrint} className="erp-btn erp-btn-outline flex items-center gap-1"><MdPrint size={18} /> طباعة</button>}
       </div>
 
@@ -114,26 +137,31 @@ export default function RepStatementsPage() {
 
       {rep && !loading && (
         <>
+          {!repEmployee && <div className="text-sm bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-3 py-2">المندوب «{rep}» غير معرّف في شاشة الموظفين، فلا توجد له نسبة عمولة محفوظة. أضفه في الموظفين بنفس الاسم مع نسبة العمولة، أو اكتب النسبة هنا للمراجعة فقط.</div>}
           <div className="text-sm text-gray-500">عملاء لهم حركة في الفترة: <strong className="text-gray-800">{summaries.length}</strong> من {repCount} عميل للمندوب</div>
           {summaries.length === 0 && <div className="bg-white rounded-xl shadow-sm text-center py-10 text-gray-400">لا توجد حركة لعملاء هذا المندوب في الفترة المختارة</div>}
 
           {summaries.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
               <table className="erp-table">
-                <thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>الرصيد آخر المدة</th></tr></thead>
+                <thead><tr><th>العميل</th><th>رصيد أول المدة</th><th>الوزن (كجم)</th><th>المبيعات</th><th>مرتجعات وخصومات</th><th>المدفوع</th><th>شيكات مرتدة</th><th>أكلاشيهات وسلندرات</th><th>الرصيد آخر المدة</th><th>صافي للعمولة</th><th>العمولة ({ratePct}%)</th></tr></thead>
                 <tbody>
                   {summaries.map(s => (
                     <tr key={s.customer.id}>
                       <td className="font-medium"><a href={`#rep-cust-${s.customer.id}`} className="text-primary hover:underline">{s.customer.name}</a></td>
                       <td>{fmt(s.opening)}</td><td>{s.kg.toLocaleString()}</td>
-                      <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td>{fmt(s.bounced)}</td><td className="font-bold">{fmt(s.closing)}</td>
+                      <td className="text-red-600">{fmt(s.sales)}</td><td>{fmt(s.returns)}</td><td className="text-green-600">{fmt(s.paid)}</td><td>{fmt(s.bounced)}</td><td>{fmt(s.plates)}</td><td className="font-bold">{fmt(s.closing)}</td><td>{fmt(s.base)}</td><td className="font-bold text-primary">{fmt(s.commission)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot><tr className="bg-gray-100 font-bold">
-                  <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('bounced'))}</td><td>{fmt(total('closing'))}</td>
+                  <td>الإجمالي</td><td>{fmt(total('opening'))}</td><td>{total('kg').toLocaleString()}</td><td>{fmt(total('sales'))}</td><td>{fmt(total('returns'))}</td><td>{fmt(total('paid'))}</td><td>{fmt(total('bounced'))}</td><td>{fmt(total('plates'))}</td><td>{fmt(total('closing'))}</td><td>{fmt(total('base'))}</td><td className="text-primary">{fmt(total('commission'))}</td>
                 </tr></tfoot>
               </table>
+              <div className="px-4 py-3 border-t bg-blue-50 text-lg font-bold text-gray-800 flex justify-between flex-wrap gap-2">
+                <span>إجمالي عمولة المندوب عن الفترة</span>
+                <span className="text-primary">{fmt(total('commission'))} ج.م</span>
+              </div>
             </div>
           )}
 
@@ -190,6 +218,16 @@ export default function RepStatementsPage() {
                   <td className="text-primary">{fmt(balSplit(s.closing).credit)}</td>
                 </tr></tfoot>
               </table>
+              <div className="px-4 py-3 border-t bg-blue-50 text-sm text-gray-700 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                <span className="font-bold">العمولة:</span>
+                <span>الدفعات {fmt(s.paid)}</span>
+                {s.bounced > 0 && <span>− شيكات مرتدة {fmt(s.bounced)}</span>}
+                <span>− مرتجعات وخصم نقدي {fmt(s.returns)}</span>
+                <span>− أكلاشيهات وسلندرات {fmt(s.plates)}</span>
+                <span>= <strong>{fmt(s.base)}</strong></span>
+                <span>× {ratePct}% =</span>
+                <span className="font-bold text-primary text-base">{fmt(s.commission)} ج.م</span>
+              </div>
             </div>
           ))}
         </>

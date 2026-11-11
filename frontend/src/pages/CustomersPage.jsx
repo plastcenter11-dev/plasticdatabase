@@ -25,6 +25,8 @@ export default function CustomersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [employees, setEmployees] = useState([]);
+  useEffect(() => { api.get('/employees').then(r => setEmployees(r.data)).catch(() => {}); }, []);
 
   const loadData = async () => {
     try { setCustomers((await api.get('/customers')).data); }
@@ -141,7 +143,7 @@ export default function CustomersPage() {
               <div><label className="form-label">الهاتف</label><input className="erp-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
               <div><label className="form-label">حد الائتمان</label><input type="number" className="erp-input" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} /></div>
             </div>
-            <div><label className="form-label">مندوب البيع</label><input className="erp-input" value={form.sales_rep} onChange={e => setForm({ ...form, sales_rep: e.target.value })} /></div>
+            <div><label className="form-label">مندوب البيع</label><input className="erp-input" list="sales-rep-employees" value={form.sales_rep} onChange={e => setForm({ ...form, sales_rep: e.target.value })} /><datalist id="sales-rep-employees">{employees.filter(e => e.is_active).map(e => <option key={e.id} value={e.name} />)}</datalist></div>
             <div><label className="form-label">العنوان</label><input className="erp-input" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
