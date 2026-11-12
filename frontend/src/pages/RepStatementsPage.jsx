@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
+import { repCommission, TAX_DIVISOR } from '../utils/repCommission';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kgOf = (items) => (items || []).reduce((s, it) => s + Number(it.weight || 0), 0);
@@ -9,10 +10,6 @@ const today = () => new Date().toISOString().split('T')[0];
 const monthStart = () => today().slice(0, 8) + '01';
 const balSplit = (b) => { const n = Number(b || 0); return { debit: n > 0 ? n : 0, credit: n < 0 ? -n : 0 }; };
 const checkLabel = (s) => (s === 'bounced' ? 'مرتد' : s === 'collected' ? 'تم التحصيل' : 'قيد الانتظار');
-// Cliché / cylinder lines are deducted from the customer's payments before the rep's commission.
-const isPlate = (name) => /(كلاش|كلش|كليش|سلندر|سليندر)/.test(name || '');
-// Commission is not paid on VAT: the net after deductions is divided by 1.14 first.
-const TAX_DIVISOR = 1.14;
 const typeColor = (type) => {
   if (type === 'فاتورة بيع' || type === 'شيك مرتد') return 'text-red-600';
   if (type === 'مرتجع بيع') return 'text-green-600';
@@ -58,24 +55,11 @@ export default function RepStatementsPage() {
 
   const summarize = ({ customer, rows }) => {
     const opening = rows.find(r => r.isOpening);
-    const moves = rows.filter(r => !r.isOpening);
-    const invoices = moves.filter(r => r.type === 'فاتورة بيع');
+    const c = repCommission(rows, ratePct);
+    const { moves, invoices } = c;
     const sum = (list, k) => list.reduce((s, r) => s + Number(r[k] || 0), 0);
-    const paid = sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit');
-    const returns = sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit');
-    const bounced = sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit');
-    // A cliché line's share of the invoice as billed (after header discount, including VAT),
-    // so it is deducted on the same basis as payments and returns.
-    const plates = invoices.reduce((s, r) => {
-      const lines = (r.items || []).filter(it => isPlate(it.Item?.name)).reduce((a, it) => a + Number(it.total || 0), 0);
-      const sub = Number(r.subtotal || 0);
-      return s + (sub > 0 ? lines / sub * Number(r.debit || 0) : lines * (1 + Number(r.tax_rate || 0) / 100));
-    }, 0);
-    const base = paid - bounced - returns - plates;
-    const exTax = base / TAX_DIVISOR;
     return {
-      customer, rows, moves, paid, returns, bounced, plates, base, exTax,
-      commission: exTax * ratePct / 100,
+      ...c, customer, rows,
       opening: Number(opening?.balance || 0),
       kg: invoices.reduce((s, r) => s + kgOf(r.items), 0),
       sales: sum(invoices, 'debit'),
