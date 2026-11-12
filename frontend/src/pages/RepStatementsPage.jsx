@@ -64,7 +64,13 @@ export default function RepStatementsPage() {
     const paid = sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit');
     const returns = sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit');
     const bounced = sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit');
-    const plates = invoices.reduce((s, r) => s + (r.items || []).filter(it => isPlate(it.Item?.name)).reduce((a, it) => a + Number(it.total || 0), 0), 0);
+    // A cliché line's share of the invoice as billed (after header discount, including VAT),
+    // so it is deducted on the same basis as payments and returns.
+    const plates = invoices.reduce((s, r) => {
+      const lines = (r.items || []).filter(it => isPlate(it.Item?.name)).reduce((a, it) => a + Number(it.total || 0), 0);
+      const sub = Number(r.subtotal || 0);
+      return s + (sub > 0 ? lines / sub * Number(r.debit || 0) : lines * (1 + Number(r.tax_rate || 0) / 100));
+    }, 0);
     const base = paid - bounced - returns - plates;
     const exTax = base / TAX_DIVISOR;
     return {
