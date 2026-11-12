@@ -10,7 +10,7 @@ const ROUTES = [
   '/customers', '/suppliers', '/opening-balances', '/customer-credit-limits',
   '/reports/customer-statement', '/reports/supplier-statement', '/reports/customers', '/reports/silent-customers', '/reports/rep-statements', '/reports/suppliers',
   '/cash-receipts', '/cash-payments', '/checks', '/supplier-checks', '/reports/overdue-checks',
-  '/expenses', '/other-income', '/reports/expenses', '/employees', '/employee-commissions', '/warehouses',
+  '/expenses', '/other-income', '/reports/expenses', '/employees', '/warehouses',
   '/document-cycle', '/reports/item-movement', '/reports/reorder',
   '/settings/options', '/users', '/settings/change-password', '/settings/backup', '/settings/company', '/financial-years',
 ];

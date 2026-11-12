@@ -40,7 +40,6 @@ import ItemInquiryPage from './pages/ItemInquiryPage';
 import CustomerCreditPage from './pages/CustomerCreditPage';
 import OverdueChecksPage from './pages/OverdueChecksPage';
 import ExpensesReportPage from './pages/ExpensesReportPage';
-import CommissionsPage from './pages/CommissionsPage';
 import ReorderOrderPage from './pages/ReorderOrderPage';
 import DocumentCyclePage from './pages/DocumentCyclePage';
 import NonStockItemsPage from './pages/NonStockItemsPage';
@@ -134,7 +133,6 @@ function AppRoutes() {
 
         {/* موظفين */}
         <Route path="employees" element={<ModuleRoute module="employees"><EmployeesPage /></ModuleRoute>} />
-        <Route path="employee-commissions" element={<ModuleRoute module="employees"><CommissionsPage /></ModuleRoute>} />
 
         {/* تعريفات أساسية */}
         <Route path="warehouses" element={<ModuleRoute module="warehouses"><WarehousesPage /></ModuleRoute>} />

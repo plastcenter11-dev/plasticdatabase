@@ -86,34 +86,6 @@ export const more2Recipes = [
   },
 
   {
-    name: 'تقرير عمولة المندوبين يحسب من المبيعات',
-    run: async (c) => {
-      const emp = await c.api('POST', '/employees', { name: 'E2E مندوب عمولة', commission_rate: 5 });
-      const mk = (no, total) => c.api('POST', '/sales-invoices', {
-        customer_id: c.customer.id, employee_id: emp.id, warehouse_id: c.w1.id, invoice_no: no, date: '2026-06-10',
-        subtotal: total, total, paid: total, remaining: 0,
-        items: [{ item_id: c.items.a.id, quantity: 1, weight: 10, price: total / 10, discount: 0, total }],
-      });
-      const posted = await mk('E2E-CM-1-' + Date.now(), 1000);
-      await c.api('POST', `/sales-invoices/${posted.id}/post`);
-      await mk('E2E-CM-2-' + Date.now(), 500); // stays a draft
-      await goto(c.page, c.base, '/employee-commissions');
-      await field(c.page, 'المندوب', 'E2E مندوب عمولة');
-      const dates = await c.page.$$('input[type="date"]');
-      await setInput(c.page, dates[0], '2026-06-01');
-      await setInput(c.page, dates[1], '2026-06-30');
-      await clickText(c.page, 'عرض');
-      await wait();
-      const text = await c.page.evaluate(() => document.body.innerText);
-      // 5% of the posted 1,000 = 50. A draft is not a sale yet, so its 500 must not count.
-      if (!/E2E مندوب عمولة/.test(text)) throw new Error('the employee is not in the commissions report');
-      if (/75/.test(text.split('E2E مندوب عمولة')[1] || '') && !/(^|\D)50(\D|$)/.test(text.split('E2E مندوب عمولة')[1])) throw new Error('commission looks computed on posted + draft (75) instead of posted only (50)');
-      if (!/(^|\D)50(\D|$)/.test(text.split('E2E مندوب عمولة')[1])) throw new Error('the commission of 50 (5% of the posted 1,000) is not shown');
-      if (/(^|\D)1,?500(\D|$)/.test(text)) throw new Error('total sales include the draft invoice (1,500 instead of 1,000)');
-    },
-  },
-
-  {
     name: 'مورد: تعديل وحذف',
     run: async (c) => {
       const sup = await c.api('POST', '/suppliers', { name: 'E2E تاجر للحذف' });

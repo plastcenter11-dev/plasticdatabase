@@ -79,7 +79,6 @@ const menuGroups = [
     label: 'موظفين', icon: MdPersonSearch,
     items: [
       { path: '/employees', label: 'تعريف موظفين', icon: MdPersonSearch, module: 'employees' },
-      { path: '/employee-commissions', label: 'عمولة مندوب - صنف', icon: MdAttachMoney, module: 'employees' },
     ]
   },
   {
