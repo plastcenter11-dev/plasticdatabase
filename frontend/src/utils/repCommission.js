@@ -8,10 +8,12 @@ export const TAX_DIVISOR = 1.14;
 // Cliché / cylinder lines are deducted from the customer's payments.
 export const isPlate = (name) => /(كلاش|كلش|كليش|سلندر|سليندر)/.test(name || '');
 
-// Kilograms sold on an invoice: cliché / cylinder lines are billed but are not product sold,
-// so their weight does not count.
+// Kilograms sold on an invoice: a non-stock line (cliché, cylinder, any service) is billed but
+// is not product sold, so its weight does not count. The item's own "non-stock" flag decides;
+// only when the statement did not send the flag does the cliché name rule stand in.
+export const isNonStockLine = (it) => (it.Item?.is_stockable === undefined ? isPlate(it.Item?.name) : !it.Item.is_stockable);
 export const soldKg = (items) => (items || [])
-  .filter(it => !isPlate(it.Item?.name))
+  .filter(it => !isNonStockLine(it))
   .reduce((s, it) => s + Number(it.weight || 0), 0);
 
 const sum = (list, k) => list.reduce((s, r) => s + Number(r[k] || 0), 0);

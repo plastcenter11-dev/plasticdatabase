@@ -92,3 +92,21 @@ describe('cash discount receipts', () => {
     expect(Number(res.body[res.body.length - 1].balance)).toBe(700);
   });
 });
+
+describe('GET /api/customers/:id/statement — item stock flag', () => {
+  test('every invoice line carries its item\'s is_stockable flag (the rep statement uses it to skip non-stock weight)', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const inv = await SalesInvoice.create({
+      invoice_no: `SI-${Date.now()}-${Math.random()}`, date: '2026-03-01', status: 'posted',
+      customer_id: customer.id, warehouse_id: warehouse.id, subtotal: 30, total: 30, remaining: 30,
+    });
+    await SalesInvoiceItem.create({ invoice_id: inv.id, item_id: item.id, quantity: 1, weight: 2, price: 10, total: 20 });
+    await SalesInvoiceItem.create({ invoice_id: inv.id, item_id: service.id, quantity: 1, weight: 1, price: 10, total: 10 });
+
+    const res = await request(app).get(`/api/customers/${customer.id}/statement`).set(auth());
+    const lines = res.body.find(r => r.type === 'فاتورة بيع').items;
+    const flagOf = (id) => lines.find(l => l.Item.id === id).Item.is_stockable;
+    expect(flagOf(item.id)).toBe(true);
+    expect(flagOf(service.id)).toBe(false);
+  });
+});

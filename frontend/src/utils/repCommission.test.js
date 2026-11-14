@@ -78,14 +78,22 @@ describe('rep commission', () => {
 });
 
 describe('sold kilograms', () => {
-  const w = (name, weight) => ({ Item: { name }, weight });
+  const w = (name, weight, is_stockable) => ({ Item: { name, is_stockable }, weight });
 
-  it('does not count the weight of cliché and cylinder lines', () => {
-    expect(soldKg([w('فلامنكو', 100), w('اكلاشيه', 5), w('سلندرات', 2)])).toBe(100);
+  it('skips every non-stock line, whatever its name', () => {
+    expect(soldKg([w('فلامنكو', 100, true), w('اكلاشيه', 5, false), w('سلندرات', 2, false), w('دشت', 3, false), w('خدمة جديدة', 4, false)])).toBe(100);
   });
 
-  it('adds up every product line and tolerates a missing weight or list', () => {
-    expect(soldKg([w('فلامنكو', 40), w('دشت', 10), { Item: { name: 'بيلادونا' } }])).toBe(50);
+  it('counts a stock item even if its name looks like a cliché', () => {
+    expect(soldKg([w('اكلاشيه مخزني', 7, true), w('فلامنكو', 10, true)])).toBe(17);
+  });
+
+  it('falls back to the cliché name rule when the statement sent no stock flag', () => {
+    expect(soldKg([w('فلامنكو', 100), w('اكلاشيه', 5)])).toBe(100);
+  });
+
+  it('tolerates a missing weight, item or list', () => {
+    expect(soldKg([w('فلامنكو', 40, true), w('دشت', 10, true), { Item: { name: 'بيلادونا', is_stockable: true } }])).toBe(50);
     expect(soldKg(undefined)).toBe(0);
   });
 });

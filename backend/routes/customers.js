@@ -124,7 +124,7 @@ router.get('/:id/statement', async (req, res) => {
     const { from, to } = req.query;
     const invoices = await SalesInvoice.findAll({
       where: { customer_id: req.params.id, status: 'posted' },
-      include: [{ model: SalesInvoiceItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code'] }] }],
+      include: [{ model: SalesInvoiceItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code', 'is_stockable'] }] }],
       order: [['date', 'ASC']],
     });
     const receipts = await CashReceipt.findAll({ where: { customer_id: req.params.id }, order: [['date', 'ASC']] });
