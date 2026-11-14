@@ -8,6 +8,12 @@ export const TAX_DIVISOR = 1.14;
 // Cliché / cylinder lines are deducted from the customer's payments.
 export const isPlate = (name) => /(كلاش|كلش|كليش|سلندر|سليندر)/.test(name || '');
 
+// Kilograms sold on an invoice: cliché / cylinder lines are billed but are not product sold,
+// so their weight does not count.
+export const soldKg = (items) => (items || [])
+  .filter(it => !isPlate(it.Item?.name))
+  .reduce((s, it) => s + Number(it.weight || 0), 0);
+
 const sum = (list, k) => list.reduce((s, r) => s + Number(r[k] || 0), 0);
 
 // A plate line's share of its invoice as billed: line / subtotal × invoice total.

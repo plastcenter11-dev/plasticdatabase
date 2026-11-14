@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { repCommission, platesOf, isPlate } from './repCommission';
+import { repCommission, platesOf, isPlate, soldKg } from './repCommission';
 
 const inv = (subtotal, tax_rate, debit, items) => ({ type: 'فاتورة بيع', subtotal, tax_rate, debit, credit: 0, items });
 const line = (name, total) => ({ Item: { name }, total });
@@ -74,5 +74,18 @@ describe('rep commission', () => {
     const c = repCommission([{ isOpening: true, credit: 999, debit: 999 }, { type: 'تحصيل', credit: 1140 }, { type: 'خصم نقدي', credit: 114 }], 10);
     expect(c.base).toBe(1026);
     expect(c.commission).toBeCloseTo(90, 2);
+  });
+});
+
+describe('sold kilograms', () => {
+  const w = (name, weight) => ({ Item: { name }, weight });
+
+  it('does not count the weight of cliché and cylinder lines', () => {
+    expect(soldKg([w('فلامنكو', 100), w('اكلاشيه', 5), w('سلندرات', 2)])).toBe(100);
+  });
+
+  it('adds up every product line and tolerates a missing weight or list', () => {
+    expect(soldKg([w('فلامنكو', 40), w('دشت', 10), { Item: { name: 'بيلادونا' } }])).toBe(50);
+    expect(soldKg(undefined)).toBe(0);
   });
 });
