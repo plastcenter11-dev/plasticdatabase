@@ -59,13 +59,30 @@ export default function ItemMovementPage() {
   // warehouse), then the date range / type filters only pick which rows are
   // shown, so a filtered row still carries its true balance. With a start date
   // the balance carried in from before it is shown as its own row.
+  // The balance is tracked per warehouse (a stock count only resets its own warehouse)
+  // and the running figure is the sum of them, which equals the plain running total
+  // whenever there is no stock count. A 'تعديل جرد' row stores the counted (absolute)
+  // figure, so it is shown as the difference it made to that warehouse's balance.
+  const whBalance = {};
   const allRows = filteredMovements.reduce((acc, m) => {
-    const prev = acc[acc.length - 1];
-    const incoming = isIncoming(m);
-    const sign = incoming ? 1 : -1;
-    const weight = Math.abs(Number(m.weight || 0));
-    const qty = Math.abs(Number(m.quantity || 0));
-    acc.push({ m, incoming, weight, qty, runWeight: (prev ? prev.runWeight : 0) + sign * weight, runQty: (prev ? prev.runQty : 0) + sign * qty });
+    const key = m.warehouse_id ?? 0;
+    const bal = whBalance[key] || { w: 0, q: 0 };
+    let incoming, weight, qty;
+    if (m.movement_type === 'تعديل جرد') {
+      const countedW = Number(m.weight || 0), countedQ = Number(m.quantity || 0);
+      const dw = countedW - bal.w, dq = countedQ - bal.q;
+      incoming = dw > 0 || (dw === 0 && dq >= 0);
+      weight = Math.abs(dw); qty = Math.abs(dq);
+      whBalance[key] = { w: countedW, q: countedQ };
+    } else {
+      incoming = isIncoming(m);
+      const sign = incoming ? 1 : -1;
+      weight = Math.abs(Number(m.weight || 0));
+      qty = Math.abs(Number(m.quantity || 0));
+      whBalance[key] = { w: bal.w + sign * weight, q: bal.q + sign * qty };
+    }
+    const balances = Object.values(whBalance);
+    acc.push({ m, incoming, weight, qty, runWeight: balances.reduce((s, b) => s + b.w, 0), runQty: balances.reduce((s, b) => s + b.q, 0) });
     return acc;
   }, []);
   const typeOptions = [...new Set(allRows.map(r => r.m.movement_type))];

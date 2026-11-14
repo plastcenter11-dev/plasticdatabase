@@ -68,6 +68,17 @@ router.delete('/:id', async (req, res) => {
   try {
     const s = await Supplier.findByPk(req.params.id);
     if (!s) return res.status(404).json({ error: 'غير موجود' });
+    // Same reason as customers: a used supplier can only be deactivated, not deleted.
+    const used = await Promise.all([
+      PurchaseInvoice.count({ where: { supplier_id: s.id } }),
+      PurchaseReturn.count({ where: { supplier_id: s.id } }),
+      CashPayment.count({ where: { supplier_id: s.id } }),
+      Check.count({ where: { party_type: 'supplier', party_id: s.id } }),
+      OpeningBalance.count({ where: { party_type: 'supplier', party_id: s.id } }),
+    ]);
+    if (used.some(n => n > 0)) {
+      return res.status(400).json({ error: 'لا يمكن حذف هذا المورد لأن له فواتير أو حركات مسجلة - يمكنك إلغاء تنشيطه بدلاً من حذفه' });
+    }
     await s.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }

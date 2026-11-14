@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
-const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, Item, CashReceipt, OpeningBalance, Check, sequelize } = require('../models');
+const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, DeliveryNote, Item, CashReceipt, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // each customer with the balance computed live: posted invoices - receipts - returns - checks + opening
@@ -101,6 +101,19 @@ router.delete('/:id', async (req, res) => {
   try {
     const c = await Customer.findByPk(req.params.id);
     if (!c) return res.status(404).json({ error: 'غير موجود' });
+    // Deleting a customer would leave its invoices, receipts and checks pointing at nothing
+    // (and wipe its statement), so a customer that was ever used can only be deactivated.
+    const used = await Promise.all([
+      SalesInvoice.count({ where: { customer_id: c.id } }),
+      SalesReturn.count({ where: { customer_id: c.id } }),
+      DeliveryNote.count({ where: { customer_id: c.id } }),
+      CashReceipt.count({ where: { customer_id: c.id } }),
+      Check.count({ where: { party_type: 'customer', party_id: c.id } }),
+      OpeningBalance.count({ where: { party_type: 'customer', party_id: c.id } }),
+    ]);
+    if (used.some(n => n > 0)) {
+      return res.status(400).json({ error: 'لا يمكن حذف هذا العميل لأن له فواتير أو حركات مسجلة - يمكنك إلغاء تنشيطه بدلاً من حذفه' });
+    }
     await c.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }

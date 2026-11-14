@@ -97,14 +97,15 @@ export default function ItemInquiryPage() {
               {movements.length === 0
                 ? <div className="p-4 text-center text-gray-400 text-sm">لا توجد حركات</div>
                 : <table className="erp-table text-sm">
-                    <thead><tr><th>التاريخ</th><th>النوع</th><th>المخزن</th><th>العدد</th><th>البيان</th></tr></thead>
+                    <thead><tr><th>التاريخ</th><th>النوع</th><th>المخزن</th><th>الوزن (كجم)</th><th>العدد</th><th>البيان</th></tr></thead>
                     <tbody>
                       {movements.map((m, i) => (
                         <tr key={i}>
                           <td>{m.date}</td>
                           <td><span className={`badge ${m.movement_type === 'إضافة' || m.movement_type === 'فاتورة شراء' ? 'badge-green' : 'badge-red'}`}>{m.movement_type}</span></td>
                           <td>{m.Warehouse?.name}</td>
-                          <td className="font-bold">{Number(m.quantity).toLocaleString()}</td>
+                          <td className="font-bold">{Number(m.weight || 0).toLocaleString()}</td>
+                          <td>{Number(m.quantity).toLocaleString()}</td>
                           <td className="text-gray-500">{m.description}</td>
                         </tr>
                       ))}

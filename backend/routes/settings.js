@@ -89,6 +89,10 @@ router.delete('/employees/:id', async (req, res) => {
   try {
     const e = await Employee.findByPk(req.params.id);
     if (!e) return res.status(404).json({ error: 'غير موجود' });
+    // an employee tied to invoices (rep/commission) is kept for history: deactivate instead
+    if (await require('../models').SalesInvoice.count({ where: { employee_id: e.id } }) > 0) {
+      return res.status(400).json({ error: 'لا يمكن حذف هذا الموظف لأن له فواتير مسجلة - يمكنك إلغاء تنشيطه بدلاً من حذفه' });
+    }
     await e.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }

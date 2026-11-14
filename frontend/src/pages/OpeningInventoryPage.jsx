@@ -71,8 +71,11 @@ export default function OpeningInventoryPage() {
     else toast.warning(`تم حفظ ${successCount} صنف، فشل ${errorCount}`);
   };
 
-  const totalValue = rows.reduce((s, r) => s + Number(r.quantity || 0) * Number(r.cost_price || 0), 0);
-  const nonZeroCount = rows.filter(r => Number(r.quantity) > 0).length;
+  // value is priced by weight (kg); the count is only the fallback for an item with no weight
+  const lineValue = (r) => (Number(r.weight || 0) || Number(r.quantity || 0)) * Number(r.cost_price || 0);
+  const hasBalance = (r) => Number(r.weight) > 0 || Number(r.quantity) > 0;
+  const totalValue = rows.reduce((s, r) => s + lineValue(r), 0);
+  const nonZeroCount = rows.filter(hasBalance).length;
 
   return (
     <div className="space-y-4">
@@ -128,9 +131,9 @@ export default function OpeningInventoryPage() {
               <tr><td colSpan={7} className="text-center py-10 text-gray-400">اختر مخزن لتحميل الأصناف</td></tr>
             )}
             {rows.map((row, idx) => {
-              const val = Number(row.quantity || 0) * Number(row.cost_price || 0);
+              const val = lineValue(row);
               return (
-                <tr key={row.item_id} className={Number(row.quantity) > 0 ? 'bg-green-50/30' : ''}>
+                <tr key={row.item_id} className={hasBalance(row) ? 'bg-green-50/30' : ''}>
                   <td className="font-mono text-xs text-gray-400">{row.code}</td>
                   <td className="font-medium text-sm">{row.name}</td>
                   <td className="text-gray-500 text-sm">{row.unit}</td>

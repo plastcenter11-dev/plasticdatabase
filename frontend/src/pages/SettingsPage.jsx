@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
+// the menu opens /settings/<section>; each section is one tab of this page
+const TAB_BY_PATH = { company: 'company', options: 'options', 'change-password': 'password', 'record-protection': 'protection', 'unlock-records': 'unlock', backup: 'backup' };
+
 export default function SettingsPage() {
   const { user, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState(isAdmin() ? 'company' : 'password');
+  const { pathname } = useLocation();
+  const tabFromPath = TAB_BY_PATH[pathname.split('/')[2]];
+  const allowedTab = (key) => key && (isAdmin() || key === 'password') ? key : null;
+  const [activeTab, setActiveTab] = useState(allowedTab(tabFromPath) || (isAdmin() ? 'company' : 'password'));
+  useEffect(() => { const t = allowedTab(tabFromPath); if (t) setActiveTab(t); }, [pathname]);
   const [company, setCompany] = useState({ company_name: '', company_address: '', company_phone: '', company_tax_no: '', company_activity: '', company_commercial_reg: '', company_tax_card: '', company_vat_no: '' });
   const [opts, setOpts] = useState({ opt_credit_no_limit: '1', opt_auto_tax: '1', opt_block_below_cost: '0', opt_auto_numbering: '1', opt_require_approval: '0' });
   const [protectUntil, setProtectUntil] = useState('');
