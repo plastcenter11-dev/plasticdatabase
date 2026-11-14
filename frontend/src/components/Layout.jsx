@@ -85,7 +85,6 @@ const menuGroups = [
     label: 'تعريفات أساسية', icon: MdBuild,
     items: [
       { path: '/warehouses', label: 'تعريف مخزن', icon: MdWarehouse, module: 'warehouses' },
-      { path: '/document-cycle', label: 'إعدادات الدورة المستندية', icon: MdAssignment, adminOnly: true },
     ]
   },
   {

@@ -42,7 +42,6 @@ import CustomerCreditPage from './pages/CustomerCreditPage';
 import OverdueChecksPage from './pages/OverdueChecksPage';
 import ExpensesReportPage from './pages/ExpensesReportPage';
 import ReorderOrderPage from './pages/ReorderOrderPage';
-import DocumentCyclePage from './pages/DocumentCyclePage';
 import NonStockItemsPage from './pages/NonStockItemsPage';
 import OpeningInventoryPage from './pages/OpeningInventoryPage';
 
@@ -137,7 +136,6 @@ function AppRoutes() {
 
         {/* تعريفات أساسية */}
         <Route path="warehouses" element={<ModuleRoute module="warehouses"><WarehousesPage /></ModuleRoute>} />
-        <Route path="document-cycle" element={<AdminRoute><DocumentCyclePage /></AdminRoute>} />
 
         {/* التقارير */}
         <Route path="reports/item-movement" element={<ModuleRoute module="stock"><ItemMovementPage /></ModuleRoute>} />
