@@ -29,6 +29,7 @@ import CustomerSummaryPage from './pages/CustomerSummaryPage';
 import SupplierSummaryPage from './pages/SupplierSummaryPage';
 import ItemMovementPage from './pages/ItemMovementPage';
 import NotFoundPage from './pages/NotFoundPage';
+import AuditLogPage from './pages/AuditLogPage';
 import ReorderReportPage from './pages/ReorderReportPage';
 import FinancialYearsPage from './pages/FinancialYearsPage';
 import OpeningBalancesPage from './pages/OpeningBalancesPage';
@@ -149,6 +150,7 @@ function AppRoutes() {
         <Route path="settings/unlock-records" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/backup" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/company" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+        <Route path="settings/audit-log" element={<AdminRoute><AuditLogPage /></AdminRoute>} />
         <Route path="financial-years" element={<ModuleRoute module="financial_years"><FinancialYearsPage /></ModuleRoute>} />
         <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="*" element={<NotFoundPage />} />

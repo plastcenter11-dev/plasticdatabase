@@ -285,6 +285,20 @@ const Settings = sequelize.define('Settings', {
   value: { type: DataTypes.TEXT, defaultValue: '' },
 });
 
+// Audit trail: one row per create / update / delete made through the API (see utils/audit.js).
+// `changes` is a JSON text: the new values of a create, {field: {from, to}} of an update, the
+// removed values of a delete. Rows are only ever added, never edited.
+const AuditLog = sequelize.define('AuditLog', {
+  user_id: { type: DataTypes.INTEGER, allowNull: true },
+  username: { type: DataTypes.STRING, defaultValue: '' },
+  action: { type: DataTypes.STRING(20), allowNull: false },
+  entity: { type: DataTypes.STRING(60), defaultValue: '' },
+  entity_id: { type: DataTypes.INTEGER, allowNull: true },
+  label: { type: DataTypes.STRING, defaultValue: '' },
+  changes: { type: DataTypes.TEXT('long'), allowNull: true },
+  ip: { type: DataTypes.STRING(64), defaultValue: '' },
+}, { updatedAt: false, indexes: [{ fields: ['created_at'] }, { fields: ['entity', 'entity_id'] }, { fields: ['username'] }] });
+
 // ===== Associations =====
 Item.belongsTo(Category, { foreignKey: 'category_id', allowNull: true });
 Category.hasMany(Item, { foreignKey: 'category_id' });
@@ -377,6 +391,9 @@ OtherIncome.belongsTo(FinancialYear, { foreignKey: 'financial_year_id', allowNul
 // A blank form field ('') must mean "not set" for numeric / id / date columns, on every model.
 require('./blankToNull').registerBlankToNull(sequelize);
 
+// Who did what: audit hooks for every model (needs AuditLog, defined above).
+require('../utils/audit').registerAudit(sequelize);
+
 module.exports = {
   sequelize, User, Warehouse, Category, ItemType, Item, Stock, Customer, Supplier, Employee,
   FinancialYear, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder,
@@ -384,5 +401,5 @@ module.exports = {
   PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem,
   CashReceipt, CashPayment, Check, Expense, OtherIncome,
   StockMovement, WarehouseTransfer, WarehouseTransferItem,
-  ItemAssembly, ItemAssemblyComponent, OpeningBalance, Settings,
+  ItemAssembly, ItemAssemblyComponent, OpeningBalance, Settings, AuditLog,
 };

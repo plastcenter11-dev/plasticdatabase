@@ -5,7 +5,7 @@ import {
   MdDashboard, MdInventory, MdWarehouse, MdPeople, MdLocalShipping,
   MdReceipt, MdShoppingCart, MdAssignment, MdPayment, MdAccountBalance,
   MdAttachMoney, MdTrendingDown, MdBarChart, MdSettings, MdLogout,
-  MdCalendarMonth, MdPersonSearch, MdBuild, MdExpandMore, MdMenu,
+  MdCalendarMonth, MdPersonSearch, MdBuild, MdExpandMore, MdMenu, MdHistory,
 } from 'react-icons/md';
 
 const menuGroups = [
@@ -110,6 +110,7 @@ const menuGroups = [
       { path: '/settings/unlock-records', label: 'إلغاء حماية السجلات', icon: MdSettings, adminOnly: true },
       { path: '/settings/backup', label: 'النسخة الاحتياطية', icon: MdSettings, adminOnly: true },
       { path: '/settings/company', label: 'بيانات المنشأة', icon: MdSettings, adminOnly: true },
+      { path: '/settings/audit-log', label: 'سجل العمليات', icon: MdHistory, adminOnly: true },
       { path: '/financial-years', label: 'السنوات المالية', icon: MdCalendarMonth, module: 'financial_years' },
     ]
   },

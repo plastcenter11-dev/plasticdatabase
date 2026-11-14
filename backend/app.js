@@ -4,7 +4,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { auth, requireModule, requireModuleByPath } = require('./middleware/auth');
+const { auth, adminOnly, requireModule, requireModuleByPath } = require('./middleware/auth');
 
 const app = express();
 app.use(cors());
@@ -13,6 +13,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/options', auth, require('./routes/options'));
+app.use('/api/audit-logs', auth, adminOnly, require('./routes/audit'));
 app.use('/api/items', auth, requireModule('items'), require('./routes/items'));
 app.use('/api/warehouses', auth, requireModule('warehouses'), require('./routes/warehouses'));
 app.use('/api/customers', auth, requireModule('customers'), require('./routes/customers'));
