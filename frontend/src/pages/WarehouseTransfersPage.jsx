@@ -18,7 +18,7 @@ export default function WarehouseTransfersPage() {
   const loadData = async () => {
     try {
       const [t, w, it, st] = await Promise.all([api.get('/stock/transfers'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
-      setTransfers(t.data); setWarehouses(w.data); setItems(it.data); setStockData(st.data);
+      setTransfers(t.data); setWarehouses(w.data); setItems(it.data.filter(i => i.is_stockable)); setStockData(st.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);

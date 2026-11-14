@@ -199,3 +199,29 @@ describe('PUT /api/delivery-notes/:id', () => {
     expect(await DeliveryNoteItem.count({ where: { note_id: note.id } })).toBe(1);
   });
 });
+
+describe('POST /api/delivery-notes/:id/deliver — non-stock lines', () => {
+  test('a non-stock line is billed on the invoice but moves no stock and writes no movement', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const note = (await createNote({ items: [
+      { item_id: item.id, net_weight: 40, roll_count: 3 },
+      { item_id: service.id, net_weight: 5, roll_count: 1 },
+    ] })).body;
+    const res = await request(app).post(`/api/delivery-notes/${note.id}/deliver`).set(auth()).send({
+      items: [{ item_id: item.id, price: 10 }, { item_id: service.id, price: 100 }],
+    });
+    expect(res.status).toBe(200);
+
+    // stock item moved as before
+    const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
+    expect(Number(stock.weight)).toBe(-40);
+
+    // non-stock item: no stock row, no movement
+    expect(await Stock.count({ where: { item_id: service.id } })).toBe(0);
+    expect(await StockMovement.count({ where: { item_id: service.id } })).toBe(0);
+
+    // ...but it is still on the invoice: 40x10 + 5x100 = 900
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    expect(Number(inv.total)).toBe(900);
+  });
+});

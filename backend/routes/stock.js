@@ -23,6 +23,15 @@ async function isStockableItem(item_id, t) {
   return !!item?.is_stockable;
 }
 
+// Transfers and assemblies move real stock, so a non-stock item (service, cylinder...)
+// has no business in them. Returns an error message, or null when every id is a stock item.
+async function nonStockItemError(item_ids, t) {
+  const ids = [...new Set((item_ids || []).filter(Boolean).map(Number))];
+  if (!ids.length) return null;
+  const bad = await Item.findAll({ where: { id: ids, is_stockable: false }, attributes: ['name'], transaction: t });
+  return bad.length ? `صنف لا مخزني لا يمكن استخدامه هنا: ${bad.map(b => b.name).join('، ')}` : null;
+}
+
 router.post('/adjustments', async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -195,6 +204,8 @@ router.post('/transfers', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
+    const nonStock = await nonStockItemError((items || []).map(i => i.item_id), t);
+    if (nonStock) { await t.rollback(); return res.status(400).json({ error: nonStock }); }
     const transfer = await WarehouseTransfer.create(data, { transaction: t });
     if (items?.length) await WarehouseTransferItem.bulkCreate(items.map(i => ({ ...i, transfer_id: transfer.id })), { transaction: t });
     await t.commit();
@@ -276,6 +287,8 @@ router.post('/assemblies', async (req, res) => {
 
     const expErr = expenseError(components);
     if (expErr) { await t.rollback(); return res.status(400).json({ error: expErr }); }
+    const nonStock = await nonStockItemError([data.assembled_item_id, ...stockComponents(components).map(c => c.item_id)], t);
+    if (nonStock) { await t.rollback(); return res.status(400).json({ error: nonStock }); }
 
     // Each component can be issued from its own warehouse; fall back to the
     // assembly-level warehouse_id for older clients that don't send one.
@@ -360,6 +373,8 @@ router.put('/assemblies/:id', async (req, res) => {
 
     const expErr = expenseError(components);
     if (expErr) { await t.rollback(); return res.status(400).json({ error: expErr }); }
+    const nonStock = await nonStockItemError([data.assembled_item_id, ...stockComponents(components).map(c => c.item_id)], t);
+    if (nonStock) { await t.rollback(); return res.status(400).json({ error: nonStock }); }
 
     // No stock check on purpose: a component is often issued before its receipt has
     // been entered, so the balance (kg or count) is allowed to go negative.

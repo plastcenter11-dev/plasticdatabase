@@ -143,6 +143,12 @@ router.post('/:id/deliver', async (req, res) => {
         const rollCount = Number(item.roll_count || 0);
         if (weight <= 0 && rollCount <= 0) continue;
         const price = priceMap[item.item_id] || 0;
+        // A non-stock line (service, cylinder...) is still billed on the invoice, but it
+        // has no balance to move and no stock movement to record.
+        if (item.Item && !item.Item.is_stockable) {
+          if (price > 0) await Item.update({ sale_price: price }, { where: { id: item.item_id }, transaction: t });
+          continue;
+        }
         const [stock] = await Stock.findOrCreate({
           where: { item_id: item.item_id, warehouse_id: effectiveWarehouseId },
           defaults: { quantity: 0, weight: 0 },

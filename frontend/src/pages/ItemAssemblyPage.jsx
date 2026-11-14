@@ -31,7 +31,7 @@ export default function ItemAssemblyPage() {
   const loadData = async () => {
     try {
       const [a, w, it, st, cats] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock'), api.get('/categories')]);
-      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data); setItemsStock(st.data); setCategories(cats.data);
+      setAssemblies(a.data); setWarehouses(w.data); setItems(it.data.filter(i => i.is_stockable)); setItemsStock(st.data); setCategories(cats.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);

@@ -107,3 +107,15 @@ describe('POST /api/stock/transfers/:id/confirm', () => {
     expect(Number(to.quantity)).toBe(10);
   });
 });
+
+describe('POST /api/stock/transfers — non-stock items', () => {
+  test('a transfer containing a non-stock item is rejected and nothing is created', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const res = await request(app).post('/api/stock/transfers').set(auth()).send({
+      date: '2026-03-05', from_warehouse_id: fromWh.id, to_warehouse_id: toWh.id,
+      items: [{ item_id: service.id, quantity: 1, weight: 5 }],
+    });
+    expect(res.status).toBe(400);
+    expect(await WarehouseTransfer.count()).toBe(0);
+  });
+});

@@ -227,3 +227,25 @@ describe('item assembly - components may be issued before they are received', ()
     expect(Number((await stockOf(comp)).weight)).toBe(150);
   });
 });
+
+describe('POST /api/stock/assemblies — non-stock items', () => {
+  const body = (assembledId, components) => ({
+    date: '2026-01-01', assembled_item_id: assembledId, assembled_qty: 1, assembled_weight: 10,
+    warehouse_id: warehouse.id, output_warehouse_id: warehouse.id, components,
+  });
+
+  test('a non-stock component is rejected and no stock row is created', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const assembled = await makeItem();
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(assembled.id, [{ item_id: service.id, quantity: 1, weight: 5, warehouse_id: warehouse.id }]));
+    expect(res.status).toBe(400);
+    expect(await Stock.count({ where: { item_id: service.id } })).toBe(0);
+  });
+
+  test('a non-stock assembled item is rejected', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const comp = await makeItem();
+    const res = await request(app).post('/api/stock/assemblies').set(auth()).send(body(service.id, [{ item_id: comp.id, quantity: 1, weight: 5, warehouse_id: warehouse.id }]));
+    expect(res.status).toBe(400);
+  });
+});
