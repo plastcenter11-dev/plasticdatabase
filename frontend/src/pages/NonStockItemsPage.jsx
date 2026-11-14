@@ -6,7 +6,7 @@ import { MdAdd, MdEdit, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyForm = { code: '', name: '', unit: 'خدمة', purchase_price: '', sell_price: '', category_id: '', is_stockable: false };
+const emptyForm = { code: '', name: '', unit: 'خدمة', purchase_price: '', sale_price: '', category_id: '', is_stockable: false };
 
 export default function NonStockItemsPage() {
   const { can } = useAuth();
@@ -43,7 +43,7 @@ export default function NonStockItemsPage() {
     e.preventDefault();
     if (!form.name) return toast.error('أدخل اسم الصنف');
     try {
-      const data = { ...form, code: form.code || generateCode(), is_stockable: false, category_id: form.category_id ? Number(form.category_id) : null, purchase_price: Number(form.purchase_price || 0), sell_price: Number(form.sell_price || 0) };
+      const data = { ...form, code: form.code || generateCode(), is_stockable: false, category_id: form.category_id ? Number(form.category_id) : null, purchase_price: Number(form.purchase_price || 0), sale_price: Number(form.sale_price || 0) };
       if (editing) await api.put(`/items/${editing}`, data);
       else await api.post('/items', data);
       toast.success(editing ? 'تم التعديل' : 'تم الإضافة');
@@ -86,7 +86,7 @@ export default function NonStockItemsPage() {
                 <td className="font-medium">{item.name}</td>
                 <td>{item.unit}</td>
                 <td>{Number(item.purchase_price || 0).toLocaleString()} ج.م</td>
-                <td>{Number(item.sell_price || 0).toLocaleString()} ج.م</td>
+                <td>{Number(item.sale_price || 0).toLocaleString()} ج.م</td>
                 <td><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{categories.find(c => c.id === item.category_id)?.name || '—'}</span></td>
                 <td className="flex gap-1">
                   {can('items', 'edit') && <button onClick={() => openEdit(item)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
@@ -127,7 +127,7 @@ export default function NonStockItemsPage() {
               </div>
               <div>
                 <label className="form-label">سعر البيع</label>
-                <input type="number" step="0.01" className="erp-input" value={form.sell_price} onChange={e => setForm(f => ({ ...f, sell_price: e.target.value }))} />
+                <input type="number" step="0.01" className="erp-input" value={form.sale_price} onChange={e => setForm(f => ({ ...f, sale_price: e.target.value }))} />
               </div>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
