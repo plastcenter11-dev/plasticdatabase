@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import BackupCopyPanel from '../components/BackupCopyPanel';
 
 // the menu opens /settings/<section>; each section is one tab of this page
 const TAB_BY_PATH = { company: 'company', options: 'options', 'change-password': 'password', 'record-protection': 'protection', 'unlock-records': 'unlock', backup: 'backup' };
@@ -283,6 +284,8 @@ export default function SettingsPage() {
               </div>
               <p className="text-blue-600">كلا الملفين يُحفظان في مجلد التنزيلات (Downloads) تلقائياً.</p>
             </div>
+
+            <BackupCopyPanel />
 
             <div className="flex gap-3 flex-wrap">
               <button

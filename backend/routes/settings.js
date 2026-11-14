@@ -257,6 +257,52 @@ router.delete('/item-types/:id', async (req, res) => {
 });
 
 // Restore — import .sql file via mysql
+// Second copy of the daily backup (a USB drive, a synced cloud folder, a network share), picked
+// from inside the program. The place is saved in Settings; the daily job (scripts/backup.js)
+// reads it and records how its last copy went.
+const backupCopy = require('../utils/backupCopy');
+const readSetting = async (key) => (await Settings.findOne({ where: { key } }))?.value || '';
+
+router.get('/backup/copy', adminOnly, async (req, res) => {
+  try {
+    const saved = await readSetting(backupCopy.KEY_DIR);
+    const fromEnv = (process.env.BACKUP_COPY_DIR || '').trim();
+    const dir = saved || fromEnv;
+    let last = null;
+    try { last = JSON.parse(await readSetting(backupCopy.KEY_LAST) || 'null'); } catch { last = null; }
+    res.json({ dir, source: saved ? 'setting' : (fromEnv ? 'env' : 'none'), check: dir ? backupCopy.checkFolder(dir) : null, last });
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+router.put('/backup/copy', adminOnly, async (req, res) => {
+  try {
+    const dir = String(req.body?.dir || '').trim();
+    if (dir) {
+      const check = backupCopy.checkFolder(dir);
+      if (!check.ok) return res.status(400).json({ error: check.message });
+    }
+    await Settings.upsert({ key: backupCopy.KEY_DIR, value: dir });
+    res.json({ dir, check: dir ? backupCopy.checkFolder(dir) : null });
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+// folders (never files) of a path for the folder picker; no path = the drives
+router.get('/backup/browse', adminOnly, (req, res) => {
+  try { res.json(backupCopy.browse(req.query.path)); }
+  catch { res.status(400).json({ error: 'لا يمكن فتح هذا المكان' }); }
+});
+
+// take a backup now (same script as the daily job), including the second copy
+router.post('/backup/run', adminOnly, (req, res) => {
+  const { spawn } = require('child_process');
+  const child = spawn(process.execPath, [path.join(__dirname, '..', 'scripts', 'backup.js')], { cwd: path.join(__dirname, '..') });
+  let output = '';
+  child.stdout.on('data', d => { output += d; });
+  child.stderr.on('data', d => { output += d; });
+  child.on('error', err => res.status(500).json({ error: err.message }));
+  child.on('close', code => res.json({ ok: code === 0, output: output.trim() }));
+});
+
 router.post('/backup/restore', adminOnly, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'لم يتم رفع أي ملف' });
   const mysql = findMysqlBin('mysql.exe');
