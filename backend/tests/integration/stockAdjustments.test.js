@@ -49,3 +49,36 @@ describe('GET /api/stock/adjustments', () => {
     expect(res.body[0].movement_type).toBe('صرف');
   });
 });
+
+describe('non-stock items in manual adjustments', () => {
+  const { Stock } = require('../../models');
+  const body = (it, extra = {}) => ({ item_id: it.id, movement_type: 'صرف', quantity: 1, weight: 5, unit_price: 10, date: '2026-01-01', ...extra });
+
+  test('POST for a non-stock item records the movement with no warehouse and creates no Stock row', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const res = await request(app).post('/api/stock/adjustments').set(auth()).send(body(service, { warehouse_id: warehouse.id }));
+    expect(res.status).toBe(201);
+    expect(res.body.warehouse_id).toBeNull();
+    expect(await Stock.count({ where: { item_id: service.id } })).toBe(0);
+  });
+
+  test('POST for a stock item without a warehouse is rejected', async () => {
+    const res = await request(app).post('/api/stock/adjustments').set(auth()).send(body(item));
+    expect(res.status).toBe(400);
+  });
+
+  test('DELETE of a no-warehouse movement succeeds and touches no stock', async () => {
+    const service = await makeItem({ is_stockable: false });
+    const created = await request(app).post('/api/stock/adjustments').set(auth()).send(body(service));
+    const del = await request(app).delete(`/api/stock/adjustments/${created.body.id}`).set(auth());
+    expect(del.status).toBe(200);
+    expect(await Stock.count({ where: { item_id: service.id } })).toBe(0);
+  });
+
+  test('POST for a stock item still moves stock as before', async () => {
+    const res = await request(app).post('/api/stock/adjustments').set(auth()).send(body(item, { movement_type: 'إضافة', warehouse_id: warehouse.id }));
+    expect(res.status).toBe(201);
+    const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
+    expect(Number(stock.weight)).toBe(5);
+  });
+});

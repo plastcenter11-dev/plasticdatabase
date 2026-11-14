@@ -16,10 +16,24 @@ router.get('/adjustments', async (req, res) => {
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
+// A non-stock item (service, cylinder, etc.) has no warehouse and no balance:
+// the movement is still recorded (price/description/date) but never touches Stock.
+async function isStockableItem(item_id, t) {
+  const item = await Item.findByPk(item_id, { transaction: t });
+  return !!item?.is_stockable;
+}
+
 router.post('/adjustments', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { item_id, warehouse_id, quantity, weight, movement_type } = req.body;
+    const { item_id, quantity, weight, movement_type } = req.body;
+    if (!(await isStockableItem(item_id, t))) {
+      const movement = await StockMovement.create({ ...req.body, warehouse_id: null }, { transaction: t });
+      await t.commit();
+      return res.status(201).json(movement);
+    }
+    const warehouse_id = req.body.warehouse_id;
+    if (!warehouse_id) { await t.rollback(); return res.status(400).json({ error: 'اختر المخزن' }); }
     const movement = await StockMovement.create(req.body, { transaction: t });
     let [stock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
     if (movement_type === 'إضافة') {
@@ -44,17 +58,25 @@ router.put('/adjustments/:id', async (req, res) => {
       return res.status(400).json({ error: 'لا يمكن تعديل حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
     }
 
-    // Reverse old movement effect on stock
-    const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
-    if (old.movement_type === 'إضافة') {
-      await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) }, { transaction: t });
-    } else if (old.movement_type === 'صرف') {
-      await oldStock.update({ quantity: Number(oldStock.quantity) + Number(old.quantity), weight: Number(oldStock.weight) + Number(old.weight || 0) }, { transaction: t });
+    const { item_id, quantity, weight, movement_type } = req.body;
+    const newStockable = await isStockableItem(item_id, t);
+    const warehouse_id = newStockable ? req.body.warehouse_id : null;
+    if (newStockable && !warehouse_id) { await t.rollback(); return res.status(400).json({ error: 'اختر المخزن' }); }
+
+    // Reverse old movement effect on stock (only if it had touched a warehouse)
+    if (old.warehouse_id) {
+      const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      if (old.movement_type === 'إضافة') {
+        await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) }, { transaction: t });
+      } else if (old.movement_type === 'صرف') {
+        await oldStock.update({ quantity: Number(oldStock.quantity) + Number(old.quantity), weight: Number(oldStock.weight) + Number(old.weight || 0) }, { transaction: t });
+      }
     }
 
     // Update the movement record
-    const { item_id, warehouse_id, quantity, weight, movement_type } = req.body;
-    await old.update(req.body, { transaction: t });
+    await old.update({ ...req.body, warehouse_id }, { transaction: t });
+
+    if (!newStockable) { await t.commit(); return res.json(old); }
 
     // Apply new movement effect on stock
     const [newStock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
@@ -81,12 +103,14 @@ router.delete('/adjustments/:id', async (req, res) => {
       return res.status(400).json({ error: 'لا يمكن حذف حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
     }
 
-    // Reverse stock effect before deleting
-    const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
-    if (m.movement_type === 'إضافة') {
-      await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) }, { transaction: t });
-    } else if (m.movement_type === 'صرف') {
-      await stock.update({ quantity: Number(stock.quantity) + Number(m.quantity), weight: Number(stock.weight) + Number(m.weight || 0) }, { transaction: t });
+    // Reverse stock effect before deleting (non-stock movements have no warehouse, nothing to reverse)
+    if (m.warehouse_id) {
+      const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      if (m.movement_type === 'إضافة') {
+        await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) }, { transaction: t });
+      } else if (m.movement_type === 'صرف') {
+        await stock.update({ quantity: Number(stock.quantity) + Number(m.quantity), weight: Number(stock.weight) + Number(m.weight || 0) }, { transaction: t });
+      }
     }
 
     await m.destroy({ transaction: t });

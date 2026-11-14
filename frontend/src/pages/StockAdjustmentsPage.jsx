@@ -28,6 +28,8 @@ export default function StockAdjustmentsPage() {
   const [form, setForm] = useState({ ...emptyForm, movement_type: defaultType });
 
   const [stockData, setStockData] = useState([]);
+  // A non-stock item has no warehouse and no balance - the movement is only recorded.
+  const needsWarehouse = !form.item_id || !!items.find(m => m.id === Number(form.item_id))?.is_stockable;
   const selectedStock = form.item_id ? stockData.find(s => s.item_id === Number(form.item_id)) : null;
   const whStock = selectedStock && form.warehouse_id ? selectedStock.warehouses.find(w => w.warehouse_id === Number(form.warehouse_id)) : null;
 
@@ -53,14 +55,14 @@ export default function StockAdjustmentsPage() {
 
   const openEdit = (a) => {
     setEditing(a.id);
-    setForm({ movement_type: a.movement_type, warehouse_id: String(a.warehouse_id), item_id: String(a.item_id), quantity: a.quantity, weight: a.weight, unit_price: a.unit_price, date: a.date, description: a.description || '' });
+    setForm({ movement_type: a.movement_type, warehouse_id: a.warehouse_id ? String(a.warehouse_id) : '', item_id: String(a.item_id), quantity: a.quantity, weight: a.weight, unit_price: a.unit_price, date: a.date, description: a.description || '' });
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.warehouse_id || !form.item_id || !form.weight) return toast.error('أكمل البيانات');
-    const data = { ...form, item_id: Number(form.item_id), warehouse_id: Number(form.warehouse_id), quantity: Number(form.quantity || 0), weight: Number(form.weight), unit_price: Number(form.unit_price || 0) };
+    if ((needsWarehouse && !form.warehouse_id) || !form.item_id || !form.weight) return toast.error('أكمل البيانات');
+    const data = { ...form, item_id: Number(form.item_id), warehouse_id: needsWarehouse ? Number(form.warehouse_id) : null, quantity: Number(form.quantity || 0), weight: Number(form.weight), unit_price: Number(form.unit_price || 0) };
     try {
       if (editing) {
         await api.put(`/stock/adjustments/${editing}`, data);
@@ -143,13 +145,15 @@ export default function StockAdjustmentsPage() {
               <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="form-label">المخزن *</label>
-                <SearchableSelect className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}>
-                  <option value="">— اختر —</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </SearchableSelect>
-              </div>
+              {needsWarehouse && (
+                <div>
+                  <label className="form-label">المخزن *</label>
+                  <SearchableSelect className="erp-input" required value={form.warehouse_id} onChange={e => setForm({ ...form, warehouse_id: e.target.value })}>
+                    <option value="">— اختر —</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </SearchableSelect>
+                </div>
+              )}
               <div>
                 <label className="form-label">الصنف *</label>
                 <SearchableSelect className="erp-input" required value={form.item_id} onChange={e => setForm({ ...form, item_id: e.target.value })}>
@@ -158,7 +162,10 @@ export default function StockAdjustmentsPage() {
                 </SearchableSelect>
               </div>
             </div>
-            {form.item_id && (
+            {form.item_id && !needsWarehouse && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm text-gray-600">صنف لا مخزني — لا يرتبط بمخزن ولا يؤثر على الرصيد، الحركة تُسجَّل فقط.</div>
+            )}
+            {form.item_id && needsWarehouse && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-sm text-blue-800 flex flex-wrap gap-x-6 gap-y-1">
                 {form.warehouse_id && <span>الرصيد بهذا المخزن: <strong>{Number(whStock?.weight || 0).toLocaleString()} كجم</strong> / <strong>{Number(whStock?.quantity || 0).toLocaleString()} عدد</strong></span>}
                 <span>إجمالي كل المخازن: <strong>{Number(selectedStock?.total_weight || 0).toLocaleString()} كجم</strong> / <strong>{Number(selectedStock?.total_quantity || 0).toLocaleString()} عدد</strong></span>
