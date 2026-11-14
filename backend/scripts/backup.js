@@ -47,9 +47,30 @@ function main() {
   console.log(`Backup written: ${outFile} (${(result.stdout.length / 1024 / 1024).toFixed(2)} MB)`);
 
   // Prune backups older than KEEP_DAYS
+  pruneOld(BACKUP_DIR);
+
+  // Optional second copy somewhere that is not this computer (a USB drive, a synced cloud folder,
+  // a network share): set BACKUP_COPY_DIR in backend/.env. The main backup above is already safe,
+  // so a copy that cannot be made is reported as a failure at the end rather than hidden.
+  const copyDir = (process.env.BACKUP_COPY_DIR || '').trim();
+  if (copyDir) {
+    try {
+      if (!fs.existsSync(copyDir)) throw new Error(`the folder does not exist or is not connected: ${copyDir}`);
+      fs.copyFileSync(outFile, path.join(copyDir, path.basename(outFile)));
+      pruneOld(copyDir);
+      console.log(`Second copy written: ${copyDir}`);
+    } catch (err) {
+      console.error(`Second copy FAILED (${err.message}); the main backup in ${BACKUP_DIR} is fine`);
+      process.exitCode = 1;
+    }
+  }
+}
+
+function pruneOld(dir) {
   const cutoff = Date.now() - KEEP_DAYS * 24 * 60 * 60 * 1000;
-  for (const f of fs.readdirSync(BACKUP_DIR)) {
-    const full = path.join(BACKUP_DIR, f);
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^plasticdb-backup-.*\.sql$/.test(f)) continue; // never touch anything else in a shared folder
+    const full = path.join(dir, f);
     if (fs.statSync(full).mtimeMs < cutoff) {
       fs.unlinkSync(full);
       console.log(`Pruned old backup: ${f}`);

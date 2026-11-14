@@ -58,3 +58,41 @@ describe("POST/PUT /api/items with blank optional fields", () => {
     expect((await Item.findByPk(created.body.id)).category_id).toBeNull();
   });
 });
+
+describe('PUT /api/items/:id - turning a stock item into a non-stock one', () => {
+  const { Stock } = require('../../models');
+
+  test('is refused while the item still has a balance in a warehouse', async () => {
+    const item = await makeItem();
+    const wh = await makeWarehouse();
+    await Stock.create({ item_id: item.id, warehouse_id: wh.id, quantity: 2, weight: 20 });
+    const res = await request(app).put(`/api/items/${item.id}`).set(auth()).send({ is_stockable: false });
+    expect(res.status).toBe(400);
+    expect((await Item.findByPk(item.id)).is_stockable).toBe(true);
+  });
+
+  test('is refused for a negative balance too', async () => {
+    const item = await makeItem();
+    const wh = await makeWarehouse();
+    await Stock.create({ item_id: item.id, warehouse_id: wh.id, quantity: 0, weight: -5 });
+    const res = await request(app).put(`/api/items/${item.id}`).set(auth()).send({ is_stockable: false });
+    expect(res.status).toBe(400);
+  });
+
+  test('is allowed once every balance is zero', async () => {
+    const item = await makeItem();
+    const wh = await makeWarehouse();
+    await Stock.create({ item_id: item.id, warehouse_id: wh.id, quantity: 0, weight: 0 });
+    const res = await request(app).put(`/api/items/${item.id}`).set(auth()).send({ is_stockable: false });
+    expect(res.status).toBe(200);
+    expect((await Item.findByPk(item.id)).is_stockable).toBe(false);
+  });
+
+  test('other edits of an item that has stock are not affected', async () => {
+    const item = await makeItem();
+    const wh = await makeWarehouse();
+    await Stock.create({ item_id: item.id, warehouse_id: wh.id, quantity: 2, weight: 20 });
+    const res = await request(app).put(`/api/items/${item.id}`).set(auth()).send({ name: 'new name', is_stockable: true });
+    expect(res.status).toBe(200);
+  });
+});

@@ -62,7 +62,16 @@ router.put('/:id', async (req, res) => {
   try {
     const item = await Item.findByPk(req.params.id);
     if (!item) return res.status(404).json({ error: 'غير موجود' });
-    await item.update(cleanItemBody(req.body));
+    const body = cleanItemBody(req.body);
+    // A non-stock item is left out of every stock screen, so turning a stock item into one while
+    // it still has a balance would hide that balance without removing it.
+    if (item.is_stockable && body.is_stockable === false) {
+      const withBalance = await Stock.count({ where: { item_id: item.id, [Op.or]: [{ quantity: { [Op.ne]: 0 } }, { weight: { [Op.ne]: 0 } }] } });
+      if (withBalance > 0) {
+        return res.status(400).json({ error: 'لا يمكن تحويل الصنف إلى لا مخزني وله رصيد في المخازن - صفّر رصيده أولًا بالجرد' });
+      }
+    }
+    await item.update(body);
     res.json(item);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
