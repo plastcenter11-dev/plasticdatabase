@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { MdSearch, MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
+import { todayStr } from '../utils/today';
 
 export default function SupplierStatementPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [supplierId, setSupplierId] = useState('');
   const [movements, setMovements] = useState([]);
   const [dateFrom, setDateFrom] = useState(new Date().getFullYear() + '-01-01');
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(todayStr());
   useEffect(() => { api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {}); }, []);
 
   useEffect(() => {

@@ -6,8 +6,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
-const emptyForm = { movement_type: 'إضافة', warehouse_id: '', item_id: '', quantity: '', weight: '', unit_price: '', date: new Date().toISOString().split('T')[0], description: '' };
+const emptyForm = { movement_type: 'إضافة', warehouse_id: '', item_id: '', quantity: '', weight: '', unit_price: '', date: todayStr(), description: '' };
 
 export default function StockAdjustmentsPage() {
   const location = useLocation();

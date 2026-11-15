@@ -5,8 +5,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
-const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
+const emptyForm = { customer_id: '', amount: '', payment_method: 'نقدي', date: todayStr(), notes: '' };
 
 export default function CashReceiptsPage() {
   const { can } = useAuth();

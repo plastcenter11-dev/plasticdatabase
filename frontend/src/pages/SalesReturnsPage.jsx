@@ -6,6 +6,7 @@ import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft, Md
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { effectiveUnitNet } from '../utils/returnCalc';
+import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
 
@@ -19,7 +20,7 @@ export default function SalesReturnsPage() {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ customer_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ customer_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', tax_rate: 0, items: [{ ...emptyItem }] });
 
   const loadData = async () => {
     try {
@@ -52,6 +53,8 @@ export default function SalesReturnsPage() {
         return {
           item_id: i.item_id,
           quantity: i.quantity,
+          // the invoice's own weight and roll count, so a partial return can scale the count with the weight
+          origWeight: Number(i.weight || 0), origQty: Number(i.quantity || 0),
           weight: i.weight || '',
           price: i.price,
           discount: i.discount || 0,
@@ -66,6 +69,8 @@ export default function SalesReturnsPage() {
   const updateItem = (idx, field, val) => {
     const its = [...form.items];
     its[idx] = { ...its[idx], [field]: val };
+    // returning part of the weight returns a matching part of the rolls (whole rolls; still editable)
+    if (field === 'weight' && its[idx].origWeight > 0) its[idx].quantity = Math.round(its[idx].origQty * Math.min(Number(val) || 0, its[idx].origWeight) / its[idx].origWeight);
     const wt = Number(its[idx].weight || 0);
     const qty = Number(its[idx].quantity || 0);
     const pr = Number(its[idx].price || 0);
@@ -95,7 +100,8 @@ export default function SalesReturnsPage() {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
-    if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
+    // the weight is what is priced; the roll count alone (or the weight alone) is enough to identify the line
+    if (form.items.some(i => !i.item_id || !(Number(i.weight) > 0 || Number(i.quantity) > 0))) return toast.error('أكمل بيانات الأصناف (الصنف والوزن)');
     try {
       const taxAmt = calcTax();
       await api.post('/returns/sales', {
@@ -140,7 +146,7 @@ export default function SalesReturnsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مرتجع مبيعات</h1>
-        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
+        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">

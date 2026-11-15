@@ -6,8 +6,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch, MdCheckCircle, MdCancel, MdShoppingCart } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
-const makeEmptyForm = (partyType) => ({ check_no: '', party_type: partyType, party_id: '', amount: '', due_date: '', bank_name: '', date: new Date().toISOString().split('T')[0] });
+const makeEmptyForm = (partyType) => ({ check_no: '', party_type: partyType, party_id: '', amount: '', due_date: '', bank_name: '', date: todayStr() });
 
 // One page for both directions of checks: 'customer' = checks we receive
 // (حركات تحصيل شيكات), 'supplier' = checks we issue (حركات دفع شيكات).
@@ -32,7 +33,7 @@ export default function ChecksPage({ partyType = 'customer' }) {
   };
   useEffect(() => { loadData(); }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   const filtered = checks.filter(ch => {
     const matchSearch = !search || ch.check_no?.includes(search);
     const matchStatus = !filterStatus || ch.status === filterStatus;

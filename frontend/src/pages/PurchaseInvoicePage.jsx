@@ -10,6 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
 import { invoiceTotals, expectedBalance as balanceAfter } from '../utils/invoiceCalc';
+import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
@@ -27,7 +28,7 @@ export default function PurchaseInvoicePage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [form, setForm] = useState({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ supplier_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
   const [newItemRowIdx, setNewItemRowIdx] = useState(null);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
 
@@ -123,9 +124,12 @@ export default function PurchaseInvoicePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
-    if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
+    // everything is priced by weight, so the weight is what a line must have; the roll count is optional
+    if (form.items.some(i => !i.item_id || !(Number(i.weight) > 0))) return toast.error('أكمل بيانات الأصناف (الصنف والوزن)');
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
+    // a payment larger than the invoice is usually a typo (an extra digit), so ask first
+    if (paid > total && !window.confirm(`المدفوع (${paid.toLocaleString()}) أكبر من إجمالي الفاتورة (${total.toLocaleString()}). هل أنت متأكد؟`)) return;
     const payload = {
       supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, invoice_no: typedNumber ? form.invoice_no : undefined, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
       items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
@@ -202,7 +206,7 @@ export default function PurchaseInvoicePage() {
         <h1 className="text-xl font-bold text-gray-800">فواتير الشراء</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && can('purchase_invoices', 'delete') && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          {can('purchase_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
+          {can('purchase_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
         </div>
       </div>
 

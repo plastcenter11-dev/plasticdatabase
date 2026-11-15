@@ -4,6 +4,7 @@ import { MdSave, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 export default function OpeningInventoryPage() {
   const { can } = useAuth();
@@ -49,7 +50,7 @@ export default function OpeningInventoryPage() {
   const handleSave = async () => {
     if (!warehouseId) return toast.error('اختر المخزن');
     setSaving(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     let successCount = 0, errorCount = 0;
     for (const row of rows) {
       try {

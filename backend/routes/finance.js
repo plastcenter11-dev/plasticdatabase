@@ -184,7 +184,7 @@ router.delete('/checks/:id', async (req, res) => {
 
 router.get('/checks/overdue', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = require('../utils/today').todayStr();
     res.json(await Check.findAll({ where: { status: 'pending', due_date: { [Op.lt]: today } }, order: [['due_date', 'ASC']] }));
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });

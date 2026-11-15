@@ -5,6 +5,7 @@ import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdPassword, MdTune, M
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import BackupCopyPanel from '../components/BackupCopyPanel';
+import { todayStr } from '../utils/today';
 
 // the menu opens /settings/<section>; each section is one tab of this page
 const TAB_BY_PATH = { company: 'company', options: 'options', 'change-password': 'password', 'record-protection': 'protection', 'unlock-records': 'unlock', backup: 'backup' };
@@ -298,7 +299,7 @@ export default function SettingsPage() {
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    const date = new Date().toISOString().split('T')[0];
+                    const date = todayStr();
                     a.href = url; a.download = `plasticdb-backup-${date}.sql`;
                     a.click(); URL.revokeObjectURL(url);
                     toast.success('تم تحميل نسخة SQL بنجاح ✓');
@@ -319,7 +320,7 @@ export default function SettingsPage() {
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    const date = new Date().toISOString().split('T')[0];
+                    const date = todayStr();
                     a.href = url; a.download = `plasticdb-backup-${date}.json`;
                     a.click(); URL.revokeObjectURL(url);
                     toast.success('تم تحميل النسخة الاحتياطية بنجاح ✓');

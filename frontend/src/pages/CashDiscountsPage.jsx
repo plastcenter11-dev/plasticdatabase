@@ -5,8 +5,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => todayStr();
 const emptyForm = { party_id: '', amount: '', date: today(), notes: '' };
 
 // Cash discounts, kept apart from collections and payments: a customer's discount lowers what he owes,

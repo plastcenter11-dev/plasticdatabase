@@ -6,6 +6,7 @@ import { MdAdd, MdDelete, MdSearch, MdPrint, MdKeyboardArrowDown, MdKeyboardArro
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { effectiveUnitNet } from '../utils/returnCalc';
+import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', name: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
 
@@ -19,7 +20,7 @@ export default function PurchaseReturnsPage() {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
+  const [form, setForm] = useState({ supplier_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 });
 
   const loadData = async () => {
     try {
@@ -74,6 +75,8 @@ export default function PurchaseReturnsPage() {
   const updateItem = (idx, field, value) => {
     const items = [...form.items];
     items[idx] = { ...items[idx], [field]: value };
+    // returning part of the weight returns a matching part of the rolls (whole rolls; still editable)
+    if (field === 'weight' && items[idx].max_weight > 0) items[idx].quantity = Math.round((items[idx].max_qty || 0) * Math.min(Number(value) || 0, items[idx].max_weight) / items[idx].max_weight);
     const wt = Number(items[idx].weight) || 0;
     const qty = Number(items[idx].quantity) || 0;
     const pr = Number(items[idx].price) || 0;
@@ -148,7 +151,7 @@ export default function PurchaseReturnsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">مرتجع مشتريات</h1>
-        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
+        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 

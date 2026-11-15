@@ -4,9 +4,10 @@ import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 const incomeCategories = ['إيرادات متنوعة', 'بيع مخلفات', 'إيجار', 'أخرى'];
-const emptyForm = { date: new Date().toISOString().split('T')[0], description: '', amount: '', category: 'أخرى' };
+const emptyForm = { date: todayStr(), description: '', amount: '', category: 'أخرى' };
 
 export default function OtherIncomePage() {
   const { can } = useAuth();

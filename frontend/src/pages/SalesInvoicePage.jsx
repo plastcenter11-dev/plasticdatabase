@@ -10,6 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
 import { invoiceTotals, expectedBalance as balanceAfter } from '../utils/invoiceCalc';
+import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
 
@@ -26,7 +27,7 @@ export default function SalesInvoicePage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [form, setForm] = useState({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ customer_id: '', employee_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
 
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total: 0, pages: 1 });
@@ -97,9 +98,12 @@ export default function SalesInvoicePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
-    if (form.items.some(i => !i.item_id || !i.quantity)) return toast.error('أكمل بيانات الأصناف');
+    // everything is priced by weight, so the weight is what a line must have; the roll count is optional
+    if (form.items.some(i => !i.item_id || !(Number(i.weight) > 0))) return toast.error('أكمل بيانات الأصناف (الصنف والوزن)');
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
+    // a payment larger than the invoice is usually a typo (an extra digit), so ask first
+    if (paid > total && !window.confirm(`المدفوع (${paid.toLocaleString()}) أكبر من إجمالي الفاتورة (${total.toLocaleString()}). هل أنت متأكد؟`)) return;
     const payload = {
       customer_id: Number(form.customer_id), employee_id: Number(form.employee_id) || null, warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date,
       invoice_no: typedNumber ? form.invoice_no : undefined, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
@@ -179,7 +183,7 @@ export default function SalesInvoicePage() {
         <h1 className="text-xl font-bold text-gray-800">فواتير بيع</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && can('sales_invoices', 'delete') && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          {can('sales_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', warehouse_id: '', date: new Date().toISOString().split('T')[0], discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
+          {can('sales_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ customer_id: '', employee_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
         </div>
       </div>
 

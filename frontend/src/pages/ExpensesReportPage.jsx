@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { MdPrint, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { todayStr, yearStartStr } from '../utils/today';
 
 export default function ExpensesReportPage() {
   const [expenses, setExpenses] = useState([]);
-  const [from, setFrom] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
-  const [to, setTo] = useState(new Date().toISOString().split('T')[0]);
+  const [from, setFrom] = useState(yearStartStr());
+  const [to, setTo] = useState(todayStr());
   const [category, setCategory] = useState('');
 
   const load = () => {

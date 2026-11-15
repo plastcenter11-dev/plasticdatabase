@@ -5,6 +5,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 export default function WarehouseTransfersPage() {
   const { can } = useAuth();
@@ -13,7 +14,7 @@ export default function WarehouseTransfersPage() {
   const [items, setItems] = useState([]);
   const [stockData, setStockData] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ from_warehouse_id: '', to_warehouse_id: '', date: new Date().toISOString().split('T')[0], items: [{ item_id: '', quantity: '', weight: '' }] });
+  const [form, setForm] = useState({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] });
 
   const loadData = async () => {
     try {
@@ -60,7 +61,7 @@ export default function WarehouseTransfersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تحويلات مخازن</h1>
-        {can('stock', 'create') && <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: new Date().toISOString().split('T')[0], items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
+        {can('stock', 'create') && <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">

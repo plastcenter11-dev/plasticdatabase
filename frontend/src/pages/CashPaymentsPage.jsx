@@ -5,8 +5,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => todayStr();
 const emptyForm = () => ({ party_type: 'supplier', supplier_id: '', customer_id: '', amount: '', payment_method: 'نقدي', date: today(), notes: '' });
 
 const balanceTone = (b) => Number(b) > 0 ? 'bg-red-50 text-red-700' : Number(b) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600';

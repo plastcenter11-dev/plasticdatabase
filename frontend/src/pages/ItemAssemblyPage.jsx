@@ -5,6 +5,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 const emptyNewItem = { code: '', name: '', category_id: '', unit: 'كيلو', purchase_price: '', reorder_level: '' };
 
@@ -25,7 +26,7 @@ export default function ItemAssemblyPage() {
   const [showNewItem, setShowNewItem] = useState(false);
   const [newItemForm, setNewItemForm] = useState(emptyNewItem);
   const [assembledFilter, setAssembledFilter] = useState('');
-  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: new Date().toISOString().split('T')[0], components: [{ ...emptyComp }] };
+  const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: todayStr(), components: [{ ...emptyComp }] };
   const [form, setForm] = useState(emptyForm);
 
   const loadData = async () => {

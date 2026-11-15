@@ -98,6 +98,30 @@ describe('invoice made by posting a delivery note', () => {
     expect(await errorsOf()).toEqual([]);
   });
 
+  test('cash taken when posting shows on the invoice as paid, and deleting the receipt un-pays it', async () => {
+    const note = (await post('/api/delivery-notes', {
+      date: '2026-03-01', customer_id: customer.id, warehouse_id: warehouse.id, items: [{ item_id: item.id, net_weight: 100, roll_count: 1 }],
+    })).body;
+    const res = await post(`/api/delivery-notes/${note.id}/deliver`, {
+      invoice_no: 'DN-INV-1', items: [{ item_id: item.id, price: 10, tax_rate: 14 }],
+      payments: [{ method: 'cash', amount: 400 }, { method: 'check', amount: 300, check_no: 'CK-77', due_date: '2026-06-01' }],
+    });
+    expect(res.status).toBe(200);
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    expect(Number(inv.total)).toBe(1140);
+    expect(Number(inv.paid)).toBe(400); // cash only, the check lives on the checks screen
+    expect(Number(inv.remaining)).toBe(740);
+    expect(await errorsOf()).toEqual([]);
+
+    const receipt = (await getJson('/api/finance/cash-receipts')).find(r => r.notes === 'دفعة فاتورة بيع DN-INV-1');
+    expect(receipt).toBeDefined();
+    expect((await request(app).delete(`/api/finance/cash-receipts/${receipt.id}`).set(auth())).status).toBe(200);
+    const after = await SalesInvoice.findByPk(res.body.invoice_id);
+    expect(Number(after.paid)).toBe(0);
+    expect(Number(after.remaining)).toBe(1140);
+    expect(await errorsOf()).toEqual([]);
+  });
+
   test('an untaxed delivery has a 0 tax rate, not the default 14', async () => {
     const res = await deliver([{ item_id: item.id, w: 100, price: 10 }]);
     const inv = await SalesInvoice.findByPk(res.body.invoice_id);

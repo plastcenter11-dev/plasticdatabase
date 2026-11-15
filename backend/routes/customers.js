@@ -67,7 +67,7 @@ router.get('/silent', async (req, res) => {
     const [lastReceipts] = await sequelize.query(`SELECT customer_id, MAX(date) AS last_date FROM cash_receipts WHERE customer_id IN (${ids}) GROUP BY customer_id`);
     const lastInvoice = Object.fromEntries(lastInvoices.map(r => [r.customer_id, r.last_date]));
     const lastReceipt = Object.fromEntries(lastReceipts.map(r => [r.customer_id, r.last_date]));
-    const today = new Date(new Date().toISOString().slice(0, 10));
+    const today = new Date(require('../utils/today').todayStr());
     const daysSince = (d) => (d ? Math.floor((today - new Date(d)) / 86400000) : null);
     const rows = debtors
       .map(c => ({

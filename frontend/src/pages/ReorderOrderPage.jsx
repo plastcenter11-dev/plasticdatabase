@@ -4,6 +4,7 @@ import { MdWarning, MdPrint, MdShoppingCart, MdCheck } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 export default function ReorderOrderPage() {
   const { can } = useAuth();
@@ -49,7 +50,7 @@ export default function ReorderOrderPage() {
     if (selectedItems.length === 0) return toast.error('اختر أصناف أولاً');
     setCreating(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayStr();
       const items = selectedItems.map(i => ({
         item_id: i.item_id,
         quantity: 1,

@@ -118,26 +118,33 @@ router.post('/:id/deliver', async (req, res) => {
       const customer = await Customer.findByPk(note.customer_id, { transaction: t });
       if (customer) await customer.update({ balance: Number(customer.balance || 0) + total }, { transaction: t });
 
+      let cashPaid = 0;
       // Optional payment(s) collected at posting time - not required to match
       // the invoice total (customer may pay partially, in full, or a mix of
       // cash and check for a different combined amount than owed today).
       for (const p of (payments || [])) {
         if (p.method === 'cash') {
           const max = await CashReceipt.max('id', { transaction: t }) || 0;
+          // noted with the invoice number, like a payment typed on a sales invoice, so the invoice
+          // shows it as paid and deleting the receipt puts it back to unpaid
           await CashReceipt.create({
             receipt_no: `CR-${String(max + 1).padStart(6, '0')}`,
             date: p.date || note.date, customer_id: note.customer_id, amount: Number(p.amount),
+            payment_method: 'نقدي', notes: `دفعة فاتورة بيع ${invoiceNumber}`,
           }, { transaction: t });
+          cashPaid += Number(p.amount);
           if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
         } else if (p.method === 'check') {
           await Check.create({
             check_no: p.check_no, date: p.date || note.date, due_date: p.due_date || p.date || note.date,
             party_type: 'customer', party_id: note.customer_id, amount: Number(p.amount),
-            bank_name: p.bank_name || '', status: 'pending',
+            bank_name: p.bank_name || '', status: 'pending', notes: `دفعة فاتورة بيع ${invoiceNumber}`,
           }, { transaction: t });
           if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
         }
       }
+      // the cash taken now is what the invoice shows as paid (checks are tracked on the checks screen)
+      if (cashPaid > 0) await inv.update({ paid: cashPaid, remaining: total - cashPaid }, { transaction: t });
     }
 
     // Decrement stock for each delivered item

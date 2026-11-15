@@ -9,6 +9,7 @@ import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', item_name: '', item_code: '', net_weight: '', batch_no: '', roll_count: '', core_weight: '', wood_weight: '', stretch_weight: '', gross_weight: '', product_description: '' };
 
@@ -93,12 +94,12 @@ export default function DeliveryNotesPage() {
   const [checkNo, setCheckNo] = useState('');
   const [checkDueDate, setCheckDueDate] = useState('');
   const [checkBank, setCheckBank] = useState('');
-  const [form, setForm] = useState({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] });
+  const [form, setForm] = useState({ customer_id: '', date: todayStr(), driver_name: '', car_no: '', items: [{ ...emptyItem }] });
 
   useEffect(() => {
     if (location.state?.openNew) {
       const cid = location.state.customerId || '';
-      setForm({ customer_id: String(cid), date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] });
+      setForm({ customer_id: String(cid), date: todayStr(), driver_name: '', car_no: '', items: [{ ...emptyItem }] });
       setShowModal(true);
       window.history.replaceState({}, '');
     }
@@ -218,7 +219,7 @@ export default function DeliveryNotesPage() {
 
   const openInvoiceModal = (id) => {
     const note = notes.find(n => n.id === id);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     setShowInvoiceModal(id);
     setInvoiceNo('');
     setInvoiceWarehouseId(note?.warehouse_id ? String(note.warehouse_id) : '');
@@ -373,7 +374,7 @@ export default function DeliveryNotesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">إذون التسليم</h1>
-        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: new Date().toISOString().split('T')[0], driver_name: '', car_no: '', items: [{ ...emptyItem }] }); setShowModal(true); }}
+        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: todayStr(), driver_name: '', car_no: '', items: [{ ...emptyItem }] }); setShowModal(true); }}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إذن تسليم جديد</button>}
       </div>
 

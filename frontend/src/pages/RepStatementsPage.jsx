@@ -3,13 +3,14 @@ import { MdPrint } from 'react-icons/md';
 import api from '../api/axios';
 import SearchableSelect from '../components/SearchableSelect';
 import { repCommission, soldKg } from '../utils/repCommission';
+import { todayStr } from '../utils/today';
 
 // 1.14 → "1.14", 1 → "1", mixed → e.g. "1.07"; plus a word on where it came from.
 const divisorText = (s) => String(Number(s.divisor.toFixed(4)));
 const divisorNote = (s) => (s.divisorGuessed ? 'لا توجد فواتير في الفترة — افتراض ضريبة 14%' : s.divisor === 1 ? 'مبيعات بدون ضريبة' : s.divisor === 1.14 ? 'بدون ضريبة' : 'نسبة الأصناف بضريبة / بدون ضريبة');
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => todayStr();
 const monthStart = () => today().slice(0, 8) + '01';
 const balSplit = (b) => { const n = Number(b || 0); return { debit: n > 0 ? n : 0, credit: n < 0 ? -n : 0 }; };
 const checkLabel = (s) => (s === 'bounced' ? 'مرتد' : s === 'collected' ? 'تم التحصيل' : 'قيد الانتظار');
