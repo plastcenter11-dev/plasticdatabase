@@ -45,7 +45,9 @@ export function repCommission(rows, ratePct) {
   const moves = rows.filter(r => !r.isOpening);
   const invoices = moves.filter(r => r.type === 'فاتورة بيع');
   const paid = sum(moves.filter(r => r.type === 'تحصيل' || r.type === 'شيك'), 'credit');
-  const returns = sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit');
+  // cash paid back to the customer comes off the payments just like a cash discount does
+  const returns = sum(moves.filter(r => r.type === 'مرتجع بيع' || r.type === 'خصم نقدي'), 'credit')
+    + sum(moves.filter(r => r.type === 'رد نقدية'), 'debit');
   const bounced = sum(moves.filter(r => r.type === 'شيك مرتد'), 'debit');
   const plates = invoices.reduce((s, r) => s + platesOf(r), 0);
   const base = paid - bounced - returns - plates;

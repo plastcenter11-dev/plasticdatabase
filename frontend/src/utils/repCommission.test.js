@@ -50,6 +50,19 @@ describe('rep commission', () => {
     expect(c.commission).toBe(100);
   });
 
+  it('takes cash paid back to the customer off the payments, like a cash discount', () => {
+    const rows = [
+      inv(10000, 0, 10000, [line('فلامنكو', 10000)]),
+      { type: 'تحصيل', debit: 0, credit: 10000 },
+      { type: 'خصم نقدي', debit: 0, credit: 500 },
+      { type: 'رد نقدية', debit: 1000, credit: 0 },
+    ];
+    const c = repCommission(rows, 1);
+    expect(c.returns).toBe(1500);
+    expect(c.base).toBe(8500);
+    expect(c.commission).toBeCloseTo(85, 6);
+  });
+
   it('removes VAT only from the taxed share when a customer has both', () => {
     // 11,400 taxed (10,000 ex VAT) + 10,000 untaxed → divisor 21,400 / 20,000 = 1.07
     const rows = [inv(10000, 14, 11400, [line('فلامنكو', 10000)]), inv(10000, 0, 10000, [line('دشت', 10000)]), { type: 'تحصيل', credit: 21400 }];

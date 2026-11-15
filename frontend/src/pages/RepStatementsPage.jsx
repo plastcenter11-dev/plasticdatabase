@@ -88,7 +88,7 @@ export default function RepStatementsPage() {
         <tr class="sub"><td colspan="2">الإجمالي / الرصيد النهائي</td><td>${fmt(s.debit)}</td><td>${fmt(s.credit)}</td><td>${fmt(balSplit(s.closing).debit)}</td><td>${fmt(balSplit(s.closing).credit)}</td></tr>
         </tbody></table>
         <div class="totals"><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المبيعات: <strong>${fmt(s.sales)}</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span>${s.bounced ? `<span>شيكات مرتدة: <strong>${fmt(s.bounced)}</strong></span>` : ''}</div>
-        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = ${fmt(s.base)} ÷ ${divisorText(s)} (${divisorNote(s)}) = <strong>${fmt(s.exTax)}</strong> × ${ratePct}% =<strong>${fmt(s.commission)}</strong></div>
+        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ورد فلوس ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = ${fmt(s.base)} ÷ ${divisorText(s)} (${divisorNote(s)}) = <strong>${fmt(s.exTax)}</strong> × ${ratePct}% =<strong>${fmt(s.commission)}</strong></div>
       </section>`;
     const summaryPage = `
       <section>
@@ -218,7 +218,7 @@ export default function RepStatementsPage() {
                 <span className="font-bold">العمولة:</span>
                 <span>الدفعات {fmt(s.paid)}</span>
                 {s.bounced > 0 && <span>− شيكات مرتدة {fmt(s.bounced)}</span>}
-                <span>− مرتجعات وخصم نقدي {fmt(s.returns)}</span>
+                <span>− مرتجعات وخصم نقدي ورد فلوس {fmt(s.returns)}</span>
                 <span>− أكلاشيهات وسلندرات {fmt(s.plates)}</span>
                 <span>= {fmt(s.base)}</span>
                 <span>÷ {divisorText(s)} <span className={s.divisorGuessed ? 'text-yellow-700' : ''}>({divisorNote(s)})</span> = <strong>{fmt(s.exTax)}</strong></span>
