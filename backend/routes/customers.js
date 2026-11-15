@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, DeliveryNote, Item, CashReceipt, CashPayment, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { clean } = require('../utils/clean');
 
 // each customer with the balance computed live: posted invoices - receipts - returns - checks + opening
 async function withBalances(customers) {
@@ -89,7 +90,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  try { res.status(201).json(await Customer.create(req.body)); }
+  try { res.status(201).json(await Customer.create(clean(Customer, req.body, ['balance']))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -97,7 +98,7 @@ router.put('/:id', async (req, res) => {
   try {
     const c = await Customer.findByPk(req.params.id);
     if (!c) return res.status(404).json({ error: 'غير موجود' });
-    await c.update(req.body);
+    await c.update(clean(Customer, req.body, ['balance']));
     res.json(c);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });

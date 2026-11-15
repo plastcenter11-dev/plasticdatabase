@@ -29,6 +29,7 @@ const { User, Employee, FinancialYear, OpeningBalance, Settings, Customer, Suppl
   StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent,
 } = require('../models');
 const { adminOnly } = require('../middleware/auth');
+const { clean } = require('../utils/clean');
 
 // Users (admin only — user accounts and permissions must not be viewable/editable by non-admins)
 router.get('/users', adminOnly, async (req, res) => {
@@ -36,10 +37,17 @@ router.get('/users', adminOnly, async (req, res) => {
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
+// only these fields can be set from outside; the rest (ids, timestamps, the password stamp) are the server's
+const USER_FIELDS = ['username', 'password', 'role', 'permissions', 'is_active'];
+const pickUser = (body) => Object.fromEntries(USER_FIELDS.filter(k => body && body[k] !== undefined).map(k => [k, body[k]]));
+const { MIN_PASSWORD } = require('./auth');
+
 router.post('/users', adminOnly, async (req, res) => {
   try {
-    req.body.password = await bcrypt.hash(req.body.password, 10);
-    const user = await User.create(req.body);
+    const data = pickUser(req.body);
+    if (typeof data.password !== 'string' || data.password.length < MIN_PASSWORD) return res.status(400).json({ error: `كلمة المرور لازم تكون ${MIN_PASSWORD} حروف على الأقل` });
+    data.password = await bcrypt.hash(data.password, 10);
+    const user = await User.create(data);
     const { password, ...safe } = user.toJSON();
     res.status(201).json(safe);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
@@ -49,8 +57,17 @@ router.put('/users/:id', adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: 'غير موجود' });
-    if (req.body.password) req.body.password = await bcrypt.hash(req.body.password, 10);
-    await user.update(req.body);
+    const data = pickUser(req.body);
+    // an admin cannot lock themselves out by switching their own account off or demoting it
+    if (user.id === req.user.id && (data.is_active === false || (data.role && data.role !== 'admin'))) {
+      return res.status(400).json({ error: 'لا يمكنك إيقاف حسابك أو تغيير صلاحيته' });
+    }
+    if (data.password) {
+      if (typeof data.password !== 'string' || data.password.length < MIN_PASSWORD) return res.status(400).json({ error: `كلمة المرور لازم تكون ${MIN_PASSWORD} حروف على الأقل` });
+      data.password = await bcrypt.hash(data.password, 10);
+      data.password_changed_at = new Date();
+    } else delete data.password;
+    await user.update(data);
     const { password, ...safe } = user.toJSON();
     res.json(safe);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
@@ -60,6 +77,7 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: 'غير موجود' });
+    if (user.id === req.user.id) return res.status(400).json({ error: 'لا يمكنك حذف حسابك' });
     await user.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
@@ -72,7 +90,7 @@ router.get('/employees', async (req, res) => {
 });
 
 router.post('/employees', async (req, res) => {
-  try { res.status(201).json(await Employee.create(req.body)); }
+  try { res.status(201).json(await Employee.create(clean(Employee, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -80,7 +98,7 @@ router.put('/employees/:id', async (req, res) => {
   try {
     const e = await Employee.findByPk(req.params.id);
     if (!e) return res.status(404).json({ error: 'غير موجود' });
-    await e.update(req.body);
+    await e.update(clean(Employee, req.body));
     res.json(e);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
@@ -105,7 +123,7 @@ router.get('/financial-years', async (req, res) => {
 });
 
 router.post('/financial-years', async (req, res) => {
-  try { res.status(201).json(await FinancialYear.create(req.body)); }
+  try { res.status(201).json(await FinancialYear.create(clean(FinancialYear, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -113,7 +131,7 @@ router.put('/financial-years/:id', async (req, res) => {
   try {
     const y = await FinancialYear.findByPk(req.params.id);
     if (!y) return res.status(404).json({ error: 'غير موجود' });
-    await y.update(req.body);
+    await y.update(clean(FinancialYear, req.body));
     res.json(y);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
@@ -175,7 +193,7 @@ router.get('/opening-balances', async (req, res) => {
 });
 
 router.post('/opening-balances', async (req, res) => {
-  try { res.status(201).json(await OpeningBalance.create(req.body)); }
+  try { res.status(201).json(await OpeningBalance.create(clean(OpeningBalance, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -214,7 +232,7 @@ router.get('/categories', async (req, res) => {
 });
 
 router.post('/categories', async (req, res) => {
-  try { res.status(201).json(await require('../models').Category.create(req.body)); }
+  try { res.status(201).json(await require('../models').Category.create(clean(require('../models').Category, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -222,7 +240,7 @@ router.put('/categories/:id', async (req, res) => {
   try {
     const c = await require('../models').Category.findByPk(req.params.id);
     if (!c) return res.status(404).json({ error: 'غير موجود' });
-    await c.update(req.body);
+    await c.update(clean(require("../models").Category, req.body));
     res.json(c);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
@@ -238,7 +256,7 @@ router.get('/item-types', async (req, res) => {
 });
 
 router.post('/item-types', async (req, res) => {
-  try { res.status(201).json(await ItemType.create(req.body)); }
+  try { res.status(201).json(await ItemType.create(clean(ItemType, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -246,7 +264,7 @@ router.put('/item-types/:id', async (req, res) => {
   try {
     const t = await ItemType.findByPk(req.params.id);
     if (!t) return res.status(404).json({ error: 'غير موجود' });
-    await t.update(req.body);
+    await t.update(clean(ItemType, req.body));
     res.json(t);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });

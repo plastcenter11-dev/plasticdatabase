@@ -25,7 +25,7 @@ const TABLES = [
   'warehouse_transfer_items', 'warehouse_transfers',
   'item_assembly_components', 'item_assemblies',
   'opening_balances',
-  'audit_logs',
+  'audit_logs', 'counters',
   'items', 'customers', 'suppliers', 'employees', 'warehouses',
   'categories', 'item_types', 'financial_years', 'settings', 'users',
 ];

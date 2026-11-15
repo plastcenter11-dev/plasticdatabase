@@ -2,6 +2,10 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, CashReceipt, Check, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
+const { clean } = require('../utils/clean');
+const { nextNumber } = require('../utils/numbering');
+const { lockStock, lockMany } = require('../utils/stockOps');
+const { bump } = require('../utils/balances');
 
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -25,9 +29,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, ...data } = req.body;
-    const max = await DeliveryNote.max('id') || 0;
-    data.note_no = max + 1;
+    const { items } = req.body;
+    const data = clean(DeliveryNote, req.body, ['status', 'invoice_no', 'note_no']);
+    data.note_no = await nextNumber('DN', t);
     const note = await DeliveryNote.create(data, { transaction: t });
     if (items?.length) await DeliveryNoteItem.bulkCreate(items.map(i => ({ ...i, note_id: note.id })), { transaction: t });
     await t.commit();
@@ -41,8 +45,8 @@ router.put('/:id', async (req, res) => {
     const note = await DeliveryNote.findByPk(req.params.id, { transaction: t });
     if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' }); }
-    const { items, ...data } = req.body;
-    delete data.note_no;
+    const { items } = req.body;
+    const data = clean(DeliveryNote, req.body, ['status', 'invoice_no', 'note_no']);
     await note.update(data, { transaction: t });
     // the lines are replaced by the edited ones
     if (Array.isArray(items)) {
@@ -88,8 +92,7 @@ router.post('/:id/deliver', async (req, res) => {
       if (pi.tax_rate) taxMap[pi.item_id] = Number(pi.tax_rate);
     });
 
-    const invMax = await SalesInvoice.max('id', { transaction: t }) || 0;
-    const invoiceNumber = invoice_no || `SI-${String(invMax + 1).padStart(6, '0')}`;
+    const invoiceNumber = invoice_no || await nextNumber('SI', t);
     const items = note.items || [];
     const invoiceItems = items.map(i => {
       const weight = Number(i.net_weight || i.gross_weight || 0);
@@ -119,8 +122,7 @@ router.post('/:id/deliver', async (req, res) => {
     }
 
     if (note.customer_id) {
-      const customer = await Customer.findByPk(note.customer_id, { transaction: t });
-      if (customer) await customer.update({ balance: Number(customer.balance || 0) + total }, { transaction: t });
+      await bump(Customer, note.customer_id, total, t);
 
       let cashPaid = 0;
       // Optional payment(s) collected at posting time - not required to match
@@ -128,31 +130,31 @@ router.post('/:id/deliver', async (req, res) => {
       // cash and check for a different combined amount than owed today).
       for (const p of (payments || [])) {
         if (p.method === 'cash') {
-          const max = await CashReceipt.max('id', { transaction: t }) || 0;
           // noted with the invoice number, like a payment typed on a sales invoice, so the invoice
           // shows it as paid and deleting the receipt puts it back to unpaid
           await CashReceipt.create({
-            receipt_no: `CR-${String(max + 1).padStart(6, '0')}`,
+            receipt_no: await nextNumber('CR', t),
             date: p.date || note.date, customer_id: note.customer_id, amount: Number(p.amount),
             payment_method: 'نقدي', notes: `دفعة فاتورة بيع ${invoiceNumber}`,
           }, { transaction: t });
           cashPaid += Number(p.amount);
-          if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
+          await bump(Customer, note.customer_id, -Number(p.amount), t);
         } else if (p.method === 'check') {
           await Check.create({
             check_no: p.check_no, date: p.date || note.date, due_date: p.due_date || p.date || note.date,
             party_type: 'customer', party_id: note.customer_id, amount: Number(p.amount),
             bank_name: p.bank_name || '', status: 'pending', notes: `دفعة فاتورة بيع ${invoiceNumber}`,
           }, { transaction: t });
-          if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) }, { transaction: t });
+          await bump(Customer, note.customer_id, -Number(p.amount), t);
         }
       }
       // the cash taken now is what the invoice shows as paid (checks are tracked on the checks screen)
       if (cashPaid > 0) await inv.update({ paid: cashPaid, remaining: total - cashPaid }, { transaction: t });
     }
 
-    // Decrement stock for each delivered item
+    // Decrement stock for each delivered item (every row it touches is locked first, in a fixed order)
     if (effectiveWarehouseId) {
+      await lockMany(items.filter(i => !i.Item || i.Item.is_stockable).map(i => ({ item_id: i.item_id, warehouse_id: effectiveWarehouseId })), t);
       for (const item of items) {
         const weight = Number(item.net_weight || item.gross_weight || 0);
         const rollCount = Number(item.roll_count || 0);
@@ -164,11 +166,7 @@ router.post('/:id/deliver', async (req, res) => {
           if (price > 0) await Item.update({ sale_price: price }, { where: { id: item.item_id }, transaction: t });
           continue;
         }
-        const [stock] = await Stock.findOrCreate({
-          where: { item_id: item.item_id, warehouse_id: effectiveWarehouseId },
-          defaults: { quantity: 0, weight: 0 },
-          transaction: t,
-        });
+        const stock = await lockStock(item.item_id, effectiveWarehouseId, t);
         await stock.update({ quantity: Number(stock.quantity) - rollCount, weight: Number(stock.weight || 0) - weight }, { transaction: t });
         if (price > 0) await Item.update({ sale_price: price }, { where: { id: item.item_id }, transaction: t });
         await StockMovement.create({

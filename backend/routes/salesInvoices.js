@@ -5,6 +5,14 @@ const { listInvoices } = require('../utils/invoiceList');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
 const { invoiceNumberError, belowCostError, creditError, approvalError } = require('../utils/invoiceRules');
+const { clean } = require('../utils/clean');
+const { computeInvoice } = require('../utils/invoiceMath');
+const { nextNumber } = require('../utils/numbering');
+const { lockStock, lockMany } = require('../utils/stockOps');
+const { bump } = require('../utils/balances');
+
+// what the client may set on an invoice; its status, approval, document link and every money total are the server's
+const PROTECTED = ['status', 'approved_at', 'delivery_note_id', 'subtotal', 'tax_amount', 'total', 'remaining'];
 
 router.get('/', async (req, res) => {
   try {
@@ -23,13 +31,15 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, ...data } = req.body;
+    const data = clean(SalesInvoice, req.body, PROTECTED);
+    const calc = computeInvoice(req.body.items, data);
+    Object.assign(data, calc.header);
+    const items = calc.lines;
     const closedErr = await closedYearError(data.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const ruleErr = await invoiceNumberError(data) || await belowCostError(items, t);
     if (ruleErr) { await t.rollback(); return res.status(400).json({ error: ruleErr }); }
-    const max = await SalesInvoice.max('id') || 0;
-    data.invoice_no = data.invoice_no || `SI-${String(max + 1).padStart(6, '0')}`;
+    data.invoice_no = data.invoice_no || await nextNumber('SI', t);
     const inv = await SalesInvoice.create(data, { transaction: t });
     if (items?.length) await SalesInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
     await t.commit();
@@ -43,10 +53,15 @@ router.put('/:id', async (req, res) => {
     const inv = await SalesInvoice.findByPk(req.params.id, { transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل فاتورة مرحّلة' }); }
-    const { items, ...data } = req.body;
+    const data = clean(SalesInvoice, req.body, PROTECTED);
+    // the money is worked out again from the lines (the new ones, or the saved ones when only the header changed)
+    const sourceItems = Array.isArray(req.body.items) ? req.body.items : (await SalesInvoiceItem.findAll({ where: { invoice_id: inv.id }, transaction: t, raw: true }));
+    const calc = computeInvoice(sourceItems, { discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid, ...data });
+    Object.assign(data, calc.header);
+    const items = Array.isArray(req.body.items) ? calc.lines : undefined;
     const closedErr = await closedYearError(data.date || inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
-    const ruleErr = await belowCostError(items, t);
+    const ruleErr = await belowCostError(calc.lines, t);
     if (ruleErr) { await t.rollback(); return res.status(400).json({ error: ruleErr }); }
     data.approved_at = null; // an edited invoice has to be approved again
     if (items) {
@@ -73,9 +88,11 @@ router.post('/:id/approve', async (req, res) => {
 router.post('/:id/post', async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    // the invoice row is locked first: two postings of the same invoice cannot both go through
+    const locked = await SalesInvoice.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!locked) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (locked.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }], transaction: t });
-    if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const closedErr = await closedYearError(inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const ruleErr = await approvalError(inv) || await belowCostError(inv.items, t) || await creditError(inv, t);
@@ -83,15 +100,17 @@ router.post('/:id/post', async (req, res) => {
     const whErr = await missingWarehouseError(inv, t);
     if (whErr) { await t.rollback(); return res.status(400).json({ error: whErr }); }
 
-    // Check stock availability before posting
+    // Check stock availability before posting (the rows are locked, so a concurrent posting waits and
+    // then sees the stock it left behind)
     if (inv.warehouse_id) {
+      await lockMany((inv.items || []).map(i => ({ item_id: i.item_id, warehouse_id: inv.warehouse_id })), t);
       for (const item of (inv.items || [])) {
         const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         const wt = Number(item.weight || 0);
         if (qty <= 0 && wt <= 0) continue;
-        const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id }, transaction: t });
+        const stock = await Stock.findOne({ where: { item_id: item.item_id, warehouse_id: inv.warehouse_id }, transaction: t, lock: t.LOCK.UPDATE });
         if (wt > 0) {
           const availableWt = stock ? Number(stock.weight || 0) : 0;
           if (availableWt < wt) {
@@ -112,11 +131,8 @@ router.post('/:id/post', async (req, res) => {
 
     // Update customer balance by the unpaid remainder of the invoice
     if (inv.customer_id) {
-      const customer = await Customer.findByPk(inv.customer_id, { transaction: t });
-      if (customer) {
-        const remaining = Number(inv.remaining != null ? inv.remaining : Number(inv.total || 0) - Number(inv.paid || 0));
-        await customer.update({ balance: Number(customer.balance || 0) + remaining }, { transaction: t });
-      }
+      const remaining = Number(inv.remaining != null ? inv.remaining : Number(inv.total || 0) - Number(inv.paid || 0));
+      await bump(Customer, inv.customer_id, remaining, t);
 
       // A payment entered on the invoice is recorded as a cash receipt, the same
       // way posting a purchase invoice records a cash payment. Without it the
@@ -125,9 +141,8 @@ router.post('/:id/post', async (req, res) => {
       // remainder, so it is not touched again here.)
       const paidAmt = Number(inv.paid || 0);
       if (paidAmt > 0) {
-        const crMax = await CashReceipt.max('id', { transaction: t }) || 0;
         await CashReceipt.create({
-          receipt_no: `CR-${String(crMax + 1).padStart(6, '0')}`,
+          receipt_no: await nextNumber('CR', t),
           date: inv.date, customer_id: inv.customer_id, amount: paidAmt,
           payment_method: 'نقدي', notes: `دفعة فاتورة بيع ${inv.invoice_no}`,
         }, { transaction: t });
@@ -143,11 +158,7 @@ router.post('/:id/post', async (req, res) => {
         const wt = Number(item.weight || 0);
         // A line can carry only a weight (no roll count); it still leaves the warehouse.
         if (qty <= 0 && wt <= 0) continue;
-        const [stock] = await Stock.findOrCreate({
-          where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
-          defaults: { quantity: 0, weight: 0 },
-          transaction: t,
-        });
+        const stock = await lockStock(item.item_id, inv.warehouse_id, t);
         await stock.update({ quantity: Number(stock.quantity) - qty, weight: Number(stock.weight || 0) - wt }, { transaction: t });
 
         // Effective sale price = item revenue net of its own discount, plus its

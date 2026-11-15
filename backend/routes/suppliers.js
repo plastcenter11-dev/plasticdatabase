@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { Supplier, PurchaseInvoice, PurchaseInvoiceItem, PurchaseReturn, PurchaseReturnItem, Item, CashPayment, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { clean } = require('../utils/clean');
 
 router.get('/', async (req, res) => {
   try {
@@ -51,7 +52,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  try { res.status(201).json(await Supplier.create(req.body)); }
+  try { res.status(201).json(await Supplier.create(clean(Supplier, req.body, ['balance']))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -59,7 +60,7 @@ router.put('/:id', async (req, res) => {
   try {
     const s = await Supplier.findByPk(req.params.id);
     if (!s) return res.status(404).json({ error: 'غير موجود' });
-    await s.update(req.body);
+    await s.update(clean(Supplier, req.body, ['balance']));
     res.json(s);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });

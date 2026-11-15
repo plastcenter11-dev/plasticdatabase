@@ -1,0 +1,18 @@
+# HTTPS in front of the program (Caddy gets and renews the certificate by itself).
+# Replace erp.example.com with your own domain name; it must point to this server's public address
+# and ports 80 and 443 must reach this machine. The Node server itself listens on 127.0.0.1 only.
+
+erp.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:3001
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	# the .sql restore upload can be big
+	request_body {
+		max_size 200MB
+	}
+}

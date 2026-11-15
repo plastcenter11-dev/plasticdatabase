@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { Op } = require('sequelize');
+const { clean } = require('../utils/clean');
+const { lockStock } = require('../utils/stockOps');
 const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType, sequelize } = require('../models');
 
 // Manual stock-adjustment types, as opposed to StockMovement rows generated
@@ -43,8 +45,8 @@ router.post('/adjustments', async (req, res) => {
     }
     const warehouse_id = req.body.warehouse_id;
     if (!warehouse_id) { await t.rollback(); return res.status(400).json({ error: 'اختر المخزن' }); }
-    const movement = await StockMovement.create(req.body, { transaction: t });
-    let [stock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    const movement = await StockMovement.create(clean(StockMovement, req.body), { transaction: t });
+    let stock = await lockStock(item_id, warehouse_id, t);
     if (movement_type === 'إضافة') {
       await stock.update({ quantity: Number(stock.quantity) + Number(quantity), weight: Number(stock.weight) + Number(weight || 0) }, { transaction: t });
     } else if (movement_type === 'صرف') {
@@ -74,7 +76,7 @@ router.put('/adjustments/:id', async (req, res) => {
 
     // Reverse old movement effect on stock (only if it had touched a warehouse)
     if (old.warehouse_id) {
-      const [oldStock] = await Stock.findOrCreate({ where: { item_id: old.item_id, warehouse_id: old.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const oldStock = await lockStock(old.item_id, old.warehouse_id, t);
       if (old.movement_type === 'إضافة') {
         await oldStock.update({ quantity: Number(oldStock.quantity) - Number(old.quantity), weight: Number(oldStock.weight) - Number(old.weight || 0) }, { transaction: t });
       } else if (old.movement_type === 'صرف') {
@@ -88,7 +90,7 @@ router.put('/adjustments/:id', async (req, res) => {
     if (!newStockable) { await t.commit(); return res.json(old); }
 
     // Apply new movement effect on stock
-    const [newStock] = await Stock.findOrCreate({ where: { item_id, warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    const newStock = await lockStock(item_id, warehouse_id, t);
     if (movement_type === 'إضافة') {
       await newStock.update({ quantity: Number(newStock.quantity) + Number(quantity), weight: Number(newStock.weight) + Number(weight || 0) }, { transaction: t });
     } else if (movement_type === 'صرف') {
@@ -114,7 +116,7 @@ router.delete('/adjustments/:id', async (req, res) => {
 
     // Reverse stock effect before deleting (non-stock movements have no warehouse, nothing to reverse)
     if (m.warehouse_id) {
-      const [stock] = await Stock.findOrCreate({ where: { item_id: m.item_id, warehouse_id: m.warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const stock = await lockStock(m.item_id, m.warehouse_id, t);
       if (m.movement_type === 'إضافة') {
         await stock.update({ quantity: Number(stock.quantity) - Number(m.quantity), weight: Number(stock.weight) - Number(m.weight || 0) }, { transaction: t });
       } else if (m.movement_type === 'صرف') {
@@ -231,8 +233,8 @@ router.post('/transfers/:id/confirm', async (req, res) => {
     // feeds the source warehouse, so its balance (kg or count) is allowed to go negative.
 
     for (const item of transfer.items) {
-      const [fromStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.from_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
-      const [toStock] = await Stock.findOrCreate({ where: { item_id: item.item_id, warehouse_id: transfer.to_warehouse_id }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const fromStock = await lockStock(item.item_id, transfer.from_warehouse_id, t);
+      const toStock = await lockStock(item.item_id, transfer.to_warehouse_id, t);
       await fromStock.update({ quantity: Number(fromStock.quantity) - Number(item.quantity), weight: Number(fromStock.weight) - Number(item.weight || 0) }, { transaction: t });
       await toStock.update({ quantity: Number(toStock.quantity) + Number(item.quantity), weight: Number(toStock.weight) + Number(item.weight || 0) }, { transaction: t });
 
@@ -303,7 +305,7 @@ router.post('/assemblies', async (req, res) => {
     // Consume components, each from its own warehouse
     for (const c of stockComponents(components)) {
       const whId = componentWarehouseId(c);
-      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const stock = await lockStock(c.item_id, whId, t);
       await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
       await StockMovement.create({
         item_id: c.item_id, warehouse_id: whId, movement_type: 'تركيب',
@@ -313,7 +315,7 @@ router.post('/assemblies', async (req, res) => {
     }
 
     // Add the assembled item to the output warehouse
-    const [assembledStock] = await Stock.findOrCreate({ where: { item_id: data.assembled_item_id, warehouse_id: outputWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    const assembledStock = await lockStock(data.assembled_item_id, outputWarehouseId, t);
     await assembledStock.update({ quantity: Number(assembledStock.quantity) + Number(data.assembled_qty || 0), weight: Number(assembledStock.weight || 0) + Number(data.assembled_weight || 0) }, { transaction: t });
     await StockMovement.create({
       item_id: data.assembled_item_id, warehouse_id: outputWarehouseId, movement_type: 'تركيب',
@@ -351,10 +353,10 @@ async function reverseAssembly(assembly, components, t) {
   const outputWarehouseId = assembly.output_warehouse_id || assembly.warehouse_id;
   for (const c of stockComponents(components)) {
     const whId = c.warehouse_id || assembly.warehouse_id;
-    const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    const stock = await lockStock(c.item_id, whId, t);
     await stock.update({ quantity: Number(stock.quantity) + Number(c.quantity || 0), weight: Number(stock.weight || 0) + Number(c.weight || 0) }, { transaction: t });
   }
-  const [assembledStock] = await Stock.findOrCreate({ where: { item_id: assembly.assembled_item_id, warehouse_id: outputWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+  const assembledStock = await lockStock(assembly.assembled_item_id, outputWarehouseId, t);
   await assembledStock.update({ quantity: Number(assembledStock.quantity) - Number(assembly.assembled_qty || 0), weight: Number(assembledStock.weight || 0) - Number(assembly.assembled_weight || 0) }, { transaction: t });
 }
 
@@ -389,7 +391,7 @@ router.put('/assemblies/:id', async (req, res) => {
 
     for (const c of stockComponents(components)) {
       const whId = componentWarehouseId(c);
-      const [stock] = await Stock.findOrCreate({ where: { item_id: c.item_id, warehouse_id: whId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+      const stock = await lockStock(c.item_id, whId, t);
       await stock.update({ quantity: Number(stock.quantity) - Number(c.quantity || 0), weight: Number(stock.weight || 0) - Number(c.weight || 0) }, { transaction: t });
       await StockMovement.create({
         item_id: c.item_id, warehouse_id: whId, movement_type: 'تركيب',
@@ -398,7 +400,7 @@ router.put('/assemblies/:id', async (req, res) => {
       }, { transaction: t });
     }
 
-    const [assembledStock] = await Stock.findOrCreate({ where: { item_id: data.assembled_item_id, warehouse_id: outputWarehouseId }, defaults: { quantity: 0, weight: 0 }, transaction: t });
+    const assembledStock = await lockStock(data.assembled_item_id, outputWarehouseId, t);
     await assembledStock.update({ quantity: Number(assembledStock.quantity) + Number(data.assembled_qty || 0), weight: Number(assembledStock.weight || 0) + Number(data.assembled_weight || 0) }, { transaction: t });
     await StockMovement.create({
       item_id: data.assembled_item_id, warehouse_id: outputWarehouseId, movement_type: 'تركيب',

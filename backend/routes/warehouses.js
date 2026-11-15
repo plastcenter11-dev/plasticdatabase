@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { Op } = require('sequelize');
 const { Warehouse, Stock, Item, StockMovement, WarehouseTransfer, ItemAssembly, SalesInvoice, PurchaseInvoice, DeliveryNote } = require('../models');
+const { clean } = require('../utils/clean');
 
 router.get('/', async (req, res) => {
   try { res.json(await Warehouse.findAll({ order: [['id', 'ASC']] })); }
@@ -17,7 +18,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  try { res.status(201).json(await Warehouse.create(req.body)); }
+  try { res.status(201).json(await Warehouse.create(clean(Warehouse, req.body))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -25,7 +26,7 @@ router.put('/:id', async (req, res) => {
   try {
     const w = await Warehouse.findByPk(req.params.id);
     if (!w) return res.status(404).json({ error: 'غير موجود' });
-    await w.update(req.body);
+    await w.update(clean(Warehouse, req.body));
     res.json(w);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });

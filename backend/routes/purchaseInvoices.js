@@ -5,6 +5,14 @@ const { listInvoices } = require('../utils/invoiceList');
 const { invoiceNumberError, approvalError } = require('../utils/invoiceRules');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
+const { clean } = require('../utils/clean');
+const { computeInvoice } = require('../utils/invoiceMath');
+const { nextNumber } = require('../utils/numbering');
+const { lockStock, lockMany } = require('../utils/stockOps');
+const { bump } = require('../utils/balances');
+
+// what the client may set on an invoice; its status, approval and every money total are the server's
+const PROTECTED = ['status', 'approved_at', 'subtotal', 'tax_amount', 'total', 'remaining'];
 
 router.get('/', async (req, res) => {
   try {
@@ -23,14 +31,16 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, ...data } = req.body;
+    const data = clean(PurchaseInvoice, req.body, PROTECTED);
+    const calc = computeInvoice(req.body.items, data);
+    Object.assign(data, calc.header);
+    const items = calc.lines;
     if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
     const closedErr = await closedYearError(data.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const numErr = await invoiceNumberError(data);
     if (numErr) { await t.rollback(); return res.status(400).json({ error: numErr }); }
-    const max = await PurchaseInvoice.max('id') || 0;
-    data.invoice_no = data.invoice_no || `PI-${String(max + 1).padStart(6, '0')}`;
+    data.invoice_no = data.invoice_no || await nextNumber('PI', t);
     const inv = await PurchaseInvoice.create(data, { transaction: t });
     if (items?.length) await PurchaseInvoiceItem.bulkCreate(items.map(i => ({ ...i, invoice_id: inv.id })), { transaction: t });
     await t.commit();
@@ -44,7 +54,11 @@ router.put('/:id', async (req, res) => {
     const inv = await PurchaseInvoice.findByPk(req.params.id, { transaction: t });
     if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل فاتورة مرحّلة' }); }
-    const { items, ...data } = req.body;
+    const data = clean(PurchaseInvoice, req.body, PROTECTED);
+    const sourceItems = Array.isArray(req.body.items) ? req.body.items : (await PurchaseInvoiceItem.findAll({ where: { invoice_id: inv.id }, transaction: t, raw: true }));
+    const calc = computeInvoice(sourceItems, { discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid, ...data });
+    Object.assign(data, calc.header);
+    const items = Array.isArray(req.body.items) ? calc.lines : undefined;
     const closedErr = await closedYearError(data.date || inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     data.approved_at = null; // an edited invoice has to be approved again
@@ -72,9 +86,11 @@ router.post('/:id/approve', async (req, res) => {
 router.post('/:id/post', async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    // the invoice row is locked first: two postings of the same invoice cannot both go through
+    const locked = await PurchaseInvoice.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!locked) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (locked.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const inv = await PurchaseInvoice.findByPk(req.params.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }], transaction: t });
-    if (!inv) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    if (inv.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const closedErr = await closedYearError(inv.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const appErr = await approvalError(inv);
@@ -86,17 +102,13 @@ router.post('/:id/post', async (req, res) => {
 
     // Update supplier balance: add remaining (total - paid) to balance
     const remaining = Number(inv.total || 0) - Number(inv.paid || 0);
-    const supplier = await Supplier.findByPk(inv.supplier_id, { transaction: t });
-    if (supplier) {
-      await supplier.update({ balance: Number(supplier.balance || 0) + remaining }, { transaction: t });
-    }
+    await bump(Supplier, inv.supplier_id, remaining, t);
 
     // If paid > 0, create a cash payment record
     const paidAmt = Number(inv.paid || 0);
     if (paidAmt > 0) {
-      const cpMax = await CashPayment.max('id', { transaction: t }) || 0;
       await CashPayment.create({
-        payment_no: `CP-${String(cpMax + 1).padStart(6, '0')}`,
+        payment_no: await nextNumber('CP', t),
         date: inv.date,
         supplier_id: inv.supplier_id,
         amount: paidAmt,
@@ -107,17 +119,14 @@ router.post('/:id/post', async (req, res) => {
 
     // Increment stock for each item
     if (inv.warehouse_id) {
+      await lockMany((inv.items || []).map(i => ({ item_id: i.item_id, warehouse_id: inv.warehouse_id })), t);
       for (const item of (inv.items || [])) {
         const fullItem = await Item.findByPk(item.item_id, { transaction: t });
         if (!fullItem?.is_stockable) continue;
         const qty = Number(item.quantity || 0);
         const wt = Number(item.weight || 0);
         if (qty <= 0 && wt <= 0) continue;
-        const [stock] = await Stock.findOrCreate({
-          where: { item_id: item.item_id, warehouse_id: inv.warehouse_id },
-          defaults: { quantity: 0, weight: 0 },
-          transaction: t,
-        });
+        const stock = await lockStock(item.item_id, inv.warehouse_id, t);
         await stock.update({ quantity: Number(stock.quantity) + qty, weight: Number(stock.weight || 0) + wt }, { transaction: t });
 
         // Effective purchase price = item cost net of its own discount, plus its

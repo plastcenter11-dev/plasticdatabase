@@ -35,12 +35,19 @@ function describeError(err) {
     case 'SequelizeForeignKeyConstraintError':
       return 'السجل مرتبط ببيانات أخرى، أو يشير إلى سجل غير موجود';
     default:
+      // a database or driver error names tables and columns: that belongs in the server log, not on the
+      // screen of whoever is connected (the server is reachable from the internet)
+      if ((err.name && err.name.startsWith('Sequelize')) || err.sql || err.code) {
+        console.error('Database error:', err.name, err.message);
+        return 'حدث خطأ في قاعدة البيانات';
+      }
       return err.message;
   }
 }
 
 // bad input is the caller's to fix (400); anything else is a real server error
 function errorStatus(err) {
+  if (err && Number.isInteger(err.status)) return err.status;
   return err && (err.name === 'SequelizeUniqueConstraintError' || err.name === 'SequelizeValidationError') ? 400 : 500;
 }
 

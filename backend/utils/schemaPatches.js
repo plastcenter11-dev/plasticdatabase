@@ -15,6 +15,13 @@ const PATCHES = [
   { table: 'customers', column: 'sales_rep', definition: { type: DataTypes.STRING(100), allowNull: true } },
   // Cash payments can also be made back to a customer (a refund), not only to a supplier.
   { table: 'cash_payments', column: 'customer_id', definition: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'customers', key: 'id' } } },
+  // Sessions signed in before the last password change stop working.
+  { table: 'users', column: 'password_changed_at', definition: { type: DataTypes.DATE, allowNull: true } },
+];
+
+// Indexes added after the table existed. A unique one is only added when the data already satisfies it.
+const INDEX_PATCHES = [
+  { table: 'stocks', name: 'uq_stock_item_warehouse', columns: ['item_id', 'warehouse_id'], unique: true },
 ];
 
 async function applySchemaPatches(sequelize) {
@@ -26,6 +33,16 @@ async function applySchemaPatches(sequelize) {
       await qi.addColumn(table, column, definition);
       added.push(`${table}.${column}`);
     }
+  }
+  for (const { table, name, columns, unique } of INDEX_PATCHES) {
+    const [have] = await sequelize.query('SHOW INDEX FROM `' + table + '` WHERE Key_name = ?', { replacements: [name] });
+    if (have.length) continue;
+    if (unique) {
+      const [dups] = await sequelize.query('SELECT 1 FROM `' + table + '` GROUP BY ' + columns.join(', ') + ' HAVING COUNT(*) > 1 LIMIT 1');
+      if (dups.length) { console.warn('Index ' + name + ' NOT added: ' + table + ' already has duplicate rows'); continue; }
+    }
+    await sequelize.query('ALTER TABLE `' + table + '` ADD ' + (unique ? 'UNIQUE ' : '') + 'INDEX `' + name + '` (' + columns.join(', ') + ')');
+    added.push(table + ' index ' + name);
   }
   return added;
 }

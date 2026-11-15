@@ -7,6 +7,7 @@ const User = sequelize.define('User', {
   role: { type: DataTypes.ENUM('admin', 'user'), defaultValue: 'user' },
   permissions: { type: DataTypes.JSON, defaultValue: {} },
   is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+  password_changed_at: { type: DataTypes.DATE, allowNull: true },
 });
 
 const Warehouse = sequelize.define('Warehouse', {
@@ -37,6 +38,15 @@ const Item = sequelize.define('Item', {
 const Stock = sequelize.define('Stock', {
   quantity: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
   weight: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+}, {
+  // one row per item per warehouse; two requests creating the same row at once cannot both succeed
+  indexes: [{ unique: true, name: 'uq_stock_item_warehouse', fields: ['item_id', 'warehouse_id'] }],
+});
+
+// Document-number counters (see utils/numbering.js): one row per series, locked while a number is taken.
+const Counter = sequelize.define('Counter', {
+  name: { type: DataTypes.STRING(20), allowNull: false, unique: true },
+  value: { type: DataTypes.BIGINT, allowNull: false, defaultValue: 0 },
 });
 
 const Customer = sequelize.define('Customer', {
@@ -402,7 +412,7 @@ module.exports = {
   FinancialYear, SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, DeliveryNoteOrder,
   SalesInvoice, SalesInvoiceItem, PurchaseInvoice, PurchaseInvoiceItem,
   PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem,
-  CashReceipt, CashPayment, Check, Expense, OtherIncome,
+  CashReceipt, CashPayment, Check, Expense, OtherIncome, Counter,
   StockMovement, WarehouseTransfer, WarehouseTransferItem,
   ItemAssembly, ItemAssemblyComponent, OpeningBalance, Settings, AuditLog,
 };

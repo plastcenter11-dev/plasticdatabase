@@ -13,6 +13,10 @@ async function auth(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(decoded.id);
     if (!user || !user.is_active) return res.status(401).json({ error: 'المستخدم غير نشط' });
+    // a password change ends every session that was signed in before it
+    if (user.password_changed_at && decoded.iat < Math.floor(new Date(user.password_changed_at).getTime() / 1000)) {
+      return res.status(401).json({ error: 'انتهت الجلسة، سجّل الدخول من جديد' });
+    }
     req.user = { id: user.id, username: user.username, role: user.role, permissions: user.permissions || {} };
     // everything the request does from here on is attributed to this user in the audit log
     return runWithUser({ user: req.user, ip: req.ip, method: req.method, path: (req.originalUrl || '').split('?')[0] }, next);
