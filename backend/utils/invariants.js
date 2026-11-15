@@ -39,6 +39,7 @@ function buildChecks({ models, sequelize, getJson }) {
       ? `SELECT c.id, c.name,
            (SELECT COALESCE(SUM(total),0) FROM ${tn('SalesInvoice')} WHERE customer_id=c.id AND status='posted')
          - (SELECT COALESCE(SUM(amount),0) FROM ${tn('CashReceipt')} WHERE customer_id=c.id)
+         + (SELECT COALESCE(SUM(amount),0) FROM ${tn('CashPayment')} WHERE customer_id=c.id)
          - (SELECT COALESCE(SUM(total),0) FROM ${tn('SalesReturn')} WHERE customer_id=c.id)
          - (SELECT COALESCE(SUM(amount),0) FROM ${tn('Check')} WHERE party_type='customer' AND party_id=c.id AND status<>'bounced')
          + (SELECT COALESCE(SUM(debit),0)-COALESCE(SUM(credit),0) FROM ${tn('OpeningBalance')} WHERE party_type='customer' AND party_id=c.id) AS expected
@@ -278,6 +279,7 @@ function buildChecks({ models, sequelize, getJson }) {
       ['StockMovement', 'warehouse_id', 'Warehouse', 'حركات على مخزن غير موجود'],
       ['CashReceipt', 'customer_id', 'Customer', 'سندات قبض لعميل غير موجود'],
       ['CashPayment', 'supplier_id', 'Supplier', 'سندات دفع لمورد غير موجود'],
+      ['CashPayment', 'customer_id', 'Customer', 'سندات دفع لعميل غير موجود'],
       ['SalesInvoice', 'customer_id', 'Customer', 'فواتير بيع لعميل غير موجود'],
       ['PurchaseInvoice', 'supplier_id', 'Supplier', 'فواتير شراء لمورد غير موجود'],
     ];

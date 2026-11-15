@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
-const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, DeliveryNote, Item, CashReceipt, OpeningBalance, Check, sequelize } = require('../models');
+const { Customer, SalesInvoice, SalesInvoiceItem, SalesReturn, SalesReturnItem, DeliveryNote, Item, CashReceipt, CashPayment, OpeningBalance, Check, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // each customer with the balance computed live: posted invoices - receipts - returns - checks + opening
@@ -15,6 +15,10 @@ async function withBalances(customers) {
   const [receiptSums] = await sequelize.query(
     `SELECT customer_id, COALESCE(SUM(amount),0) as total FROM cash_receipts WHERE customer_id IN (${ids.join(',')}) GROUP BY customer_id`
   );
+  // cash paid back to the customer (a refund) puts the balance up again
+  const [refundSums] = await sequelize.query(
+    `SELECT customer_id, COALESCE(SUM(amount),0) as total FROM cash_payments WHERE customer_id IN (${ids.join(',')}) GROUP BY customer_id`
+  );
   const [returnSums] = await sequelize.query(
     `SELECT customer_id, COALESCE(SUM(total),0) as total FROM sales_returns WHERE customer_id IN (${ids.join(',')}) GROUP BY customer_id`
   );
@@ -25,7 +29,8 @@ async function withBalances(customers) {
     `SELECT party_id, COALESCE(SUM(amount),0) as total FROM checks WHERE party_type='customer' AND status != 'bounced' AND party_id IN (${ids.join(',')}) GROUP BY party_id`
   );
 
-  const invMap = {}, recMap = {}, retMap = {}, openMap = {}, checkMap = {};
+  const invMap = {}, recMap = {}, refMap = {}, retMap = {}, openMap = {}, checkMap = {};
+  refundSums.forEach(r => { refMap[r.customer_id] = Number(r.total); });
   invoiceSums.forEach(r => { invMap[r.customer_id] = Number(r.total); });
   receiptSums.forEach(r => { recMap[r.customer_id] = Number(r.total); });
   returnSums.forEach(r => { retMap[r.customer_id] = Number(r.total); });
@@ -34,7 +39,7 @@ async function withBalances(customers) {
 
   const result = customers.map(c => ({
     ...c.toJSON(),
-    balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0) - (retMap[c.id] || 0) - (checkMap[c.id] || 0) + (openMap[c.id] || 0)) * 100) / 100,
+    balance: Math.round(((invMap[c.id] || 0) - (recMap[c.id] || 0) + (refMap[c.id] || 0) - (retMap[c.id] || 0) - (checkMap[c.id] || 0) + (openMap[c.id] || 0)) * 100) / 100,
   }));
   return result;
 }
@@ -108,6 +113,7 @@ router.delete('/:id', async (req, res) => {
       SalesReturn.count({ where: { customer_id: c.id } }),
       DeliveryNote.count({ where: { customer_id: c.id } }),
       CashReceipt.count({ where: { customer_id: c.id } }),
+      CashPayment.count({ where: { customer_id: c.id } }),
       Check.count({ where: { party_type: 'customer', party_id: c.id } }),
       OpeningBalance.count({ where: { party_type: 'customer', party_id: c.id } }),
     ]);
@@ -128,6 +134,7 @@ router.get('/:id/statement', async (req, res) => {
       order: [['date', 'ASC']],
     });
     const receipts = await CashReceipt.findAll({ where: { customer_id: req.params.id }, order: [['date', 'ASC']] });
+    const refunds = await CashPayment.findAll({ where: { customer_id: req.params.id }, order: [['date', 'ASC']] });
     const returns = await SalesReturn.findAll({
       where: { customer_id: req.params.id },
       include: [{ model: SalesReturnItem, as: 'items', include: [{ model: Item, attributes: ['id', 'name', 'code'] }] }],
@@ -139,6 +146,7 @@ router.get('/:id/statement', async (req, res) => {
     const allMovements = [
       ...invoices.map(i => ({ date: i.date, type: 'فاتورة بيع', reference: i.invoice_no, debit: Number(i.total), credit: 0, invoice_id: i.id, items: i.items, subtotal: Number(i.subtotal || 0), discount: Number(i.discount || 0), tax_rate: Number(i.tax_rate || 0), tax_amount: Number(i.tax_amount || 0) })),
       ...receipts.map(r => ({ date: r.date, type: r.payment_method === 'خصم نقدي' ? 'خصم نقدي' : 'تحصيل', reference: r.receipt_no, debit: 0, credit: Number(r.amount) })),
+      ...refunds.map(r => ({ date: r.date, type: 'رد نقدية', reference: r.payment_no, debit: Number(r.amount), credit: 0 })),
       ...returns.map(r => ({ date: r.date, type: 'مرتجع بيع', reference: r.return_no, debit: 0, credit: Number(r.total), items: r.items, subtotal: Number(r.total) - Number(r.tax_amount || 0), discount: 0, tax_rate: Number(r.tax_rate || 0), tax_amount: Number(r.tax_amount || 0) })),
       ...checks.flatMap(c => {
         const rows = [{ date: c.date, type: 'شيك', reference: c.check_no, debit: 0, credit: Number(c.amount), check_due_date: c.due_date, check_status: c.status }];

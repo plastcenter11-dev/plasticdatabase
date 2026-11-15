@@ -6,39 +6,53 @@ import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 
-const emptyForm = { supplier_id: '', amount: '', payment_method: 'نقدي', date: new Date().toISOString().split('T')[0], notes: '' };
+const today = () => new Date().toISOString().split('T')[0];
+const emptyForm = () => ({ party_type: 'supplier', supplier_id: '', customer_id: '', amount: '', payment_method: 'نقدي', date: today(), notes: '' });
 
+const balanceTone = (b) => Number(b) > 0 ? 'bg-red-50 text-red-700' : Number(b) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600';
+
+// Cash paid out: to a supplier (what we owe goes down) or back to a customer, e.g. a refund
+// (what the customer owes goes up).
 export default function CashPaymentsPage() {
   const { can } = useAuth();
   const [payments, setPayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyForm());
 
   const loadData = async () => {
     try {
-      const [p, s] = await Promise.all([api.get('/finance/cash-payments'), api.get('/suppliers')]);
-      setPayments(p.data); setSuppliers(s.data);
+      const [p, s, c] = await Promise.all([api.get('/finance/cash-payments'), api.get('/suppliers'), api.get('/customers')]);
+      setPayments(p.data); setSuppliers(s.data); setCustomers(c.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
 
   const filtered = payments.filter(p => {
     if (!search) return true;
-    return p.payment_no?.includes(search) || p.Supplier?.name?.includes(search);
+    return p.payment_no?.includes(search) || p.Supplier?.name?.includes(search) || p.Customer?.name?.includes(search);
   });
 
   const totalAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const toCustomer = form.party_type === 'customer';
   const selectedSupplier = suppliers.find(s => s.id === Number(form.supplier_id));
+  const selectedCustomer = customers.find(c => c.id === Number(form.customer_id));
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.supplier_id || !form.amount) return toast.error('أكمل البيانات');
+    if (!(toCustomer ? form.customer_id : form.supplier_id) || !form.amount) return toast.error('أكمل البيانات');
     try {
-      await api.post('/finance/cash-payments', { ...form, supplier_id: Number(form.supplier_id), amount: Number(form.amount) });
-      toast.success('تم تسجيل الدفع');
-      setShowModal(false); setForm(emptyForm); loadData();
+      const { party_type, ...rest } = form;
+      await api.post('/finance/cash-payments', {
+        ...rest,
+        amount: Number(form.amount),
+        supplier_id: toCustomer ? null : Number(form.supplier_id),
+        customer_id: toCustomer ? Number(form.customer_id) : null,
+      });
+      toast.success(toCustomer ? 'تم تسجيل رد الفلوس للعميل' : 'تم تسجيل الدفع');
+      setShowModal(false); setForm(emptyForm()); loadData();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -52,7 +66,7 @@ export default function CashPaymentsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">حركات دفع نقدية</h1>
-        {can('cash_payments', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> دفع جديد</button>}
+        {can('cash_payments', 'create') && <button onClick={() => { setForm(emptyForm()); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> دفع جديد</button>}
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
@@ -67,14 +81,18 @@ export default function CashPaymentsPage() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="erp-table">
-          <thead><tr><th>رقم الإيصال</th><th>التاريخ</th><th>المورد</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>رقم الإيصال</th><th>التاريخ</th><th>المورد / العميل</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th><th>إجراءات</th></tr></thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">لا توجد مدفوعات</td></tr>}
             {filtered.map(p => (
               <tr key={p.id}>
                 <td className="font-mono text-sm">{p.payment_no}</td>
                 <td>{p.date}</td>
-                <td className="font-medium">{p.Supplier?.name || '-'}</td>
+                <td className="font-medium">
+                  {p.Customer
+                    ? <>{p.Customer.name} <span className="badge badge-gray">عميل — رد نقدية</span></>
+                    : (p.Supplier?.name || '-')}
+                </td>
                 <td className="font-bold text-danger">{Number(p.amount).toLocaleString()} ج.م</td>
                 <td><span className="badge badge-blue">{p.payment_method}</span></td>
                 <td className="text-sm text-gray-500">{p.notes}</td>
@@ -89,20 +107,47 @@ export default function CashPaymentsPage() {
         <Modal title="دفع نقدي جديد" onClose={() => setShowModal(false)} width="max-w-md">
           <form onSubmit={handleSave} className="space-y-3">
             <div>
-              <label className="form-label">المورد *</label>
-              <SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
-                <option value="">— اختر —</option>
-                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </SearchableSelect>
-              {selectedSupplier && (
-                <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 space-y-0.5 ${Number(selectedSupplier.balance) > 0 ? 'bg-red-50 text-red-700' : Number(selectedSupplier.balance) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
-                  <div>رصيد المورد الحالي: <strong>{Number(selectedSupplier.balance).toLocaleString()} ج.م</strong></div>
-                  {Number(form.amount) > 0 && (
-                    <div>الرصيد المتوقع بعد الدفعة: <strong>{(Number(selectedSupplier.balance) - Number(form.amount)).toLocaleString()} ج.م</strong></div>
-                  )}
-                </div>
-              )}
+              <label className="form-label">الدفع إلى</label>
+              <div className="flex gap-4 text-sm">
+                <label className="flex items-center gap-1"><input type="radio" checked={!toCustomer} onChange={() => setForm({ ...form, party_type: 'supplier', customer_id: '' })} /> مورد</label>
+                <label className="flex items-center gap-1"><input type="radio" checked={toCustomer} onChange={() => setForm({ ...form, party_type: 'customer', supplier_id: '' })} /> عميل (رد فلوس)</label>
+              </div>
             </div>
+
+            {!toCustomer ? (
+              <div>
+                <label className="form-label">المورد *</label>
+                <SearchableSelect className="erp-input" required value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
+                  <option value="">— اختر —</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </SearchableSelect>
+                {selectedSupplier && (
+                  <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 space-y-0.5 ${balanceTone(selectedSupplier.balance)}`}>
+                    <div>رصيد المورد الحالي: <strong>{Number(selectedSupplier.balance).toLocaleString()} ج.م</strong></div>
+                    {Number(form.amount) > 0 && (
+                      <div>الرصيد المتوقع بعد الدفعة: <strong>{(Number(selectedSupplier.balance) - Number(form.amount)).toLocaleString()} ج.م</strong></div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="form-label">العميل *</label>
+                <SearchableSelect className="erp-input" required value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })}>
+                  <option value="">— اختر —</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </SearchableSelect>
+                {selectedCustomer && (
+                  <div className={`mt-1.5 text-sm rounded-lg px-3 py-1.5 space-y-0.5 ${balanceTone(selectedCustomer.balance)}`}>
+                    <div>رصيد العميل الحالي: <strong>{Number(selectedCustomer.balance).toLocaleString()} ج.م</strong></div>
+                    {Number(form.amount) > 0 && (
+                      <div>الرصيد المتوقع بعد رد الفلوس: <strong>{(Number(selectedCustomer.balance) + Number(form.amount)).toLocaleString()} ج.م</strong></div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div><label className="form-label">المبلغ *</label><input type="number" className="erp-input" required value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
               <div><label className="form-label">التاريخ</label><input type="date" className="erp-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>

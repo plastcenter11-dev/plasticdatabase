@@ -13,6 +13,8 @@ const PATCHES = [
   { table: 'purchase_invoices', column: 'approved_at', definition: { type: DataTypes.DATE, allowNull: true } },
   // Sales representative name on the customer.
   { table: 'customers', column: 'sales_rep', definition: { type: DataTypes.STRING(100), allowNull: true } },
+  // Cash payments can also be made back to a customer (a refund), not only to a supplier.
+  { table: 'cash_payments', column: 'customer_id', definition: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'customers', key: 'id' } } },
 ];
 
 async function applySchemaPatches(sequelize) {

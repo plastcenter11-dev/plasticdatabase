@@ -49,9 +49,10 @@ router.delete('/cash-receipts/:id', async (req, res) => {
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
-// Cash Payments
+// Cash Payments - to a supplier (reduces what we owe) or back to a customer (a refund: raises what
+// the customer owes, the opposite of a receipt)
 router.get('/cash-payments', async (req, res) => {
-  try { res.json(await CashPayment.findAll({ where: methodFilter(req), include: [{ model: Supplier, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
+  try { res.json(await CashPayment.findAll({ where: methodFilter(req), include: [{ model: Supplier, attributes: ['id', 'name'] }, { model: Customer, attributes: ['id', 'name'] }], order: [['id', 'DESC']] })); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -59,11 +60,21 @@ router.post('/cash-payments', async (req, res) => {
   try {
     const closedErr = await closedYearError(req.body.date);
     if (closedErr) return res.status(400).json({ error: closedErr });
+    const toSupplier = req.body.supplier_id || null;
+    const toCustomer = req.body.customer_id || null;
+    if (!!toSupplier === !!toCustomer) return res.status(400).json({ error: 'اختر مورد أو عميل (واحد فقط)' });
+    req.body.supplier_id = toSupplier;
+    req.body.customer_id = toCustomer;
     const max = await CashPayment.max('id') || 0;
     req.body.payment_no = `CP-${String(max + 1).padStart(6, '0')}`;
     const p = await CashPayment.create(req.body);
-    const supplier = await Supplier.findByPk(p.supplier_id);
-    if (supplier) await supplier.update({ balance: Number(supplier.balance) - Number(p.amount) });
+    if (p.customer_id) {
+      const customer = await Customer.findByPk(p.customer_id);
+      if (customer) await customer.update({ balance: Number(customer.balance) + Number(p.amount) });
+    } else {
+      const supplier = await Supplier.findByPk(p.supplier_id);
+      if (supplier) await supplier.update({ balance: Number(supplier.balance) - Number(p.amount) });
+    }
     res.status(201).json(p);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
@@ -74,8 +85,13 @@ router.delete('/cash-payments/:id', async (req, res) => {
     if (!p) return res.status(404).json({ error: 'غير موجود' });
     const closedErr = await closedYearError(p.date);
     if (closedErr) return res.status(400).json({ error: closedErr });
-    const supplier = await Supplier.findByPk(p.supplier_id);
-    if (supplier) await supplier.update({ balance: Number(supplier.balance) + Number(p.amount) });
+    if (p.customer_id) {
+      const customer = await Customer.findByPk(p.customer_id);
+      if (customer) await customer.update({ balance: Number(customer.balance) - Number(p.amount) });
+    } else {
+      const supplier = await Supplier.findByPk(p.supplier_id);
+      if (supplier) await supplier.update({ balance: Number(supplier.balance) + Number(p.amount) });
+    }
     await p.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }

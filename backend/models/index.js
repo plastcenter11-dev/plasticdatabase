@@ -362,6 +362,9 @@ CashReceipt.belongsTo(Customer, { foreignKey: 'customer_id' });
 Customer.hasMany(CashReceipt, { foreignKey: 'customer_id' });
 CashPayment.belongsTo(Supplier, { foreignKey: 'supplier_id' });
 Supplier.hasMany(CashPayment, { foreignKey: 'supplier_id' });
+// a cash payment is made either to a supplier or back to a customer (a refund)
+CashPayment.belongsTo(Customer, { foreignKey: 'customer_id' });
+Customer.hasMany(CashPayment, { foreignKey: 'customer_id' });
 
 Check.belongsTo(Customer, { foreignKey: 'party_id', constraints: false });
 
