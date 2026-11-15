@@ -94,20 +94,24 @@ router.post('/:id/deliver', async (req, res) => {
       const rollCount = Number(i.roll_count || 0);
       const price = priceMap[i.item_id] || 0;
       const taxRate = taxMap[i.item_id] || 0;
-      return { item_id: i.item_id, quantity: rollCount, weight, price, tax_rate: taxRate || null, total: weight * price * (1 + taxRate / 100) };
+      // the line total is before tax, like on every other invoice; tax is kept on the invoice header
+      return { item_id: i.item_id, quantity: rollCount, weight, price, total: weight * price, _tax: weight * price * taxRate / 100 };
     });
     const subtotal = invoiceItems.reduce((s, i) => s + i.weight * i.price, 0);
-    const taxTotal = invoiceItems.reduce((s, i) => s + i.weight * i.price * (i.tax_rate || 0) / 100, 0);
+    const taxTotal = invoiceItems.reduce((s, i) => s + i._tax, 0);
     const total = subtotal + taxTotal;
+    // the invoice's tax rate is the share of tax actually charged (0 when nothing is taxed), so the
+    // reports that take VAT out of the billed amount see the true rate rather than the default 14
+    const effectiveTaxRate = subtotal > 0 ? Math.round(taxTotal / subtotal * 10000) / 100 : 0;
 
     const inv = await SalesInvoice.create({
       invoice_no: invoiceNumber, date: note.date, customer_id: note.customer_id,
       delivery_note_id: note.id, warehouse_id: effectiveWarehouseId, status: 'posted',
-      subtotal, tax_amount: taxTotal, total, remaining: total,
+      subtotal, tax_rate: effectiveTaxRate, tax_amount: taxTotal, total, remaining: total,
     }, { transaction: t });
 
     if (invoiceItems.length) {
-      await SalesInvoiceItem.bulkCreate(invoiceItems.map(i => ({ ...i, invoice_id: inv.id, discount: 0 })), { transaction: t });
+      await SalesInvoiceItem.bulkCreate(invoiceItems.map(({ _tax, ...i }) => ({ ...i, invoice_id: inv.id, discount: 0 })), { transaction: t });
     }
 
     if (note.customer_id) {

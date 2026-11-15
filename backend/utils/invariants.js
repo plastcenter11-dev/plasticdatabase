@@ -69,6 +69,23 @@ function buildChecks({ models, sequelize, getJson }) {
     return { examined: parties.length, violations };
   };
 
+  // ---- an invoice adds up: its lines (before tax) make the subtotal, and subtotal - discount + tax = total
+  const invoiceTotalsCheck = (kind) => async () => {
+    const isSales = kind === 'sales';
+    const inv = tn(isSales ? 'SalesInvoice' : 'PurchaseInvoice');
+    const line = tn(isSales ? 'SalesInvoiceItem' : 'PurchaseInvoiceItem');
+    const found = await rows(`SELECT i.invoice_no, i.subtotal, i.discount, i.tax_amount, i.total,
+        (SELECT COALESCE(SUM(l.total),0) FROM ${line} l WHERE l.invoice_id=i.id) AS lines_sum
+      FROM ${inv} i WHERE i.status='posted'`);
+    const label = isSales ? 'فاتورة بيع' : 'فاتورة شراء';
+    const violations = [];
+    for (const r of found) {
+      if (!near(r.lines_sum, r.subtotal, 0.05)) violations.push(err(`${label} ${r.invoice_no}: مجموع السطور ${fmt(r.lines_sum)} والمجموع الفرعي ${fmt(r.subtotal)}`));
+      else if (!near(num(r.subtotal) - num(r.discount) + num(r.tax_amount), r.total, 1)) violations.push(err(`${label} ${r.invoice_no}: المجموع الفرعي − الخصم + الضريبة = ${fmt(num(r.subtotal) - num(r.discount) + num(r.tax_amount))} والإجمالي ${fmt(r.total)}`));
+    }
+    return { examined: found.length, violations };
+  };
+
   // ---- a payment typed on an invoice is recorded as a receipt / payment ------
   const invoicePaymentCheck = (kind) => async () => {
     const isSales = kind === 'sales';
@@ -103,7 +120,7 @@ function buildChecks({ models, sequelize, getJson }) {
 
   // ---- stock balances equal the replay of their movements --------------------
   const stockVsMovementsCheck = async () => {
-    const movements = await rows(`SELECT item_id, warehouse_id, movement_type, quantity, weight, description FROM ${tn('StockMovement')} ORDER BY id ASC`);
+    const movements = await rows(`SELECT item_id, warehouse_id, movement_type, quantity, weight, description FROM ${tn('StockMovement')} WHERE warehouse_id IS NOT NULL ORDER BY id ASC`); // no warehouse = a non-stock item, which has no balance
     const expected = new Map();
     const get = (k) => { if (!expected.has(k)) expected.set(k, { q: 0, w: 0 }); return expected.get(k); };
     for (const m of movements) {
@@ -192,7 +209,7 @@ function buildChecks({ models, sequelize, getJson }) {
       if (n.status !== 'delivered' || !n.warehouse_id) continue;
       const items = await rows(`SELECT di.item_id, m.name AS item, SUM(COALESCE(NULLIF(di.net_weight,0), di.gross_weight, 0)) AS w, SUM(di.roll_count) AS q,
           SUM(CASE WHEN COALESCE(NULLIF(di.net_weight,0), di.gross_weight, 0)<=0 AND di.roll_count<=0 THEN 1 ELSE 0 END) AS empty_lines
-        FROM ${tn('DeliveryNoteItem')} di JOIN ${tn('Item')} m ON m.id=di.item_id WHERE di.note_id=${Number(n.id)} GROUP BY di.item_id, m.name`);
+        FROM ${tn('DeliveryNoteItem')} di JOIN ${tn('Item')} m ON m.id=di.item_id AND m.is_stockable=1 WHERE di.note_id=${Number(n.id)} GROUP BY di.item_id, m.name`);
       for (const it of items) {
         if (num(it.w) <= 0 && num(it.q) <= 0) continue;
         const got = moved.get(`${it.item_id}|إذن تسليم رقم ${n.note_no}`) || { q: 0, w: 0 };
@@ -300,6 +317,8 @@ function buildChecks({ models, sequelize, getJson }) {
   return [
     { code: 'customer-balances', title: 'أرصدة العملاء: القائمة = كشف الحساب = المستندات', run: partyBalanceCheck('customer') },
     { code: 'supplier-balances', title: 'أرصدة الموردين: القائمة = كشف الحساب = المستندات', run: partyBalanceCheck('supplier') },
+    { code: 'sales-invoice-totals', title: 'فاتورة البيع: السطور = المجموع الفرعي، والإجمالي يطابق الخصم والضريبة', run: invoiceTotalsCheck('sales') },
+    { code: 'purchase-invoice-totals', title: 'فاتورة الشراء: السطور = المجموع الفرعي، والإجمالي يطابق الخصم والضريبة', run: invoiceTotalsCheck('purchase') },
     { code: 'sales-invoice-payments', title: 'مدفوع فاتورة البيع له سند قبض', run: invoicePaymentCheck('sales') },
     { code: 'purchase-invoice-payments', title: 'مدفوع فاتورة الشراء له سند دفع', run: invoicePaymentCheck('purchase') },
     { code: 'invoice-remaining', title: 'المتبقي = الإجمالي − المدفوع في كل فاتورة', run: remainingCheck },

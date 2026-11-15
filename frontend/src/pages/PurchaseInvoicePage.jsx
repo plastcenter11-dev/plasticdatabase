@@ -165,7 +165,9 @@ export default function PurchaseInvoicePage() {
   };
 
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const toggleSelectAll = () => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(i => i.id));
+  // only drafts can be deleted; a posted invoice has already moved stock and balances
+  const drafts = filtered.filter(i => i.status === 'draft');
+  const toggleSelectAll = () => setSelectedIds(selectedIds.length === drafts.length ? [] : drafts.map(i => i.id));
 
   const handleBulkDelete = async () => {
     if (!selectedIds.length || !window.confirm(`حذف ${selectedIds.length} فاتورة؟`)) return;
@@ -214,7 +216,7 @@ export default function PurchaseInvoicePage() {
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr>
-            <th><input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} /></th>
+            <th><input type="checkbox" checked={selectedIds.length === drafts.length && drafts.length > 0} onChange={toggleSelectAll} /></th>
             <SortTh column="invoice_no" sort={sort}>رقم الفاتورة</SortTh>
             <SortTh column="date" sort={sort}>التاريخ</SortTh>
             <SortTh column="party" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[130px]`} value={partyFilter} onChange={setFilter(setPartyFilter)}><option value="">المورد</option>{suppliers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
@@ -228,7 +230,7 @@ export default function PurchaseInvoicePage() {
             {filtered.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-gray-400">لا توجد فواتير</td></tr>}
             {filtered.map(inv => (
               <tr key={inv.id} className={selectedIds.includes(inv.id) ? 'bg-blue-50' : ''}>
-                <td><input type="checkbox" checked={selectedIds.includes(inv.id)} onChange={() => toggleSelect(inv.id)} /></td>
+                <td>{inv.status === 'draft' && <input type="checkbox" checked={selectedIds.includes(inv.id)} onChange={() => toggleSelect(inv.id)} />}</td>
                 <td className="font-mono text-sm">{inv.invoice_no}</td>
                 <td>{inv.date}</td>
                 <td className="font-medium">{inv.Supplier?.name || '-'}</td>

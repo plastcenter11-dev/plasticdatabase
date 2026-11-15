@@ -188,7 +188,10 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/bulk-delete', async (req, res) => {
   try {
-    const { ids } = req.body;
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    // a posted invoice has already moved stock and balances, so only drafts can be deleted
+    const posted = await SalesInvoice.count({ where: { id: ids, status: 'posted' } });
+    if (posted > 0) return res.status(400).json({ error: `لا يمكن حذف فواتير مرحّلة (${posted}) - المحدد يحتوي على فواتير مرحّلة` });
     await SalesInvoice.destroy({ where: { id: ids } });
     res.json({ message: `تم حذف ${ids.length} فاتورة` });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
