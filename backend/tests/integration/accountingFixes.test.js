@@ -122,6 +122,15 @@ describe('invoice made by posting a delivery note', () => {
     expect(await errorsOf()).toEqual([]);
   });
 
+  test('money is kept to the piastre: 333.33 kg x 10.01 at 14% VAT', async () => {
+    const res = await deliver([{ item_id: item.id, w: 333.33, price: 10.01, tax: 14 }]);
+    const inv = await SalesInvoice.findByPk(res.body.invoice_id);
+    expect(Number(inv.subtotal)).toBe(3336.63);
+    expect(Number(inv.tax_amount)).toBe(467.13);
+    expect(Number(inv.total)).toBe(3803.76);
+    expect(await errorsOf()).toEqual([]);
+  });
+
   test('an untaxed delivery has a 0 tax rate, not the default 14', async () => {
     const res = await deliver([{ item_id: item.id, w: 100, price: 10 }]);
     const inv = await SalesInvoice.findByPk(res.body.invoice_id);
@@ -139,6 +148,29 @@ describe('invoice made by posting a delivery note', () => {
     expect(Number(inv.tax_amount)).toBe(140);
     expect(Number(inv.tax_rate)).toBe(7);
     expect(await errorsOf()).toEqual([]);
+  });
+});
+
+describe('VAT is charged on the net after discounts', () => {
+  test('posting stores the item price with the discount and the tax shared by net amount', async () => {
+    // 100 kg x 10 = 1000, header discount 100, VAT 14% of 900 = 126, total 1026
+    const inv = (await post('/api/sales-invoices', salesPayload({
+      subtotal: 1000, discount: 100, tax_rate: 14, tax_amount: 126, total: 1026, remaining: 1026,
+      items: [{ item_id: item.id, quantity: 4, weight: 100, price: 10, discount: 0, total: 1000 }],
+    }))).body;
+    expect((await post(`/api/sales-invoices/${inv.id}/post`, {})).status).toBe(200);
+    const { Item } = models;
+    expect(Number((await Item.findByPk(item.id)).sale_price)).toBeCloseTo(10.26, 2); // (1000 - 100 + 126) / 100
+    expect(await errorsOf()).toEqual([]);
+  });
+
+  test('purchases the same way', async () => {
+    const inv = (await post('/api/purchase-invoices', purchasePayload({
+      subtotal: 1000, discount: 100, tax_rate: 14, tax_amount: 126, total: 1026, remaining: 1026,
+      items: [{ item_id: item.id, quantity: 4, weight: 100, price: 10, discount: 0, total: 1000 }],
+    }))).body;
+    expect((await post(`/api/purchase-invoices/${inv.id}/post`, {})).status).toBe(200);
+    expect(Number((await models.Item.findByPk(item.id)).purchase_price)).toBeCloseTo(10.26, 2);
   });
 });
 

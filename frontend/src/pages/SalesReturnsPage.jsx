@@ -6,6 +6,7 @@ import { MdAdd, MdDelete, MdSearch, MdKeyboardArrowDown, MdKeyboardArrowLeft, Md
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { effectiveUnitNet } from '../utils/returnCalc';
+import { round2 } from '../utils/invoiceCalc';
 import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0, total: 0 };
@@ -89,8 +90,8 @@ export default function SalesReturnsPage() {
   const calcSubtotal = () => form.items.reduce((s, i) => s + Number(i.total || 0), 0);
   // When linked to an invoice, each item's total already has its share of
   // discount/tax folded in - must NOT be added again on top of the subtotal.
-  const calcTax = () => form.invoice_id ? 0 : calcSubtotal() * (Number(form.tax_rate) / 100);
-  const calcTotal = () => calcSubtotal() + calcTax();
+  const calcTax = () => form.invoice_id ? 0 : round2(calcSubtotal() * (Number(form.tax_rate) / 100));
+  const calcTotal = () => round2(calcSubtotal() + calcTax());
 
   // Without a warehouse the return only changes the customer's account; the goods
   // are put back into stock only when a warehouse is chosen.

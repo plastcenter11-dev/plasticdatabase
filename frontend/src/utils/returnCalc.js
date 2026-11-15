@@ -8,15 +8,15 @@
 //
 // i: { weight, quantity, price, discount } - the ORIGINAL invoice line item
 // inv: { tax_amount, discount, subtotal } - the invoice header
-// grossTotal: sum of (weight||quantity) * price across every item on the invoice
+// grossTotal: no longer needed (tax is shared by net amount); kept so existing callers still work
 export function effectiveUnitNet(i, inv, grossTotal) {
   const unit = Number(i.weight || 0) > 0 ? Number(i.weight) : Number(i.quantity) || 0;
   if (unit <= 0) return 0;
   const pr = Number(i.price) || 0;
   const disc = Number(i.discount) || 0;
-  const itemGross = unit * pr;
-  const itemNet = itemGross * (1 - disc / 100);
-  const taxShare = grossTotal > 0 ? Number(inv.tax_amount || 0) * (itemGross / grossTotal) : 0;
+  const itemNet = unit * pr * (1 - disc / 100);
+  // VAT is charged on the subtotal after discounts, so a line carries tax in proportion to its net share
+  const taxShare = Number(inv.subtotal || 0) > 0 ? Number(inv.tax_amount || 0) * (itemNet / Number(inv.subtotal)) : 0;
   const discShare = Number(inv.subtotal || 0) > 0 ? Number(inv.discount || 0) * (itemNet / Number(inv.subtotal)) : 0;
   return (itemNet - discShare + taxShare) / unit;
 }

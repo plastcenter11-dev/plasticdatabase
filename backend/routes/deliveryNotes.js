@@ -3,6 +3,8 @@ const { describeError, errorStatus } = require('../utils/errors');
 const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, CashReceipt, Check, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
 
+const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
 router.get('/', async (req, res) => {
   try {
     res.json(await DeliveryNote.findAll({
@@ -94,12 +96,14 @@ router.post('/:id/deliver', async (req, res) => {
       const rollCount = Number(i.roll_count || 0);
       const price = priceMap[i.item_id] || 0;
       const taxRate = taxMap[i.item_id] || 0;
-      // the line total is before tax, like on every other invoice; tax is kept on the invoice header
-      return { item_id: i.item_id, quantity: rollCount, weight, price, total: weight * price, _tax: weight * price * taxRate / 100 };
+      // the line total is before tax, like on every other invoice; tax is kept on the invoice header.
+      // Every money figure is kept to the piastre (never rounded to the pound) so it matches the VAT return.
+      const lineTotal = r2(weight * price);
+      return { item_id: i.item_id, quantity: rollCount, weight, price, total: lineTotal, _tax: r2(lineTotal * taxRate / 100) };
     });
-    const subtotal = invoiceItems.reduce((s, i) => s + i.weight * i.price, 0);
-    const taxTotal = invoiceItems.reduce((s, i) => s + i._tax, 0);
-    const total = subtotal + taxTotal;
+    const subtotal = r2(invoiceItems.reduce((s, i) => s + i.total, 0));
+    const taxTotal = r2(invoiceItems.reduce((s, i) => s + i._tax, 0));
+    const total = r2(subtotal + taxTotal);
     // the invoice's tax rate is the share of tax actually charged (0 when nothing is taxed), so the
     // reports that take VAT out of the billed amount see the true rate rather than the default 14
     const effectiveTaxRate = subtotal > 0 ? Math.round(taxTotal / subtotal * 10000) / 100 : 0;

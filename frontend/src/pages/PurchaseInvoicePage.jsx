@@ -9,7 +9,7 @@ import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdDeleteSweep, MdPrin
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
-import { invoiceTotals, expectedBalance as balanceAfter } from '../utils/invoiceCalc';
+import { invoiceTotals, expectedBalance as balanceAfter, round2 } from '../utils/invoiceCalc';
 import { todayStr } from '../utils/today';
 
 const emptyItem = { item_id: '', quantity: '', weight: '', price: '', discount: 0 };
@@ -111,9 +111,9 @@ export default function PurchaseInvoicePage() {
   const calcTotal = () => invoiceTotals(form.items, form).total;
 
   // Same preview the cash receipt / payment forms give: the supplier's balance now, and after this
-  // invoice (its total, which is rounded when saved, minus what is paid with it).
+  // invoice (its total, minus what is paid with it).
   const selectedParty = suppliers.find(p => p.id === Number(form.supplier_id));
-  const invoiceTotal = Math.round(calcTotal());
+  const invoiceTotal = calcTotal();
   const expectedBalance = selectedParty ? balanceAfter(selectedParty.balance, calcTotal(), form.paid) : null;
   const balanceTone = (v) => (Number(v) > 0 ? 'bg-red-50 text-red-700' : Number(v) < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600');
 
@@ -127,12 +127,12 @@ export default function PurchaseInvoicePage() {
     // everything is priced by weight, so the weight is what a line must have; the roll count is optional
     if (form.items.some(i => !i.item_id || !(Number(i.weight) > 0))) return toast.error('أكمل بيانات الأصناف (الصنف والوزن)');
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
-    const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = Math.round(calcTax()), total = Math.round(calcTotal()), paid = Number(form.paid || 0);
+    const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = calcTax(), total = calcTotal(), paid = Number(form.paid || 0);
     // a payment larger than the invoice is usually a typo (an extra digit), so ask first
     if (paid > total && !window.confirm(`المدفوع (${paid.toLocaleString()}) أكبر من إجمالي الفاتورة (${total.toLocaleString()}). هل أنت متأكد؟`)) return;
     const payload = {
       supplier_id: Number(form.supplier_id), warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, date: form.date, invoice_no: typedNumber ? form.invoice_no : undefined, subtotal, discount: discAmt, tax_rate: Number(form.tax_rate), tax_amount: taxAmt, total, paid, remaining: total - paid,
-      items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: wt * pr - disc }; })
+      items: form.items.map(i => { const wt = Number(i.weight || 0), pr = Number(i.price || 0), disc = wt * pr * (Number(i.discount || 0) / 100); return { item_id: Number(i.item_id), quantity: Number(i.quantity), weight: wt, price: pr, discount: Number(i.discount || 0), total: round2(wt * pr - disc) }; })
     };
     try {
       if (editing) { await api.put(`/purchase-invoices/${editing.id}`, payload); toast.success('تم تحديث الفاتورة'); }

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { lineGross, lineDiscount, lineTotal, invoiceTotals, expectedBalance } from './invoiceCalc';
+import { lineGross, lineDiscount, lineTotal, invoiceTotals, expectedBalance, round2 } from './invoiceCalc';
 
 describe('invoice lines', () => {
   test('a line is weight x price, never quantity x price', () => {
@@ -40,15 +40,41 @@ describe('invoice totals', () => {
     expect(t.total).toBe(1750);
   });
 
-  test('tax is charged on the gross, before line discounts', () => {
+  test('tax is charged on the subtotal after the line discounts (the taxable base)', () => {
     const t = invoiceTotals(items, { tax_rate: 14 });
-    expect(t.tax).toBe(280);          // 14% of 2000, not of 1900
-    expect(t.total).toBe(1900 + 280);
+    expect(t.tax).toBe(266);          // 14% of 1900, not of the 2000 gross
+    expect(t.total).toBe(1900 + 266);
   });
 
-  test('line discount, header discount and tax together', () => {
+  test('the header discount also lowers the taxable base', () => {
     const t = invoiceTotals(items, { discount: 100, tax_rate: 14 });
-    expect(t.total).toBe(1900 - 100 + 280);
+    expect(t.tax).toBe(252);          // 14% of (1900 - 100)
+    expect(t.total).toBe(1900 - 100 + 252);
+  });
+
+  test('the figures from the audit: 50,000 gross, 5% line discount, 100 header discount', () => {
+    const t = invoiceTotals([{ weight: 1000, price: 50, discount: 5 }], { discount: 100, tax_rate: 14 });
+    expect(t.subtotal).toBe(47500);
+    expect(t.tax).toBe(6636);         // 14% of 47,400, not 7,000
+    expect(t.total).toBe(47500 - 100 + 6636);
+  });
+
+  test('money is kept to the piastre, not rounded to the pound', () => {
+    const t = invoiceTotals([{ weight: 1, price: 220 }], { tax_rate: 14 });
+    expect(t.tax).toBe(30.8);         // used to be saved as 31
+    expect(t.total).toBe(250.8);
+    const u = invoiceTotals([{ weight: 3, price: 33.335 }], { tax_rate: 14 });
+    expect(u.total).toBe(round2(u.subtotal + u.tax));
+  });
+
+  test('a tax that is not a whole number of piastres is rounded to the piastre', () => {
+    const t = invoiceTotals([{ weight: 1, price: 10.01 }], { tax_rate: 14 });
+    expect(t.tax).toBe(1.4);          // 1.4014
+    expect(t.total).toBe(11.41);
+  });
+
+  test('a discount bigger than the invoice gives no negative tax', () => {
+    expect(invoiceTotals(items, { discount: 5000, tax_rate: 14 }).tax).toBe(0);
   });
 
   test('an empty invoice is zero', () => {
@@ -66,9 +92,9 @@ describe('invoice totals', () => {
 });
 
 describe('expected balance', () => {
-  test('balance plus the rounded total minus what is paid', () => {
-    expect(expectedBalance(1000, 1900.4, 500)).toBe(2400);
-    expect(expectedBalance(1000, 1900.6, 500)).toBe(2401);
+  test('balance plus the total minus what is paid, to the piastre', () => {
+    expect(expectedBalance(1000, 1900.4, 500)).toBe(2400.4);
+    expect(expectedBalance(1000, 1900.6, 500)).toBe(2400.6);
   });
 
   test('fully paid leaves the balance as it was', () => {

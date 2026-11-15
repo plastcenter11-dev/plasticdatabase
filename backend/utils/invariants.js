@@ -81,7 +81,7 @@ function buildChecks({ models, sequelize, getJson }) {
     const violations = [];
     for (const r of found) {
       if (!near(r.lines_sum, r.subtotal, 0.05)) violations.push(err(`${label} ${r.invoice_no}: مجموع السطور ${fmt(r.lines_sum)} والمجموع الفرعي ${fmt(r.subtotal)}`));
-      else if (!near(num(r.subtotal) - num(r.discount) + num(r.tax_amount), r.total, 1)) violations.push(err(`${label} ${r.invoice_no}: المجموع الفرعي − الخصم + الضريبة = ${fmt(num(r.subtotal) - num(r.discount) + num(r.tax_amount))} والإجمالي ${fmt(r.total)}`));
+      else if (!near(num(r.subtotal) - num(r.discount) + num(r.tax_amount), r.total, 0.011)) violations.push(err(`${label} ${r.invoice_no}: المجموع الفرعي − الخصم + الضريبة = ${fmt(num(r.subtotal) - num(r.discount) + num(r.tax_amount))} والإجمالي ${fmt(r.total)}`));
     }
     return { examined: found.length, violations };
   };

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem, Supplier, Customer, Item, Stock, StockMovement, PurchaseInvoice, SalesInvoice, Warehouse, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
+const { overReturnError } = require('../utils/returnLimits');
 
 // Purchase Returns
 router.get('/purchase', async (req, res) => {
@@ -16,6 +17,8 @@ router.post('/purchase', async (req, res) => {
     const { items, ...data } = req.body;
     const closedErr = await closedYearError(data.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    const overErr = await overReturnError('purchase', data.invoice_id, items, t);
+    if (overErr) { await t.rollback(); return res.status(400).json({ error: overErr }); }
     const max = await PurchaseReturn.max('id') || 0;
     data.return_no = `PR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
@@ -100,6 +103,8 @@ router.post('/sales', async (req, res) => {
     const { items, ...data } = req.body;
     const closedErr = await closedYearError(data.date);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    const overErr = await overReturnError('sales', data.invoice_id, items, t);
+    if (overErr) { await t.rollback(); return res.status(400).json({ error: overErr }); }
     const max = await SalesReturn.max('id') || 0;
     data.return_no = `SR-${String(max + 1).padStart(6, '0')}`;
     if (data.total == null && items?.length) {
