@@ -35,9 +35,9 @@ router.post('/', async (req, res) => {
     const calc = computeInvoice(req.body.items, data);
     Object.assign(data, calc.header);
     const items = calc.lines;
-    const closedErr = await closedYearError(data.date);
+    const closedErr = await closedYearError(data.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
-    const ruleErr = await invoiceNumberError(data) || await belowCostError(items, t);
+    const ruleErr = await invoiceNumberError(data, t) || await belowCostError(items, t);
     if (ruleErr) { await t.rollback(); return res.status(400).json({ error: ruleErr }); }
     data.invoice_no = data.invoice_no || await nextNumber('SI', t);
     const inv = await SalesInvoice.create(data, { transaction: t });
@@ -59,7 +59,7 @@ router.put('/:id', async (req, res) => {
     const calc = computeInvoice(sourceItems, { discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid, ...data });
     Object.assign(data, calc.header);
     const items = Array.isArray(req.body.items) ? calc.lines : undefined;
-    const closedErr = await closedYearError(data.date || inv.date);
+    const closedErr = await closedYearError(data.date || inv.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const ruleErr = await belowCostError(calc.lines, t);
     if (ruleErr) { await t.rollback(); return res.status(400).json({ error: ruleErr }); }
@@ -93,9 +93,9 @@ router.post('/:id/post', async (req, res) => {
     if (!locked) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (locked.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const inv = await SalesInvoice.findByPk(req.params.id, { include: [{ model: SalesInvoiceItem, as: 'items' }], transaction: t });
-    const closedErr = await closedYearError(inv.date);
+    const closedErr = await closedYearError(inv.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
-    const ruleErr = await approvalError(inv) || await belowCostError(inv.items, t) || await creditError(inv, t);
+    const ruleErr = await approvalError(inv, t) || await belowCostError(inv.items, t) || await creditError(inv, t);
     if (ruleErr) { await t.rollback(); return res.status(400).json({ error: ruleErr }); }
     const whErr = await missingWarehouseError(inv, t);
     if (whErr) { await t.rollback(); return res.status(400).json({ error: whErr }); }

@@ -9,8 +9,10 @@ const DEFAULTS = {
   protect_until: '',          // documents dated on or before this date are locked
 };
 
-async function getSettings(models) {
-  const rows = await models.Settings.findAll({ where: { key: Object.keys(DEFAULTS) } });
+// `t`: the caller's transaction. A request that already holds a transaction must read through it: asking the
+// pool for a second connection while holding one lets many requests starve each other.
+async function getSettings(models, t) {
+  const rows = await models.Settings.findAll({ where: { key: Object.keys(DEFAULTS) }, transaction: t });
   const out = { ...DEFAULTS };
   rows.forEach(r => { out[r.key] = r.value; });
   return out;

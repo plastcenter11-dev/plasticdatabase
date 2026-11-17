@@ -36,9 +36,9 @@ router.post('/', async (req, res) => {
     Object.assign(data, calc.header);
     const items = calc.lines;
     if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
-    const closedErr = await closedYearError(data.date);
+    const closedErr = await closedYearError(data.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
-    const numErr = await invoiceNumberError(data);
+    const numErr = await invoiceNumberError(data, t);
     if (numErr) { await t.rollback(); return res.status(400).json({ error: numErr }); }
     data.invoice_no = data.invoice_no || await nextNumber('PI', t);
     const inv = await PurchaseInvoice.create(data, { transaction: t });
@@ -59,7 +59,7 @@ router.put('/:id', async (req, res) => {
     const calc = computeInvoice(sourceItems, { discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid, ...data });
     Object.assign(data, calc.header);
     const items = Array.isArray(req.body.items) ? calc.lines : undefined;
-    const closedErr = await closedYearError(data.date || inv.date);
+    const closedErr = await closedYearError(data.date || inv.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     data.approved_at = null; // an edited invoice has to be approved again
     if (items) {
@@ -91,9 +91,9 @@ router.post('/:id/post', async (req, res) => {
     if (!locked) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (locked.status === 'posted') { await t.rollback(); return res.status(400).json({ error: 'الفاتورة مرحّلة مسبقاً' }); }
     const inv = await PurchaseInvoice.findByPk(req.params.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }], transaction: t });
-    const closedErr = await closedYearError(inv.date);
+    const closedErr = await closedYearError(inv.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
-    const appErr = await approvalError(inv);
+    const appErr = await approvalError(inv, t);
     if (appErr) { await t.rollback(); return res.status(400).json({ error: appErr }); }
     const whErr = await missingWarehouseError(inv, t);
     if (whErr) { await t.rollback(); return res.status(400).json({ error: whErr }); }

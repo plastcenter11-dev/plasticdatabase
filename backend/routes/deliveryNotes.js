@@ -5,7 +5,7 @@ const { closedYearError } = require('../utils/financialYear');
 const { clean } = require('../utils/clean');
 const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
-const { bump } = require('../utils/balances');
+const { bump, lockParty } = require('../utils/balances');
 
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -69,7 +69,7 @@ router.post('/:id/deliver', async (req, res) => {
     });
     if (!note) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'تم ترحيل هذا الإذن مسبقاً' }); }
-    const closedErr = await closedYearError(note.date);
+    const closedErr = await closedYearError(note.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     const { invoice_no, warehouse_id, items: pricedItems, payments } = req.body;
@@ -79,7 +79,7 @@ router.post('/:id/deliver', async (req, res) => {
     // part cash, part check, for a combined amount that need not match the
     // invoice total either.
     for (const p of (payments || [])) {
-      const pErr = await closedYearError(p.date || note.date);
+      const pErr = await closedYearError(p.date || note.date, t);
       if (pErr) { await t.rollback(); return res.status(400).json({ error: pErr }); }
       if (p.method === 'check' && !p.check_no) { await t.rollback(); return res.status(400).json({ error: 'أدخل رقم الشيك' }); }
       if (!(Number(p.amount) > 0)) { await t.rollback(); return res.status(400).json({ error: 'أدخل قيمة الدفعة' }); }
@@ -111,6 +111,7 @@ router.post('/:id/deliver', async (req, res) => {
     // reports that take VAT out of the billed amount see the true rate rather than the default 14
     const effectiveTaxRate = subtotal > 0 ? Math.round(taxTotal / subtotal * 10000) / 100 : 0;
 
+    await lockParty(Customer, note.customer_id, t);
     const inv = await SalesInvoice.create({
       invoice_no: invoiceNumber, date: note.date, customer_id: note.customer_id,
       delivery_note_id: note.id, warehouse_id: effectiveWarehouseId, status: 'posted',

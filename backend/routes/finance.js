@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 const { closedYearError } = require('../utils/financialYear');
 const { clean } = require('../utils/clean');
 const { nextNumber } = require('../utils/numbering');
-const { bump } = require('../utils/balances');
+const { bump, lockParty } = require('../utils/balances');
 
 // A check counts as an actual payment the moment it's registered, unless it bounced.
 async function applyCheckBalance(check, sign, t) {
@@ -44,8 +44,9 @@ router.post('/cash-receipts', async (req, res) => {
   if (!req.body.customer_id) return res.status(400).json({ error: 'العميل مطلوب' });
   const t = await sequelize.transaction();
   try {
-    const closedErr = await closedYearError(req.body.date);
+    const closedErr = await closedYearError(req.body.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    await lockParty(Customer, req.body.customer_id, t);
     const r = await CashReceipt.create({ ...clean(CashReceipt, req.body, ['receipt_no']), receipt_no: await nextNumber('CR', t) }, { transaction: t });
     await bump(Customer, r.customer_id, -Number(r.amount), t);
     await t.commit();
@@ -59,7 +60,7 @@ router.delete('/cash-receipts/:id', async (req, res) => {
     // locked: deleting the same receipt twice at once must not reverse its balance twice
     const r = await CashReceipt.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!r) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(r.date);
+    const closedErr = await closedYearError(r.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     await bump(Customer, r.customer_id, Number(r.amount), t);
     await unpayInvoice(SalesInvoice, 'دفعة فاتورة بيع', r, 'customer_id', t);
@@ -83,8 +84,9 @@ router.post('/cash-payments', async (req, res) => {
   if (!!toSupplier === !!toCustomer) return res.status(400).json({ error: 'اختر مورد أو عميل (واحد فقط)' });
   const t = await sequelize.transaction();
   try {
-    const closedErr = await closedYearError(req.body.date);
+    const closedErr = await closedYearError(req.body.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    await lockParty(toCustomer ? Customer : Supplier, toCustomer || toSupplier, t);
     const p = await CashPayment.create({
       ...clean(CashPayment, req.body, ['payment_no']), supplier_id: toSupplier, customer_id: toCustomer, payment_no: await nextNumber('CP', t),
     }, { transaction: t });
@@ -100,7 +102,7 @@ router.delete('/cash-payments/:id', async (req, res) => {
   try {
     const p = await CashPayment.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!p) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(p.date);
+    const closedErr = await closedYearError(p.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     if (p.customer_id) await bump(Customer, p.customer_id, -Number(p.amount), t);
     else {
@@ -126,8 +128,9 @@ router.post('/checks', async (req, res) => {
   if (rejectBadAmount(req, res)) return;
   const t = await sequelize.transaction();
   try {
-    const closedErr = await closedYearError(req.body.date);
+    const closedErr = await closedYearError(req.body.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
+    await lockParty(req.body.party_type === 'customer' ? Customer : Supplier, req.body.party_id, t);
     const c = await Check.create(clean(Check, req.body, ['status', 'bounced_date']), { transaction: t });
     await applyCheckBalance(c, -1, t);
     await t.commit();
@@ -147,9 +150,9 @@ router.put('/checks/:id', async (req, res) => {
     // Block if either the check's current date or its incoming new date falls
     // in a closed year - changing the date is itself a way to move a balance
     // effect into/out of a locked period, so both ends must be checked.
-    const closedErr = (await closedYearError(c.date))
-      || (req.body.date ? await closedYearError(req.body.date) : null)
-      || (req.body.bounced_date ? await closedYearError(req.body.bounced_date) : null);
+    const closedErr = (await closedYearError(c.date, t))
+      || (req.body.date ? await closedYearError(req.body.date, t) : null)
+      || (req.body.bounced_date ? await closedYearError(req.body.bounced_date, t) : null);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     await applyCheckBalance(c, 1, t); // reverse old effect
     // Moving away from bounced (e.g. back to pending) leaves a stale
@@ -168,7 +171,7 @@ router.delete('/checks/:id', async (req, res) => {
   try {
     const c = await Check.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
     if (!c) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(c.date);
+    const closedErr = await closedYearError(c.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     await applyCheckBalance(c, 1, t);
     await c.destroy({ transaction: t });

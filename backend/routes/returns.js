@@ -7,7 +7,7 @@ const { clean, badRequest } = require('../utils/clean');
 const { computeReturn } = require('../utils/returnMath');
 const { nextNumber } = require('../utils/numbering');
 const { lockStock } = require('../utils/stockOps');
-const { bump } = require('../utils/balances');
+const { bump, lockParty } = require('../utils/balances');
 
 // The return record and its lines as they are saved: only the real columns are taken from the request, and
 // the money (total, tax) is worked out here, from the invoice when the return names one.
@@ -42,11 +42,12 @@ router.post('/purchase', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { data, items } = await prepareReturn('purchase', req.body, t);
-    const closedErr = await closedYearError(data.date);
+    const closedErr = await closedYearError(data.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const overErr = await overReturnError('purchase', data.invoice_id, items, t);
     if (overErr) { await t.rollback(); return res.status(400).json({ error: overErr }); }
     data.return_no = await nextNumber('PR', t);
+    await lockParty(Supplier, data.supplier_id, t);
     const ret = await PurchaseReturn.create(data, { transaction: t });
     if (items?.length) await PurchaseReturnItem.bulkCreate(items.map(i => ({ ...i, return_id: ret.id })), { transaction: t });
 
@@ -82,7 +83,7 @@ router.delete('/purchase/:id', async (req, res) => {
   try {
     const r = await PurchaseReturn.findByPk(req.params.id, { include: [{ model: PurchaseReturnItem, as: 'items' }], transaction: t });
     if (!r) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(r.date);
+    const closedErr = await closedYearError(r.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     // Reverse the return's stock/balance effects before deleting
@@ -119,11 +120,12 @@ router.post('/sales', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { data, items } = await prepareReturn('sales', req.body, t);
-    const closedErr = await closedYearError(data.date);
+    const closedErr = await closedYearError(data.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const overErr = await overReturnError('sales', data.invoice_id, items, t);
     if (overErr) { await t.rollback(); return res.status(400).json({ error: overErr }); }
     data.return_no = await nextNumber('SR', t);
+    await lockParty(Customer, data.customer_id, t);
     const ret = await SalesReturn.create(data, { transaction: t });
     if (items?.length) await SalesReturnItem.bulkCreate(items.map(i => ({ ...i, return_id: ret.id })), { transaction: t });
 
@@ -159,7 +161,7 @@ router.delete('/sales/:id', async (req, res) => {
   try {
     const r = await SalesReturn.findByPk(req.params.id, { include: [{ model: SalesReturnItem, as: 'items' }], transaction: t });
     if (!r) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
-    const closedErr = await closedYearError(r.date);
+    const closedErr = await closedYearError(r.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
 
     // Reverse the return's stock/balance effects before deleting

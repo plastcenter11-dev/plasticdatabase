@@ -4,15 +4,15 @@ const models = require('../models');
 const { getSettings, isOn } = require('./settings');
 
 // a typed invoice number is mandatory when automatic numbering is off
-async function invoiceNumberError(data) {
-  const s = await getSettings(models);
+async function invoiceNumberError(data, t) {
+  const s = await getSettings(models, t);
   if (!isOn(s.opt_auto_numbering) && !String(data.invoice_no || '').trim()) return 'رقم الفاتورة مطلوب (الترقيم التلقائي متوقف من الإعدادات)';
   return null;
 }
 
 // no line may sell below the item's purchase price (after the line discount)
 async function belowCostError(items, t) {
-  const s = await getSettings(models);
+  const s = await getSettings(models, t);
   if (!isOn(s.opt_block_below_cost)) return null;
   for (const line of items || []) {
     const item = await Item.findByPk(line.item_id, { transaction: t });
@@ -26,7 +26,7 @@ async function belowCostError(items, t) {
 
 // a credit sale needs a credit limit unless the option allows it
 async function creditError(inv, t) {
-  const s = await getSettings(models);
+  const s = await getSettings(models, t);
   if (isOn(s.opt_credit_no_limit)) return null;
   if (!(Number(inv.remaining) > 0)) return null;
   const customer = await Customer.findByPk(inv.customer_id, { transaction: t });
@@ -35,8 +35,8 @@ async function creditError(inv, t) {
 }
 
 // posting needs the invoice to be approved when the option is on
-async function approvalError(inv) {
-  const s = await getSettings(models);
+async function approvalError(inv, t) {
+  const s = await getSettings(models, t);
   if (!isOn(s.opt_require_approval) || inv.approved_at) return null;
   return 'الفاتورة تحتاج اعتماد المدير قبل الترحيل';
 }

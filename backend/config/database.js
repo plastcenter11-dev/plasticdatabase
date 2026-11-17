@@ -9,6 +9,8 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     dialect: 'mysql',
     logging: false,
+    // many branches at once: a roomier pool, and a request that cannot get a connection fails after 30 s
+    pool: { max: Number(process.env.DB_POOL_MAX) || 20, min: 0, acquire: 30000, idle: 10000 },
     dialectOptions: {
       charset: 'utf8mb4',
     },
