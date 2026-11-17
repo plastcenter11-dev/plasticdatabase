@@ -31,7 +31,7 @@ function payload(overrides = {}) {
     invoice_no: `SI-${Date.now()}-${Math.random()}`,
     date: '2026-03-01', subtotal: 500, discount: 0, tax_rate: 14, tax_amount: 70, total: 570,
     paid: 0, remaining: 570,
-    items: [{ item_id: item.id, quantity: 10, weight: 50, price: 50, discount: 0, total: 500 }],
+    items: [{ item_id: item.id, quantity: 10, weight: 10, price: 50, discount: 0, total: 500 }],
     ...overrides,
   };
 }
@@ -56,7 +56,7 @@ describe('POST /api/sales-invoices/:id/post', () => {
     await request(app).post(`/api/sales-invoices/${res.body.id}/post`).set(auth());
     const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
     expect(Number(stock.quantity)).toBe(90);
-    expect(Number(stock.weight)).toBe(950);
+    expect(Number(stock.weight)).toBe(990);
   });
 
   test('updates item sale_price on post', async () => {

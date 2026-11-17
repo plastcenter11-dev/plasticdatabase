@@ -71,7 +71,9 @@ describe('Data integrity checks', () => {
   test('every sales_invoice_items total matches its own price/weight/discount math', async () => {
     const items = await SalesInvoiceItem.findAll();
     for (const i of items) {
-      const expected = Number(i.quantity) * Number(i.price) - Number(i.discount || 0);
+      // priced by weight (the count only when no weight was given); the line discount is a percentage
+      const unit = Number(i.weight) > 0 ? Number(i.weight) : Number(i.quantity);
+      const expected = unit * Number(i.price) * (1 - Number(i.discount || 0) / 100);
       expect(Number(i.total)).toBeCloseTo(expected, 2);
     }
   });
@@ -79,7 +81,9 @@ describe('Data integrity checks', () => {
   test('every purchase_invoice_items total matches its own price/weight/discount math', async () => {
     const items = await PurchaseInvoiceItem.findAll();
     for (const i of items) {
-      const expected = Number(i.quantity) * Number(i.price) - Number(i.discount || 0);
+      // priced by weight (the count only when no weight was given); the line discount is a percentage
+      const unit = Number(i.weight) > 0 ? Number(i.weight) : Number(i.quantity);
+      const expected = unit * Number(i.price) * (1 - Number(i.discount || 0) / 100);
       expect(Number(i.total)).toBeCloseTo(expected, 2);
     }
   });

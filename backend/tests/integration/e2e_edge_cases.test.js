@@ -106,7 +106,7 @@ describe('paid > total — دفع أكثر من قيمة الفاتورة', () =
       invoice_no: `EDGE-OVERPAY-${Date.now()}`,
       date: '2026-02-02', subtotal: 1000, discount: 0, tax_rate: 0,
       tax_amount: 0, total: 1000, paid: 1500, remaining: -500,
-      items: [{ item_id: itemStockableId, quantity: 10, weight: 100, price: 100, discount: 0, total: 1000 }],
+      items: [{ item_id: itemStockableId, quantity: 10, weight: 100, price: 10, discount: 0, total: 1000 }],
     });
     expect(r1.status).toBe(201);
     const r2 = await request(app).post(`/api/purchase-invoices/${r1.body.id}/post`).set(auth());
@@ -156,7 +156,7 @@ describe('paid = total — سداد كامل عند الترحيل', () => {
       invoice_no: `EDGE-FULLPAY2-${Date.now()}`,
       date: '2026-02-03', subtotal: 200, discount: 0, tax_rate: 0,
       tax_amount: 0, total: 200, paid: 200, remaining: 0,
-      items: [{ item_id: itemStockableId, quantity: 2, weight: 20, price: 100, discount: 0, total: 200 }],
+      items: [{ item_id: itemStockableId, quantity: 2, weight: 20, price: 10, discount: 0, total: 200 }],
     });
     await request(app).post(`/api/purchase-invoices/${r1.body.id}/post`).set(auth());
     const balanceAfter = Number((await Supplier.findByPk(supplierId)).balance);
@@ -250,8 +250,8 @@ describe('دقة الأرقام العشرية (DECIMAL precision)', () => {
     const r1 = await postInvoice({
       supplier_id: supplierId, warehouse_id: warehouseId,
       invoice_no: `EDGE-DISC-${Date.now()}`,
-      date: '2026-02-06', subtotal: 1000, discount: 999.9, tax_rate: 14,
-      tax_amount: 0.014, total: 0.114, paid: 0, remaining: 0.114,
+      date: '2026-02-06', subtotal: 0.1, discount: 0, tax_rate: 14,
+      tax_amount: 0.01, total: 0.11, paid: 0, remaining: 0.11,
       items: [{ item_id: itemStockableId, quantity: 1, weight: 100, price: 10, discount: 99.99, total: 0.1 }],
     });
     expect(r1.status).toBe(201);
@@ -268,7 +268,7 @@ describe('ضريبة 0%', () => {
       invoice_no: `EDGE-NOTAX-${Date.now()}`,
       date: '2026-02-07', subtotal: 1000, discount: 100, tax_rate: 0,
       tax_amount: 0, total: 900, paid: 900, remaining: 0,
-      items: [{ item_id: itemStockableId, quantity: 10, weight: 100, price: 100, discount: 0, total: 1000 }],
+      items: [{ item_id: itemStockableId, quantity: 10, weight: 100, price: 10, discount: 0, total: 1000 }],
     });
     expect(r1.status).toBe(201);
     const inv = await PurchaseInvoice.findByPk(r1.body.id);

@@ -82,10 +82,10 @@ describe('دورة الشراء الكاملة', () => {
         subtotal: 4000,
         discount: 200,
         tax_rate: 14,
-        tax_amount: 533,
-        total: 4333,
+        tax_amount: 532,
+        total: 4332,
         paid: 1000,
-        remaining: 3333,
+        remaining: 3332,
         items: [{ item_id: itemId, quantity: 20, weight: 200, price: 20, discount: 0, total: 4000 }],
       });
       expect(res.status).toBe(201);
@@ -128,9 +128,9 @@ describe('دورة الشراء الكاملة', () => {
       expect(Number(mv.weight)).toBe(200);
     });
 
-    test('رصيد المورد زاد بقيمة المتبقي (3333)', async () => {
+    test('رصيد المورد زاد بقيمة المتبقي (3332)', async () => {
       const supplier = await Supplier.findByPk(supplierId);
-      expect(Number(supplier.balance)).toBeCloseTo(3333, 0);
+      expect(Number(supplier.balance)).toBeCloseTo(3332, 0);
     });
 
     test('CashPayment اتنشأ بقيمة المدفوع (1000)', async () => {
@@ -186,8 +186,9 @@ describe('دورة الشراء الكاملة', () => {
         date: '2026-01-12',
         items: [{ item_id: itemId, quantity: 2, weight: 20, price: 20 }],
       });
-      // total = وزن × سعر = 20 × 20 = 400 (returns.js يفضّل الوزن على العدد)
-      expect(Number(res.body.total)).toBe(400);
+      // مرتجع مرتبط بفاتورة: وزن × سعر = 400، بصافي الخصم (4000 → 3800) وبالضريبة 14% زي الفاتورة نفسها
+      // = 400 × 0.95 × 1.14 = 433.2 (المرتجع بيرجّع اللي اتحاسب فعلاً)
+      expect(Number(res.body.total)).toBe(433.2);
     });
   });
 });
@@ -283,14 +284,14 @@ describe('دورة البيع الكاملة', () => {
       expect(res.body.id).toBeDefined();
     });
 
-    test('إجمالي مرتجع المبيعات = 2 × 600 = 1200', async () => {
+    test('إجمالي مرتجع المبيعات = 2 × 600 × 1.14 = 1368', async () => {
       const res = await request(app).post('/api/returns/sales').set(auth()).send({
         customer_id: customerId,
         invoice_id: salesInvoiceId,
         date: '2026-01-16',
         items: [{ item_id: itemId, quantity: 2, price: 600 }],
       });
-      expect(Number(res.body.total)).toBe(1200);
+      expect(Number(res.body.total)).toBe(1368); // 1200 + ضريبة الفاتورة 14%
     });
   });
 });
@@ -317,11 +318,10 @@ describe('اتساق البيانات — بعد الدورتين', () => {
   });
 
   test('رصيد المورد = المتبقي بعد الشراء ناقص قيمة المرتجعات بالوزن', async () => {
-    // بعد الشراء: رصيد = 3333 (المتبقي). المرتجعات الثلاثة محسوبة بالوزن×السعر:
-    // 100kg×20 + 50kg×20 + 20kg×20 = 2000 + 1000 + 400 = 3400 (أكتر من المتبقي نفسه،
-    // لأن مرتجعات الوزن دي بتمثل 170 من أصل 200 كجم اتشرت أي 85% مرتجع).
-    // 3333 - 3400 = -67 → رصيد سالب يعني المورد بقى مديون للعميل، وده صحيح رياضيًا.
+    // بعد الشراء: رصيد = 3332 (المتبقي). المرتجعات الثلاثة محسوبة بالوزن×السعر بصافي خصم الفاتورة وضريبتها:
+    // (100+50+20)kg × 20 × 0.95 × 1.14 = 3682.2 (170 من أصل 200 كجم اتشرت).
+    // 3332 - 3682.2 = -350.2 → رصيد سالب يعني المورد بقى مديون لنا، وده صحيح رياضيًا.
     const supplier = await Supplier.findByPk(supplierId);
-    expect(Number(supplier.balance)).toBeCloseTo(-67, 0);
+    expect(Number(supplier.balance)).toBeCloseTo(-350.2, 1);
   });
 });

@@ -29,7 +29,7 @@ beforeEach(async () => {
 
 const setOption = (key, value) => request(app).put('/api/settings').set(as(admin)).send({ [key]: value });
 const salesBody = (over = {}, line = {}) => ({
-  customer_id: customer.id, warehouse_id: warehouse.id, date: '2026-05-10', subtotal: 100, total: 100, paid: 100, remaining: 0,
+  customer_id: customer.id, warehouse_id: warehouse.id, date: '2026-05-10', tax_rate: 0, subtotal: 100, total: 100, paid: 100, remaining: 0,
   items: [{ item_id: item.id, quantity: 1, weight: 10, price: 10, discount: 0, total: 100, ...line }], ...over,
 });
 const stockIn = (qty = 100, wt = 1000) => require('../../models').Stock.create({ item_id: item.id, warehouse_id: warehouse.id, quantity: qty, weight: wt });

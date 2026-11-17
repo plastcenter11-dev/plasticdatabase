@@ -28,7 +28,7 @@ describe('POST /api/returns/purchase', () => {
   test('with warehouse_id: decrements stock and decrements supplier balance', async () => {
     const res = await request(app).post('/api/returns/purchase').set(auth()).send({
       supplier_id: supplier.id, warehouse_id: warehouse.id, date: '2026-03-10', reason: 'test',
-      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 40, total: 200 }],
+      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 4, total: 200 }],
     });
     expect(res.status).toBe(201);
     const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
@@ -41,7 +41,7 @@ describe('POST /api/returns/purchase', () => {
   test('without warehouse_id: stock untouched but supplier balance still decremented', async () => {
     const res = await request(app).post('/api/returns/purchase').set(auth()).send({
       supplier_id: supplier.id, date: '2026-03-10', reason: 'test',
-      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 40, total: 200 }],
+      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 4, total: 200 }],
     });
     expect(res.status).toBe(201);
     const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });
@@ -76,7 +76,7 @@ describe('DELETE /api/returns/purchase/:id', () => {
   test('reverses stock and supplier balance', async () => {
     const res = await request(app).post('/api/returns/purchase').set(auth()).send({
       supplier_id: supplier.id, warehouse_id: warehouse.id, date: '2026-03-10', reason: 'test',
-      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 40, total: 200 }],
+      total: 200, items: [{ item_id: item.id, quantity: 5, weight: 50, price: 4, total: 200 }],
     });
     await request(app).delete(`/api/returns/purchase/${res.body.id}`).set(auth());
     const stock = await Stock.findOne({ where: { item_id: item.id, warehouse_id: warehouse.id } });

@@ -31,12 +31,25 @@ describe('POST /api/finance/checks', () => {
     expect(Number(cust.balance)).toBe(700);
   });
 
-  test('a bounced check has zero balance effect', async () => {
+  test('a check is always registered as pending, whatever status the request names', async () => {
     const res = await request(app).post('/api/finance/checks').set(auth()).send({
       check_no: 'CHK-1', date: '2026-01-01', due_date: '2026-02-01',
       party_type: 'customer', party_id: customer.id, amount: 300, status: 'bounced',
     });
     expect(res.status).toBe(201);
+    expect(res.body.status).toBe('pending');
+    const cust = await Customer.findByPk(customer.id);
+    expect(Number(cust.balance)).toBe(700);
+  });
+
+  test('a bounced check has zero balance effect', async () => {
+    const created = await request(app).post('/api/finance/checks').set(auth()).send({
+      check_no: 'CHK-1', date: '2026-01-01', due_date: '2026-02-01',
+      party_type: 'customer', party_id: customer.id, amount: 300,
+    });
+    expect(created.status).toBe(201);
+    const bounced = await request(app).put('/api/finance/checks/' + created.body.id).set(auth()).send({ status: 'bounced', bounced_date: '2026-02-05' });
+    expect(bounced.status).toBe(200);
     const cust = await Customer.findByPk(customer.id);
     expect(Number(cust.balance)).toBe(1000);
   });
