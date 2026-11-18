@@ -70,3 +70,11 @@ nssm start PlasticDB
 - **تحديث السيرفر:** `powershell -ExecutionPolicy Bypass -File deploy\windows\update-server.ps1`
   يرفض لو في تعديلات غير محفوظة، ياخد نسخة احتياطية، يوقف، يسحب آخر نسخة من GitHub، يبني، يشغّل، ويفحص السلامة والأرصدة. لو النسخة الجديدة ما اشتغلتش بيرجّع القديمة تلقائياً. `-DryRun` يعرض اللي هيحصل من غير تنفيذ.
 - ثبّت Tailscale على السيرفر وعلى كل فرع وعلى الموبايل، وافتح `http://<عنوان Tailscale للسيرفر>:3001`.
+
+## ملف التنصيب PlasticDB-Setup.exe (لتجهيز سيرفر جديد على جهاز آخر)
+- يبنيه `ISCC.exe deploy\windows\PlasticDB-Setup.iss` (برنامج Inno Setup مجاني)، والناتج في `deploy\windows\Output\`.
+- لازم الجهاز الجديد يكون عليه **Node.js (LTS) و Git و MySQL Server 8** (الـ Setup بيفحصهم ويديك الروابط لو ناقص واحد).
+- بيسأل عن مكان التنصيب (الافتراضي `C:\PlasticDB`) وعن باسورد `root` بتاع MySQL. بيستخدمه مرة واحدة ليعمل قاعدة البيانات والمستخدم المحدود `plasticdb_app` ولا بيحفظه.
+- بينزّل آخر نسخة من GitHub، يجهّز `backend\.env`، يشغّل `install-server.ps1`، ويسجّل مهمة النسخ الاحتياطي اليومي الساعة 1 صباحاً.
+- في الآخر بيعرض أول تسجيل دخول (`admin` وباسورد عشوائي) ومحفوظ في `first-login.txt`: امسحه بعد ما تدوّنه.
+- التحديث بعد كده بـ `update-server.ps1` زي ما هو.

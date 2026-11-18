@@ -6,3 +6,4 @@ database/
 
 # browser smoke tests: screenshots of failed recipes
 **/e2e/artifacts/
+deploy/windows/Output/
