@@ -79,7 +79,7 @@ export default function ExpensesReportPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>التاريخ</th><th>البيان</th><th>التصنيف</th><th>المبلغ</th></tr></thead>
           <tbody>

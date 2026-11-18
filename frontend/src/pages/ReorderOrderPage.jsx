@@ -147,7 +147,7 @@ export default function ReorderOrderPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead>
             <tr>

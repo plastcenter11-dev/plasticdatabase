@@ -105,7 +105,7 @@ export default function StockAdjustmentsPage() {
           )}
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-x-auto rounded-lg border border-gray-100">
           <table className="erp-table">
             <thead><tr><th>التاريخ</th><th>النوع</th><th>المخزن</th><th>الصنف</th><th>الوزن (كجم)</th><th>العدد</th><th>سعر الوحدة</th><th>الوصف</th><th>إجراءات</th></tr></thead>
             <tbody>

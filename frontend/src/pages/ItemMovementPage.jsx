@@ -128,7 +128,7 @@ export default function ItemMovementPage() {
       {!itemId && <div className="text-center py-16 text-gray-400"><MdSearch size={48} className="mx-auto mb-2 opacity-50" /><p>اختر صنف لعرض حركاته</p></div>}
 
       {itemId && (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
           <table className="erp-table">
             <thead>
               <tr>

@@ -42,7 +42,7 @@ export default function WarehousesPage() {
         {can('warehouses', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مخزن</button>}
       </div>
       <div className="page-card">
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-x-auto rounded-lg border border-gray-100">
         <table className="erp-table">
           <thead><tr><th>#</th><th>اسم المخزن</th><th>الموقع</th><th>إجراءات</th></tr></thead>
           <tbody>

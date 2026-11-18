@@ -68,7 +68,7 @@ export default function OpeningBalancesPage() {
         <option value="supplier">موردين</option>
       </select>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>#</th><th>النوع</th><th>الاسم</th><th>مدين</th><th>دائن</th><th>إجراءات</th></tr></thead>
           <tbody>

@@ -152,7 +152,7 @@ export default function AuditLogPage() {
         </div>
       </form>
 
-      <div className="page-card !p-0 overflow-hidden">
+      <div className="page-card !p-0 overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>الوقت</th><th>المستخدم</th><th>العملية</th><th>النوع</th><th>البيان</th><th></th></tr></thead>
           <tbody>

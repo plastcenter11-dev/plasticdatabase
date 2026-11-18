@@ -148,7 +148,7 @@ function Dropdown({ group, openMenu, setOpenMenu }) {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-48 z-50">
+        <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-48 max-h-[70dvh] overflow-y-auto z-50">
           {group.items.map((item) => (
             <button
               key={item.path}
@@ -186,8 +186,9 @@ export default function Layout() {
     .map((group) => group.items ? { ...group, items: group.items.filter(itemVisible) } : group)
     .filter((group) => !group.items || group.items.length > 0);
 
+  // h-dvh = the visible height on a phone (h-screen counts the browser bar and cuts off the bottom)
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-dvh overflow-hidden">
       {/* Top navbar */}
       <header className="bg-white shadow-sm no-print z-40 border-b border-gray-200">
         <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100">

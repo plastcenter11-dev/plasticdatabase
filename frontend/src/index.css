@@ -73,6 +73,12 @@ select.erp-input,
 .erp-table tbody tr:hover {
   @apply bg-blue-50/50;
 }
+/* on a phone a table keeps the width its columns need and is scrolled sideways inside its box,
+   instead of being squeezed until the figures are cut off */
+@media (max-width: 767px) {
+  .erp-table { min-width: max-content; }
+  .erp-table th, .erp-table td { white-space: nowrap; }
+}
 
 .badge {
   @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium;

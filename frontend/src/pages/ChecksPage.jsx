@@ -114,7 +114,7 @@ export default function ChecksPage({ partyType = 'customer' }) {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>رقم الشيك</th><th>التاريخ</th><th>{isSupplier ? 'المورد' : 'العميل'}</th><th>المبلغ</th><th>تاريخ الاستحقاق</th><th>البنك</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>

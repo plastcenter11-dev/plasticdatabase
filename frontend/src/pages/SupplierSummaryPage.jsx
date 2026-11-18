@@ -21,7 +21,7 @@ export default function SupplierSummaryPage() {
         <div className="stat-card"><p className="text-sm text-gray-500">إجمالي المستحقات</p><p className="text-lg font-bold text-danger">{totalBalance.toLocaleString()} ج.م</p></div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>#</th><th>المورد</th><th>الهاتف</th><th>المستحق</th><th>الحالة</th></tr></thead>
           <tbody>

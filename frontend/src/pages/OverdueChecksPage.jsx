@@ -54,7 +54,7 @@ export default function OverdueChecksPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>رقم الشيك</th><th>الاستحقاق</th><th>الطرف</th><th>نوع الطرف</th><th>القيمة</th><th>التأخير</th><th>إجراء</th></tr></thead>
           <tbody>

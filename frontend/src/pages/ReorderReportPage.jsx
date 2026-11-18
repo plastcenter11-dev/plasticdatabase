@@ -25,7 +25,7 @@ export default function ReorderReportPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>الكود</th><th>اسم الصنف</th><th>الوحدة</th><th>الرصيد الحالي</th><th>حد الطلب</th></tr></thead>
           <tbody>

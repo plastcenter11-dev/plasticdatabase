@@ -389,7 +389,7 @@ export default function DeliveryNotesPage() {
           {anyFilter && <button type="button" onClick={clearFilters} className="erp-btn erp-btn-outline">مسح الفلاتر</button>}
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-x-auto rounded-lg border border-gray-100">
           <table className="erp-table">
             <thead><tr>
               <SortTh column="note_no" sort={sort}>رقم الإذن</SortTh>

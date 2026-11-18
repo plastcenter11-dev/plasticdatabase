@@ -70,7 +70,7 @@ export default function CashDiscountsPage() {
         <div className="stat-card"><p className="text-sm text-gray-500">إجمالي الخصومات</p><p className="text-lg font-bold">{total.toLocaleString()} ج.م</p></div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>الرقم</th><th>التاريخ</th><th>{kind.key === 'customer' ? 'العميل' : 'المورد'}</th><th>المبلغ</th><th>ملاحظات</th><th>إجراءات</th></tr></thead>
           <tbody>

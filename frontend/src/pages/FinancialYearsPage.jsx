@@ -96,7 +96,7 @@ export default function FinancialYearsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>#</th><th>المسمى</th><th>من</th><th>إلى</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>

@@ -64,7 +64,7 @@ export default function WarehouseTransfersPage() {
         {can('stock', 'create') && <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>التاريخ</th><th>من مخزن</th><th>إلى مخزن</th><th>الأصناف</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>

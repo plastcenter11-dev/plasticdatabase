@@ -157,7 +157,7 @@ export default function ItemAssemblyPage() {
         تركيب الصنف يقوم بصرف المكونات (الخامات) من مخزن الصرف وإضافة المنتج المركّب لمخزن الإضافة.
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr>
             <th>التاريخ</th>

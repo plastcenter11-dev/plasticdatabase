@@ -158,7 +158,7 @@ export default function PurchaseReturnsPage() {
 
       <div className="page-card">
         <div className="relative max-w-md mb-4"><MdSearch className="absolute right-3 top-2.5 text-gray-400" size={20} /><input className="erp-input pr-10" placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-x-auto rounded-lg border border-gray-100">
           <table className="erp-table">
             <thead><tr><th style={{width:'28px'}}></th><th>رقم المرتجع</th><th>التاريخ</th><th>المورد</th><th>الفاتورة</th><th>الإجمالي</th><th>السبب</th><th>إجراءات</th></tr></thead>
             <tbody>

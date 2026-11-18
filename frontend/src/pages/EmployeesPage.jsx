@@ -43,7 +43,7 @@ export default function EmployeesPage() {
         {can('employees', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة موظف</button>}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="erp-table">
           <thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>نسبة العمولة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>
