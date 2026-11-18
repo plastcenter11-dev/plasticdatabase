@@ -16,10 +16,27 @@ function checkSecret() {
   console.warn('WARNING: ' + msg);
 }
 
+// Right after the machine starts MySQL may still be getting ready (or answering very slowly). Instead of
+// hanging or giving up, keep trying every few seconds and say so in the log; the branches simply wait.
+async function connectWithRetry() {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await Promise.race([
+        sequelize.authenticate(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('no answer from the database within 20 s')), 20000)),
+      ]);
+      return;
+    } catch (err) {
+      console.error(`Waiting for the database (attempt ${attempt}): ${err.message}`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+}
+
 async function start() {
   try {
     checkSecret();
-    await sequelize.authenticate();
+    await connectWithRetry();
     console.log('Database connected');
     await sequelize.sync();
     console.log('Tables synced');
@@ -39,6 +56,7 @@ async function start() {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   } catch (err) {
     console.error('Failed to start:', err.message);
+    process.exit(1); // the scheduled task starts it again a minute later
   }
 }
 

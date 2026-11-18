@@ -13,6 +13,7 @@ const sequelize = new Sequelize(
     pool: { max: Number(process.env.DB_POOL_MAX) || 20, min: 0, acquire: 30000, idle: 10000 },
     dialectOptions: {
       charset: 'utf8mb4',
+      connectTimeout: 15000,
     },
     define: {
       timestamps: true,
