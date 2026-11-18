@@ -123,16 +123,15 @@ if ($firstLogin) {
 
 # ---- 5. daily backup ---------------------------------------------------------------------------
 Step "5/5 Daily backup task 'PlasticDB Daily Backup'"
-if (Get-ScheduledTask -TaskName 'PlasticDB Daily Backup' -ErrorAction SilentlyContinue) {
-  Write-Host '   already there: left as it is.'
-} else {
-  Do-It 'every day at 01:00 (backup + accounting check)' {
-    $act = New-ScheduledTaskAction -Execute $node -Argument "`"$(Join-Path $backend 'scripts\daily.js')`"" -WorkingDirectory $backend
-    $trg = New-ScheduledTaskTrigger -Daily -At '01:00'
-    $set = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-    $pri = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-    Register-ScheduledTask -TaskName 'PlasticDB Daily Backup' -Action $act -Trigger $trg -Settings $set -Principal $pri -Force | Out-Null
-  }
+# Every night at 01:00, as the system (nobody has to be signed in). If the computer was off at 01:00 the backup
+# runs as soon as it is switched on (StartWhenAvailable); if it fails (MySQL still getting ready) it tries
+# again 3 times, 10 minutes apart. Registered again on every run, so an older, weaker task is replaced.
+Do-It 'every day at 01:00 (backup + accounting check), made up for when the machine was off' {
+  $act = New-ScheduledTaskAction -Execute $node -Argument "`"$(Join-Path $backend 'scripts\daily.js')`"" -WorkingDirectory $backend
+  $trg = New-ScheduledTaskTrigger -Daily -At '01:00'
+  $set = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 10) -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+  $pri = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+  Register-ScheduledTask -TaskName 'PlasticDB Daily Backup' -Action $act -Trigger $trg -Settings $set -Principal $pri -Force | Out-Null
 }
 
 Write-Host "`nDone. The program is at http://localhost:$Port" -ForegroundColor Green
