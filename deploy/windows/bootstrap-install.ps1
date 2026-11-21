@@ -23,6 +23,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Everything printed here is also written to a log file, and an error keeps the window open: without this the
+# window vanished with the message and nobody could tell what had gone wrong. (The log never holds a password.)
+$logPath = Join-Path $env:ProgramData 'PlasticDB\setup-log.txt'
+if (-not $DryRun) {
+  New-Item -ItemType Directory -Force (Split-Path $logPath) | Out-Null
+  try { Start-Transcript -Path $logPath -Append | Out-Null } catch { }
+}
+trap {
+  Write-Host ("`nERROR: " + $_.Exception.Message) -ForegroundColor Red
+  Write-Host "Details are in $logPath (send that file or a photo of this window)" -ForegroundColor Red
+  try { Stop-Transcript | Out-Null } catch { }
+  if (-not $DryRun) { Read-Host 'Press Enter to close' | Out-Null }
+  exit 1
+}
 $env:GIT_TERMINAL_PROMPT = '0'
 
 function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
@@ -40,8 +54,16 @@ function New-Secret([int]$bytes) {
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin -and -not $DryRun) { throw 'Run this as Administrator.' }
 if ($DbName -notmatch '^[A-Za-z0-9_]+$' -or $DbUser -notmatch '^[A-Za-z0-9_]+$') { throw 'The database and user names may only contain letters, digits and _.' }
-$git  = (Get-Command git  -ErrorAction SilentlyContinue).Source
-$node = (Get-Command node -ErrorAction SilentlyContinue).Source
+# Git and Node are looked for on the PATH first and then in their usual folders (a program installed a minute
+# ago is not on the PATH of a window that was already open)
+function Find-Tool($name, [string[]]$usual) {
+  $c = (Get-Command $name -ErrorAction SilentlyContinue).Source
+  if ($c) { return $c }
+  foreach ($p in $usual) { if (Test-Path $p) { return $p } }
+}
+$git  = Find-Tool git  @('C:\Program Files\Git\cmd\git.exe', 'C:\Program Files (x86)\Git\cmd\git.exe', "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe")
+$node = Find-Tool node @('C:\Program Files\nodejs\node.exe', 'C:\Program Files (x86)\nodejs\node.exe')
+foreach ($t in @($git, $node)) { if ($t) { $d = Split-Path $t; if (($env:Path -split ';') -notcontains $d) { $env:Path = "$d;$env:Path" } } }   # npm and git for the steps below
 $mysql = (Get-Command mysql -ErrorAction SilentlyContinue).Source
 if (-not $mysql) { $mysql = Get-ChildItem 'C:\Program Files\MySQL\*\bin\mysql.exe' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName }
 if (-not $git)   { throw 'Git is not installed (https://git-scm.com/download/win).' }
@@ -134,6 +156,7 @@ Do-It 'every day at 01:00 (backup + accounting check), made up for when the mach
   Register-ScheduledTask -TaskName 'PlasticDB Daily Backup' -Action $act -Trigger $trg -Settings $set -Principal $pri -Force | Out-Null
 }
 
+try { Stop-Transcript | Out-Null } catch { }   # the first sign-in below must not end up in the log
 Write-Host "`nDone. The program is at http://localhost:$Port" -ForegroundColor Green
 if ($firstLogin) { Write-Host "First sign-in: admin / $firstLogin   (also in $InstallDir\first-login.txt: delete it after you have noted it)" -ForegroundColor Green }
 Write-Host 'Next: install Tailscale here and on every branch, then open http://<this machine''s Tailscale address>:' -NoNewline; Write-Host $Port

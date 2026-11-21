@@ -16,6 +16,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Everything printed here is also written to a log file, and an error keeps the window open: without this the
+# window vanished with the message and nobody could tell what had gone wrong. (The log never holds a password.)
+$logPath = Join-Path $env:ProgramData 'PlasticDB\setup-log.txt'
+if (-not $DryRun) {
+  New-Item -ItemType Directory -Force (Split-Path $logPath) | Out-Null
+  try { Start-Transcript -Path $logPath -Append | Out-Null } catch { }
+}
+trap {
+  Write-Host ("`nERROR: " + $_.Exception.Message) -ForegroundColor Red
+  Write-Host "Details are in $logPath (send that file or a photo of this window)" -ForegroundColor Red
+  try { Stop-Transcript | Out-Null } catch { }
+  if (-not $DryRun) { Read-Host 'Press Enter to close' | Out-Null }
+  exit 1
+}
 $msiUrl = 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi'
 $ts     = Join-Path $env:ProgramFiles 'Tailscale\tailscale.exe'
 $tsGui  = Join-Path $env:ProgramFiles 'Tailscale\tailscale-ipn.exe'
@@ -103,4 +117,5 @@ if ($DryRun) {
     Write-Host '   (accept the invitation link you were sent) or if the server computer is off. The shortcut is ready anyway.' -ForegroundColor Yellow
   }
 }
+try { Stop-Transcript | Out-Null } catch { }
 Write-Host "`nDone. Open the PlasticDB shortcut on the desktop ($ServerUrl)." -ForegroundColor Green

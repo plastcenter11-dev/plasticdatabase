@@ -82,7 +82,7 @@ begin
     SetEnvironmentVariableW('PDB_TS_AUTHKEY', Trim(AddrPage.Values[2]));
     Params := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\client-install.ps1') + '" -ServerUrl "' + ServerUrl('') + '"';
     if (not Exec('powershell.exe', Params, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
-      MsgBox('Setup did not finish. Read the messages in the black window (this Setup can be run again safely), or send a photo of them.', mbError, MB_OK)
+      MsgBox('Setup did not finish. What went wrong is in the black window and in the file C:\ProgramData\PlasticDB\setup-log.txt (send it, or a photo of the window). It can be run again safely.', mbError, MB_OK)
     else
       MsgBox('Done. Open the PlasticDB shortcut on the desktop.', mbInformation, MB_OK);
   end;

@@ -58,9 +58,10 @@ var
   Missing: String;
 begin
   Missing := '';
-  if not (FileExists(ExpandConstant('{commonpf64}\nodejs\node.exe'))) then
+  if not (FileExists(ExpandConstant('{commonpf64}\nodejs\node.exe')) or FileExists(ExpandConstant('{commonpf32}\nodejs\node.exe'))) then
     Missing := Missing + #13#10 + '- Node.js (LTS):  https://nodejs.org';
-  if not (FileExists(ExpandConstant('{commonpf64}\Git\cmd\git.exe'))) then
+  if not (FileExists(ExpandConstant('{commonpf64}\Git\cmd\git.exe')) or FileExists(ExpandConstant('{commonpf32}\Git\cmd\git.exe'))
+          or FileExists(ExpandConstant('{localappdata}\Programs\Git\cmd\git.exe'))) then
     Missing := Missing + #13#10 + '- Git for Windows:  https://git-scm.com/download/win';
   if not MySqlFound then
     Missing := Missing + #13#10 + '- MySQL Server 8:  https://dev.mysql.com/downloads/installer/';
@@ -99,7 +100,7 @@ begin
     Params := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\bootstrap-install.ps1') + '" -InstallDir "' + ExpandConstant('{app}') + '"';
     if (not Exec('powershell.exe', Params, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
     begin
-      MsgBox('The installation did not finish. Read the messages in the black window (it can be run again safely), or send a photo of them.', mbError, MB_OK);
+      MsgBox('The installation did not finish. What went wrong is in the black window and in the file C:\ProgramData\PlasticDB\setup-log.txt (send it, or a photo of the window). It can be run again safely.', mbError, MB_OK);
       Exit;
     end;
     if LoadStringsFromFile(ExpandConstant('{app}\first-login.txt'), Lines) and (GetArrayLength(Lines) >= 3) then
