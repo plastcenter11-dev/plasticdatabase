@@ -7,3 +7,6 @@ database/
 # browser smoke tests: screenshots of failed recipes
 **/e2e/artifacts/
 deploy/windows/Output/
+
+# the one-time admin password written by the Setup: never to GitHub
+first-login.txt
