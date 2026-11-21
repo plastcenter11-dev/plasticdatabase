@@ -105,7 +105,13 @@ Do-It 'rule "PlasticDB (VPN only)"' {
 Step '6/6 Start and check'
 Do-It 'desktop icon "PlasticDB": starts the server hidden if it is off, then opens the program' {
   $desk = [Environment]::GetFolderPath('CommonDesktopDirectory')
-  Remove-Item (Join-Path $desk 'PlasticDB.url') -ErrorAction SilentlyContinue   # the older icon that only opened the page
+  # the older icons that only opened the page (on the shared desktop and on every user's own desktop)
+  $oldIcons = @(Join-Path $desk 'PlasticDB.url')
+  Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $oldIcons += Join-Path $_.FullName 'Desktop\PlasticDB.url'
+    $oldIcons += Join-Path $_.FullName 'OneDrive\Desktop\PlasticDB.url'
+  }
+  $oldIcons | Where-Object { Test-Path $_ } | ForEach-Object { Remove-Item $_ -Force -ErrorAction SilentlyContinue }
   $sc = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desk 'PlasticDB.lnk'))
   $sc.TargetPath = 'powershell.exe'
   $sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $root 'deploy\windows\open-server.ps1')`" -Port $Port"
