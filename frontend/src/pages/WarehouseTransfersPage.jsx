@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -16,13 +17,14 @@ export default function WarehouseTransfersPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] });
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [t, w, it, st] = await Promise.all([api.get('/stock/transfers'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
       setTransfers(t.data); setWarehouses(w.data); setItems(it.data.filter(i => i.is_stockable)); setStockData(st.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   // Available quantity/weight for an item in the currently-selected source
   // warehouse, so the person filling the transfer knows what they can move.

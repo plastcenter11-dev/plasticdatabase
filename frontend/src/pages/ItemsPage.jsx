@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -29,16 +30,17 @@ export default function ItemsPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [itemsRes, catsRes, typesRes] = await Promise.all([api.get('/items'), api.get('/categories'), api.get('/item-types')]);
       setItems(itemsRes.data);
       setCategories(catsRes.data);
       setTypes(typesRes.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
 
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const matched = items.filter(i => {
     const matchSearch = !search || i.name.includes(search) || i.code.includes(search);

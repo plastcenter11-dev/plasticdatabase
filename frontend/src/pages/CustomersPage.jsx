@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -28,11 +29,12 @@ export default function CustomersPage() {
   const [employees, setEmployees] = useState([]);
   useEffect(() => { api.get('/employees').then(r => setEmployees(r.data)).catch(() => {}); }, []);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try { setCustomers((await api.get('/customers')).data); }
-    catch { toast.error('خطأ في تحميل البيانات'); }
+    catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const balanceState = (c) => (Number(c.balance) > 0 ? 'debit' : Number(c.balance) < 0 ? 'credit' : 'zero');
   const matched = customers.filter(c =>

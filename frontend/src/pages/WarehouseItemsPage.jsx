@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { MdSearch, MdPrint, MdBarChart, MdViewColumn } from 'react-icons/md';
 import api from '../api/axios';
@@ -73,6 +74,8 @@ export default function WarehouseItemsPage() {
     api.get('/stock/items-stock').then(r => setItems(r.data)).catch(() => {});
     api.get('/warehouses').then(r => setWarehouses(r.data)).catch(() => {});
   }, []);
+  // stock changes whenever any branch sells or receives: keep the figures current
+  useAutoRefresh(() => api.get('/stock/items-stock').then(r => setItems(r.data)).catch(() => {}));
 
   const widths = [...new Set(items.filter(i => i.width != null).map(i => Number(i.width)))].sort((a, b) => a - b);
   const categories = [...new Set(items.map(i => i.category_name).filter(Boolean))].sort();

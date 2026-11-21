@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
@@ -17,11 +18,12 @@ export default function ExpensesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try { setExpenses((await api.get('/finance/expenses')).data); }
-    catch { toast.error('خطأ في تحميل البيانات'); }
+    catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const filtered = expenses.filter(e => {
     const matchSearch = !search || e.description.includes(search);

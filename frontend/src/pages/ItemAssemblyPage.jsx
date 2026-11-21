@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -29,13 +30,14 @@ export default function ItemAssemblyPage() {
   const emptyForm = { assembled_item_id: '', assembled_qty: '', assembled_weight: '', output_warehouse_id: '', date: todayStr(), components: [{ ...emptyComp }] };
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [a, w, it, st, cats] = await Promise.all([api.get('/stock/assemblies'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock'), api.get('/categories')]);
       setAssemblies(a.data); setWarehouses(w.data); setItems(it.data.filter(i => i.is_stockable)); setItemsStock(st.data); setCategories(cats.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const openNewItem = () => {
     const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -34,13 +35,14 @@ export default function StockAdjustmentsPage() {
   const selectedStock = form.item_id ? stockData.find(s => s.item_id === Number(form.item_id)) : null;
   const whStock = selectedStock && form.warehouse_id ? selectedStock.warehouses.find(w => w.warehouse_id === Number(form.warehouse_id)) : null;
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [adj, wh, it, st] = await Promise.all([api.get('/stock/adjustments'), api.get('/warehouses'), api.get('/items'), api.get('/stock/items-stock')]);
       setAdjustments(adj.data); setWarehouses(wh.data); setItems(it.data); setStockData(st.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const filtered = adjustments.filter(a => {
     const matchSearch = !search || a.Item?.name?.includes(search) || a.description?.includes(search);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
@@ -14,11 +15,12 @@ export default function WarehousesPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try { setWarehouses((await api.get('/warehouses')).data); }
-    catch { toast.error('خطأ في تحميل البيانات'); }
+    catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const handleSave = async (e) => {
     e.preventDefault();

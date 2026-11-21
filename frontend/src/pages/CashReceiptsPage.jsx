@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -17,13 +18,14 @@ export default function CashReceiptsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [r, c] = await Promise.all([api.get('/finance/cash-receipts'), api.get('/customers')]);
       setReceipts(r.data); setCustomers(c.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const filtered = receipts.filter(r => {
     if (!search) return true;

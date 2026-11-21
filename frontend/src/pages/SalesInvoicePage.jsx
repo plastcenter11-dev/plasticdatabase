@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -47,11 +48,11 @@ export default function SalesInvoicePage() {
     resetSort(); setPage(1);
   };
 
-  const loadInvoices = async () => {
+  const loadInvoices = async (opts) => {
     try {
       const r = await api.get('/sales-invoices', { params: { page, limit: PAGE_SIZE, search: search || undefined, status: filterStatus || undefined, from: dateFrom || undefined, to: dateTo || undefined, party_id: partyFilter || undefined, employee_id: employeeFilter || undefined, remaining: remainFilter || undefined, sort: sortKey || undefined, dir: sortKey ? sortDir : undefined } });
       setInvoices(r.data.rows); setPageInfo({ total: r.data.total, pages: r.data.pages });
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   const loadLookups = async () => {
     try {
@@ -61,6 +62,7 @@ export default function SalesInvoicePage() {
   };
   const loadData = () => Promise.all([loadInvoices(), loadLookups()]);
   useEffect(() => { loadLookups(); }, []);
+  useAutoRefresh(loadInvoices);
   useEffect(() => {
     const t = setTimeout(loadInvoices, search ? 300 : 0);
     return () => clearTimeout(t);

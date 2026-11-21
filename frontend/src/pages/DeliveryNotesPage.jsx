@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -61,13 +62,14 @@ export default function DeliveryNotesPage() {
   const [allItems, setAllItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [n, c, it, wh] = await Promise.all([api.get('/delivery-notes'), api.get('/customers'), api.get('/items'), api.get('/warehouses')]);
       setNotes(n.data); setCustomers(c.data); setAllItems(it.data); setWarehouses(wh.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [dateFrom, setDateFrom] = useState('');

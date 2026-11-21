@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -23,13 +24,14 @@ export default function SalesReturnsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ customer_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', tax_rate: 0, items: [{ ...emptyItem }] });
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [r, c, it, wh] = await Promise.all([api.get('/returns/sales'), api.get('/customers'), api.get('/items'), api.get('/warehouses')]);
       setReturns(r.data); setCustomers(c.data); setItems(it.data); setWarehouses(wh.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const handleCustomerChange = async (custId) => {
     setForm(f => ({ ...f, customer_id: custId, invoice_id: '', items: [{ ...emptyItem }] }));

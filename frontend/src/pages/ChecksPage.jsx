@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -25,13 +26,14 @@ export default function ChecksPage({ partyType = 'customer' }) {
   const [bouncing, setBouncing] = useState(null);
   const [bounceDate, setBounceDate] = useState('');
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [ch, pa] = await Promise.all([api.get('/finance/checks'), api.get(isSupplier ? '/suppliers' : '/customers')]);
       setChecks(ch.data.filter(c => c.party_type === partyType)); setParties(pa.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const today = todayStr();
   const filtered = checks.filter(ch => {

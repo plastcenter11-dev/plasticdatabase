@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdDelete, MdSearch } from 'react-icons/md';
@@ -16,11 +17,12 @@ export default function OtherIncomePage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try { setIncome((await api.get('/finance/other-income')).data); }
-    catch { toast.error('خطأ في تحميل البيانات'); }
+    catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const filtered = income.filter(i => !search || i.description.includes(search));
   const totalIncome = filtered.reduce((s, i) => s + Number(i.amount), 0);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -23,13 +24,14 @@ export default function CashPaymentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
-  const loadData = async () => {
+  const loadData = async (opts) => {
     try {
       const [p, s, c] = await Promise.all([api.get('/finance/cash-payments'), api.get('/suppliers'), api.get('/customers')]);
       setPayments(p.data); setSuppliers(s.data); setCustomers(c.data);
-    } catch { toast.error('خطأ في تحميل البيانات'); }
+    } catch { if (!opts?.silent) toast.error('خطأ في تحميل البيانات'); }
   };
   useEffect(() => { loadData(); }, []);
+  useAutoRefresh(loadData);
 
   const filtered = payments.filter(p => {
     if (!search) return true;
