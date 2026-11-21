@@ -14,7 +14,10 @@
 #endif
 
 [Setup]
+; a fixed id: it is what makes this entry appear in Windows "Installed apps"
+AppId={{2E6B9D14-7C83-4F5A-A0D2-91B4E8C3F7A6}
 AppName=PlasticDB (branch)
+UninstallDisplayName=PlasticDB (branch)
 AppVersion=1.0
 AppPublisher=PlasticDB
 DefaultDirName={autopf}\PlasticDB Client
@@ -28,8 +31,9 @@ OutputBaseFilename=PlasticDB-Client-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-Uninstallable=no
-CreateUninstallRegKey=no
+; shows up in Windows "Installed apps"; removing it takes the desktop icon away (Tailscale stays, see below)
+Uninstallable=yes
+CreateUninstallRegKey=yes
 
 [Files]
 Source: "client-install.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
@@ -37,6 +41,9 @@ Source: "client-install.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
 ; the desktop shortcut that opens the program in the browser
 [INI]
 Filename: "{autodesktop}\PlasticDB.url"; Section: "InternetShortcut"; Key: "URL"; String: "{code:ServerUrl}"
+
+[UninstallDelete]
+Type: files; Name: "{autodesktop}\PlasticDB.url"
 
 [Code]
 function SetEnvironmentVariableW(lpName, lpValue: String): Boolean;
@@ -86,4 +93,11 @@ begin
     else
       MsgBox('Done. Open the PlasticDB shortcut on the desktop.', mbInformation, MB_OK);
   end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    MsgBox('The PlasticDB shortcut was removed.' + #13#10#13#10 +
+      'Tailscale (the private link to the server) was left installed. If nobody needs it on this computer, remove it too from Windows "Installed apps".', mbInformation, MB_OK);
 end;

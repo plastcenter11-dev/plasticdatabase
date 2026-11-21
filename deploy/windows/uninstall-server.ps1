@@ -13,7 +13,8 @@
 
   Never touched: Node.js, Git, MySQL itself, Tailscale, the sleep settings.
 #>
-param([switch]$DropDatabase, [switch]$RemoveFiles, [switch]$DryRun, [int]$Port = 3001)
+param([switch]$DropDatabase, [switch]$RemoveFiles, [switch]$DryRun, [switch]$Force, [int]$Port = 3001)
+# -Force: no typed DELETE (the Windows uninstaller has already asked a Yes/No question); not for -DropDatabase
 
 $ErrorActionPreference = 'Stop'
 $root    = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -42,7 +43,7 @@ if (Test-Path $envFile) {
   }
 }
 
-if (-not $DryRun -and ($DropDatabase -or $RemoveFiles)) {
+if (-not $DryRun -and -not ($Force -and -not $DropDatabase) -and ($DropDatabase -or $RemoveFiles)) {
   $what = if ($DropDatabase) { "the database '$dbName'" } else { 'the program folder' }
   $typed = Read-Host "This cannot be undone. Type DELETE to remove $what"
   if ($typed -cne 'DELETE') { throw 'Cancelled: nothing was changed.' }
@@ -98,7 +99,7 @@ if (-not $RemoveFiles) {
   Write-Host "   left as it is ($root). Use -RemoveFiles to delete it."
 } else {
   Do-It "delete $root (a moment after this window closes) and the Setup log" {
-    $cmd = "ping -n 4 127.0.0.1 >nul & rmdir /s /q `"$root`" & rmdir /s /q `"$env:ProgramData\PlasticDB`""
+    $cmd = "ping -n 4 127.0.0.1 >nul & rmdir /s /q `"$root`" & del /q `"$env:ProgramData\PlasticDB\setup-log.txt`""
     Start-Process -FilePath cmd.exe -ArgumentList '/c', "`"$cmd`"" -WindowStyle Hidden
   }
 }

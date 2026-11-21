@@ -9,6 +9,8 @@
 #define AppName "PlasticDB Server"
 
 [Setup]
+; a fixed id: it is what makes this entry appear in Windows "Installed apps" and lets a newer Setup find it
+AppId={{8C1F7A52-3D4B-4E9A-9B1E-5A7D2C6F0B31}
 AppName={#AppName}
 AppVersion=1.0
 AppPublisher=PlasticDB
@@ -21,12 +23,13 @@ OutputBaseFilename=PlasticDB-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-; nothing is copied into the folder by Setup itself (the code is downloaded), and there is no uninstaller:
-; the folder has to stay empty for the download
-Uninstallable=no
-CreateUninstallRegKey=no
+; Shows up in Windows "Installed apps" and can be removed from there. The uninstaller itself is kept OUTSIDE the
+; program folder: that folder has to stay empty until the code is downloaded into it.
+Uninstallable=yes
+CreateUninstallRegKey=yes
+UninstallFilesDir={commonappdata}\PlasticDB\uninstall-server
+UninstallDisplayName=PlasticDB Server
 DirExistsWarning=no
-UsePreviousAppDir=no
 
 [Files]
 Source: "bootstrap-install.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
@@ -110,5 +113,39 @@ begin
         'It is also saved in ' + ExpandConstant('{app}\first-login.txt') + '. Delete that file after you have noted it.', mbInformation, MB_OK);
     end else
       MsgBox('PlasticDB is installed and running.', mbInformation, MB_OK);
+  end;
+end;
+
+{ ---- removing it from Windows "Installed apps" ---- }
+
+function InitializeUninstall: Boolean;
+begin
+  Result := MsgBox('Remove the PlasticDB server from this computer?' + #13#10#13#10 +
+    'The server is stopped and its Windows tasks (including the daily backup), the firewall rule and the desktop icon are removed. ' +
+    'Your data (the MySQL database and the backups) is NOT deleted.', mbConfirmation, MB_YESNO) = IDYES;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+  AppDir, Script, Params: String;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    AppDir := ExpandConstant('{app}');
+    Script := AppDir + '\deploy\windows\uninstall-server.ps1';
+    if not FileExists(Script) then
+    begin
+      MsgBox('The program folder ' + AppDir + ' was not found (already deleted?), so only the Windows entry is removed. ' +
+        'If the server tasks are still there, delete them in Task Scheduler.', mbInformation, MB_OK);
+      Exit;
+    end;
+    Params := '-NoProfile -ExecutionPolicy Bypass -File "' + Script + '" -Force';
+    if MsgBox('Also delete the program folder?' + #13#10#13#10 + AppDir + #13#10 +
+      '(the program files, its .env settings and the database\ backups folder inside it)' + #13#10#13#10 +
+      'The MySQL database stays in MySQL either way. Choose No to keep everything.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      Params := Params + ' -RemoveFiles';
+    if (not Exec('powershell.exe', Params, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
+      MsgBox('The removal did not finish. See the black window (it can be repeated: run deploy\windows\uninstall-server.ps1 as administrator).', mbError, MB_OK);
   end;
 end;
