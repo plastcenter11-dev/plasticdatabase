@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { Link } from 'react-router-dom';
 import { MdWarehouse, MdAccountBalance, MdRemoveCircleOutline, MdPeople } from 'react-icons/md';
 import api from '../api/axios';
@@ -39,17 +40,17 @@ export default function DashboardPage() {
   const [loaded, setLoaded] = useState(false);
 
   // a request the user has no permission for (or that fails) just means "no alert of that kind"
-  useEffect(() => {
-    Promise.all([
-      api.get('/items/reports/reorder').then(r => r.data.length).catch(() => 0),
-      api.get('/finance/checks/overdue').then(r => r.data.length).catch(() => 0),
-      api.get('/stock/items-stock').then(r => negativeStockItems(r.data)).catch(() => []),
-      api.get('/customers').then(r => overLimitCustomers(r.data)).catch(() => []),
-    ]).then(([reorderCount, overdueChecks, negative, overLimit]) => {
-      setStats({ reorderCount, overdueChecks, negative, overLimit });
-      setLoaded(true);
-    });
-  }, []);
+  const load = () => Promise.all([
+    api.get('/items/reports/reorder').then(r => r.data.length).catch(() => 0),
+    api.get('/finance/checks/overdue').then(r => r.data.length).catch(() => 0),
+    api.get('/stock/items-stock').then(r => negativeStockItems(r.data)).catch(() => []),
+    api.get('/customers').then(r => overLimitCustomers(r.data)).catch(() => []),
+  ]).then(([reorderCount, overdueChecks, negative, overLimit]) => {
+    setStats({ reorderCount, overdueChecks, negative, overLimit });
+    setLoaded(true);
+  });
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);   // the alerts follow what the other branches do
 
   const none = loaded && !stats.reorderCount && !stats.overdueChecks && !stats.negative.length && !stats.overLimit.length;
 
