@@ -103,9 +103,17 @@ Do-It 'rule "PlasticDB (VPN only)"' {
 
 # ---- 6. start ---------------------------------------------------------------------------------
 Step '6/6 Start and check'
-Do-It 'desktop shortcut' {
-  $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'PlasticDB.url'
-  Set-Content -Path $lnk -Value "[InternetShortcut]`r`nURL=http://localhost:$Port" -Encoding ASCII
+Do-It 'desktop icon "PlasticDB": starts the server hidden if it is off, then opens the program' {
+  $desk = [Environment]::GetFolderPath('CommonDesktopDirectory')
+  Remove-Item (Join-Path $desk 'PlasticDB.url') -ErrorAction SilentlyContinue   # the older icon that only opened the page
+  $sc = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desk 'PlasticDB.lnk'))
+  $sc.TargetPath = 'powershell.exe'
+  $sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $root 'deploy\windows\open-server.ps1')`" -Port $Port"
+  $sc.WorkingDirectory = $root
+  $sc.WindowStyle = 7   # minimized: nothing stays on screen
+  $sc.IconLocation = "$env:SystemRoot\System32\shell32.dll,13"
+  $sc.Description = 'Start the PlasticDB server (if it is off) and open the program'
+  $sc.Save()
 }
 Do-It 'start the task and wait for the server' {
   Start-ScheduledTask -TaskName $taskName
