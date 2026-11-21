@@ -45,6 +45,12 @@ function Do-It($desc, [scriptblock]$act) {
 }
 # native commands (git, npm, mysql) write progress to the error stream: judge them by exit code only
 function Native([scriptblock]$cmd) { $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'; try { & $cmd } finally { $ErrorActionPreference = $old } }
+# a password somebody has to read from a screen and type: no 0/O, 1/l/I that look alike
+function New-TypedPassword([int]$length) {
+  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  $b = New-Object byte[] $length; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
+  -join ($b | ForEach-Object { $alphabet[$_ % $alphabet.Length] })
+}
 function New-Secret([int]$bytes) {
   $b = New-Object byte[] $bytes; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
   [Convert]::ToBase64String($b).TrimEnd('=').Replace('+', '-').Replace('/', '_')
@@ -114,7 +120,7 @@ $firstLogin = $null
 if (Test-Path $envFile) {
   Write-Host '   backend\.env already exists: left as it is.'
 } else {
-  $adminPw = New-Secret 9
+  $adminPw = New-TypedPassword 12
   $firstLogin = $adminPw
   $lines = @(
     'DB_HOST=localhost', "DB_USER=$DbUser", "DB_PASS=$dbPass", "DB_NAME=$DbName", '',
@@ -136,6 +142,13 @@ Do-It 'run install-server.ps1' {
   if ($LASTEXITCODE) { throw 'install-server.ps1 failed' }
 }
 if ($firstLogin) {
+  # The server creates "admin" only when there is none. If this database already had one (an earlier install),
+  # the password shown here would not be the real one, so it is set explicitly: what is shown always works.
+  Do-It 'make sure the admin account has exactly the password shown at the end' {
+    Push-Location $backend
+    try { Native { & $node (Join-Path $backend 'scripts\reset_password.js') $firstLogin }; if ($LASTEXITCODE) { throw 'Could not set the admin password.' } }
+    finally { Pop-Location }
+  }
   Do-It 'take the one-time admin password out of backend\.env and keep it in first-login.txt' {
     Set-Content -Path $envFile -Value (Get-Content $envFile | Where-Object { $_ -notmatch '^ADMIN_INITIAL_PASSWORD=|^# only used the first time' }) -Encoding ASCII
     $f = Join-Path $InstallDir 'first-login.txt'
