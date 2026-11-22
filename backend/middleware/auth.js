@@ -5,6 +5,8 @@ const { runWithUser } = require('../utils/audit');
 // Sub-actions that mutate an existing record (as opposed to creating a new one)
 const EDIT_ACTION_RE = /(?:^|\/)(post|approve|deliver|confirm|activate|close|restore|reopen)(?:\/|$)/;
 const BULK_DELETE_RE = /bulk-delete/;
+// correcting the date / prices of a posted invoice is its own permission, not part of "edit"
+const CORRECT_RE = /(?:^|\/)correct(?:\/|$)/;
 
 async function auth(req, res, next) {
   const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -36,6 +38,7 @@ function actionForRequest(req) {
   if (req.method === 'PUT' || req.method === 'PATCH') return 'edit';
   if (req.method === 'POST') {
     if (BULK_DELETE_RE.test(req.path)) return 'delete';
+    if (CORRECT_RE.test(req.path)) return 'correct';
     if (EDIT_ACTION_RE.test(req.path)) return 'edit';
     return 'create';
   }

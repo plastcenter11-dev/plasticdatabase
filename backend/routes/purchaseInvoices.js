@@ -10,6 +10,8 @@ const { computeInvoice } = require('../utils/invoiceMath');
 const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
 const { bump } = require('../utils/balances');
+const { dateError } = require('../utils/dateGuard');
+const { correctPostedInvoice } = require('../utils/postedCorrection');
 
 // what the client may set on an invoice; its status, approval and every money total are the server's
 const PROTECTED = ['status', 'approved_at', 'subtotal', 'tax_amount', 'total', 'remaining'];
@@ -36,6 +38,8 @@ router.post('/', async (req, res) => {
     Object.assign(data, calc.header);
     const items = calc.lines;
     if (!data.supplier_id) { await t.rollback(); return res.status(400).json({ error: 'المورد مطلوب' }); }
+    const badDate = dateError(data.date);
+    if (badDate) { await t.rollback(); return res.status(400).json({ error: badDate }); }
     const closedErr = await closedYearError(data.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     const numErr = await invoiceNumberError(data, t);
@@ -59,6 +63,8 @@ router.put('/:id', async (req, res) => {
     const calc = computeInvoice(sourceItems, { discount: inv.discount, tax_rate: inv.tax_rate, paid: inv.paid, ...data });
     Object.assign(data, calc.header);
     const items = Array.isArray(req.body.items) ? calc.lines : undefined;
+    const badDate = dateError(data.date);
+    if (badDate) { await t.rollback(); return res.status(400).json({ error: badDate }); }
     const closedErr = await closedYearError(data.date || inv.date, t);
     if (closedErr) { await t.rollback(); return res.status(400).json({ error: closedErr }); }
     data.approved_at = null; // an edited invoice has to be approved again
@@ -69,6 +75,16 @@ router.put('/:id', async (req, res) => {
     await inv.update(data, { transaction: t });
     await t.commit();
     res.json(await PurchaseInvoice.findByPk(inv.id, { include: [{ model: PurchaseInvoiceItem, as: 'items' }] }));
+  } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+// date and line prices of a POSTED invoice (needs the 'correct' permission: see middleware/auth.js)
+router.post('/:id/correct', async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const inv = await correctPostedInvoice('purchase', req.params.id, req.body, t);
+    await t.commit();
+    res.json(inv);
   } catch (err) { if (!t.finished) await t.rollback(); res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 

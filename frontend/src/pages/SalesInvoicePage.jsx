@@ -6,7 +6,8 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SortTh } from '../components/SortButton';
 import { useSort } from '../hooks/useSort';
 import { HEADER_SELECT } from '../utils/tableUi';
-import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep, MdBuild } from 'react-icons/md';
+import PostedCorrectionModal from '../components/PostedCorrectionModal';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
@@ -26,6 +27,7 @@ export default function SalesInvoicePage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [correctingId, setCorrectingId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [form, setForm] = useState({ customer_id: '', employee_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] });
@@ -229,6 +231,7 @@ export default function SalesInvoicePage() {
                     {needsApproval && inv.status === 'draft' && inv.approved_at && <span className="badge badge-green">معتمدة</span>}
                     {inv.status === 'draft' && can('sales_invoices', 'edit') && <button onClick={() => handlePost(inv.id)} className="erp-btn erp-btn-success py-1 px-2 text-xs flex items-center gap-1"><MdCheckCircle size={14} /> ترحيل</button>}
                     {inv.status === 'draft' && can('sales_invoices', 'edit') && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
+                    {inv.status === 'posted' && can('sales_invoices', 'correct') && <button onClick={() => setCorrectingId(inv.id)} title="تصحيح التاريخ أو السعر" className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1"><MdBuild size={14} /> تصحيح</button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
                     {can('sales_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
@@ -245,6 +248,8 @@ export default function SalesInvoicePage() {
           <button className="erp-btn erp-btn-outline py-1 px-3" disabled={page >= pageInfo.pages} onClick={() => setPage(p => p + 1)}>التالي</button>
         </div>
       )}
+
+      {correctingId && <PostedCorrectionModal kind="sales" invoiceId={correctingId} onClose={() => setCorrectingId(null)} onDone={() => { setCorrectingId(null); loadData(); }} />}
 
       {showModal && (
         <Modal title={editing ? 'تعديل فاتورة بيع' : 'فاتورة بيع جديدة'} onClose={() => setShowModal(false)} width="max-w-3xl">

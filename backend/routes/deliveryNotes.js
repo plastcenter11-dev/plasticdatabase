@@ -6,6 +6,7 @@ const { clean } = require('../utils/clean');
 const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
 const { bump, lockParty } = require('../utils/balances');
+const { dateError } = require('../utils/dateGuard');
 
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -31,6 +32,8 @@ router.post('/', async (req, res) => {
   try {
     const { items } = req.body;
     const data = clean(DeliveryNote, req.body, ['status', 'invoice_no', 'note_no']);
+    const badDate = dateError(data.date);
+    if (badDate) { await t.rollback(); return res.status(400).json({ error: badDate }); }
     data.note_no = await nextNumber('DN', t);
     const note = await DeliveryNote.create(data, { transaction: t });
     if (items?.length) await DeliveryNoteItem.bulkCreate(items.map(i => ({ ...i, note_id: note.id })), { transaction: t });
@@ -47,6 +50,8 @@ router.put('/:id', async (req, res) => {
     if (note.status === 'delivered') { await t.rollback(); return res.status(400).json({ error: 'لا يمكن تعديل إذن تم ترحيله' }); }
     const { items } = req.body;
     const data = clean(DeliveryNote, req.body, ['status', 'invoice_no', 'note_no']);
+    const badDate = dateError(data.date);
+    if (badDate) { await t.rollback(); return res.status(400).json({ error: badDate }); }
     await note.update(data, { transaction: t });
     // the lines are replaced by the edited ones
     if (Array.isArray(items)) {

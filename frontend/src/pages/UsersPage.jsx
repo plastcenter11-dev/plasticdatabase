@@ -24,7 +24,10 @@ const allPermissions = [
   { key: 'settings', label: 'الإعدادات' },
 ];
 
-const emptyForm = { username: '', password: '', role: 'user', is_active: true, permissions: {} };
+// the sections that have the extra "correct a posted document" permission (its date and prices)
+const CORRECTABLE = ['sales_invoices', 'purchase_invoices'];
+
+const emptyForm ={ username: '', password: '', role: 'user', is_active: true, permissions: {} };
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -118,7 +121,7 @@ export default function UsersPage() {
                 <label className="form-label">الصلاحيات</label>
                 <div className="border rounded-lg p-3 max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead><tr><th className="text-right pb-2">القسم</th><th className="text-center pb-2">عرض</th><th className="text-center pb-2">إضافة</th><th className="text-center pb-2">تعديل</th><th className="text-center pb-2">حذف</th></tr></thead>
+                    <thead><tr><th className="text-right pb-2">القسم</th><th className="text-center pb-2">عرض</th><th className="text-center pb-2">إضافة</th><th className="text-center pb-2">تعديل</th><th className="text-center pb-2">حذف</th><th className="text-center pb-2" title="تعديل تاريخ وأسعار الفواتير المرحّلة">تصحيح مرحّل</th></tr></thead>
                     <tbody>
                       {allPermissions.map(p => (
                         <tr key={p.key} className="border-t">
@@ -128,6 +131,11 @@ export default function UsersPage() {
                               <input type="checkbox" checked={form.permissions[p.key]?.includes(action) || false} onChange={() => togglePerm(p.key, action)} />
                             </td>
                           ))}
+                          <td className="text-center py-2">
+                            {CORRECTABLE.includes(p.key)
+                              ? <input type="checkbox" title="تعديل تاريخ وأسعار الفواتير المرحّلة" checked={form.permissions[p.key]?.includes('correct') || false} onChange={() => togglePerm(p.key, 'correct')} />
+                              : <span className="text-gray-300">—</span>}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
