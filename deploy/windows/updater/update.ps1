@@ -1,31 +1,3 @@
-@echo off
-rem ============================================================================
-rem  PlasticDB-Update.cmd  -  double-click it ON THE SERVER PC to update PlasticDB.
-rem
-rem  It gets Administrator rights, finds the PlasticDB folder, fetches the newest
-rem  version from GitHub, backs the database up, stops the server, installs the
-rem  new version, starts it again and checks it. If the new version does not come
-rem  up, the previous one is put back. Branches are cut off for a minute or two:
-rem  run it when nobody is working. Nothing in the database is deleted.
-rem
-rem  At the end the window shows ONE big line: FINISHED or FAILED.
-rem  One file, keep it next to PlasticDB-Setup.exe. Safe to run again at any time.
-rem  To see what it would do without changing anything:  set PDB_DRYRUN=1  first.
-rem ============================================================================
-setlocal
-title PlasticDB - update
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-  echo Getting Administrator rights...
-  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-  exit /b
-)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$t = [IO.File]::ReadAllText('%~f0'); Invoke-Expression $t.Substring($t.IndexOf('#PS-START' + '#'))"
-echo.
-echo Press any key to close this window.
-pause >nul
-exit /b
-#PS-START#
 $ErrorActionPreference = 'Stop'
 $env:GIT_TERMINAL_PROMPT = '0'
 $Host.UI.RawUI.WindowTitle = 'PlasticDB update - RUNNING, do not close'
