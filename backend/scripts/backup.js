@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const mysql = require('mysql2/promise');
+const { dumpArgs, withRetry } = require('../utils/backupRun');
 
 const KEEP_DAYS = 30;
 const BACKUP_DIR = path.join(__dirname, '..', '..', 'database');
@@ -76,11 +77,10 @@ async function main() {
 
   const mysqldump = findMysqlBin('mysqldump.exe');
   const outFile = path.join(BACKUP_DIR, `plasticdb-backup-${timestamp()}.sql`);
-  const args = [`--host=${DB_HOST}`, `--user=${DB_USER}`, `--password=${DB_PASS}`, '--single-transaction', '--routines', '--triggers', DB_NAME];
+  const args = dumpArgs({ host: DB_HOST, user: DB_USER, password: DB_PASS, database: DB_NAME });
 
-  const result = spawnSync(mysqldump, args, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`mysqldump exited with code ${result.status}: ${result.stderr}`);
+  // retried for a few minutes: right after Windows starts, MySQL may not be ready for the first try
+  const result = withRetry(() => spawnSync(mysqldump, args, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 }), { log: (m) => console.error(`mysqldump ${m}`) });
   fs.writeFileSync(outFile, result.stdout);
   console.log(`Backup written: ${outFile} (${(result.stdout.length / 1024 / 1024).toFixed(2)} MB)`);
 

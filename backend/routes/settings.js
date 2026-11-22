@@ -279,6 +279,13 @@ router.delete('/item-types/:id', async (req, res) => {
 // from inside the program. The place is saved in Settings; the daily job (scripts/backup.js)
 // reads it and records how its last copy went.
 const backupCopy = require('../utils/backupCopy');
+const { backupStatus } = require('../utils/backupStatus');
+
+// is the daily backup working? (the dashboard shows a warning to the admin when it is not)
+router.get('/backup/status', adminOnly, (req, res) => {
+  try { res.json(backupStatus(path.join(__dirname, '..', '..', 'database'))); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
 const readSetting = async (key) => (await Settings.findOne({ where: { key } }))?.value || '';
 
 router.get('/backup/copy', adminOnly, async (req, res) => {

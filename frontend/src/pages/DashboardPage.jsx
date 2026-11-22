@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { Link } from 'react-router-dom';
-import { MdWarehouse, MdAccountBalance, MdRemoveCircleOutline, MdPeople } from 'react-icons/md';
+import { MdWarehouse, MdAccountBalance, MdRemoveCircleOutline, MdPeople, MdBackup } from 'react-icons/md';
 import api from '../api/axios';
 
 const SHOWN_NAMES = 3;
 
 // one alert: nothing is drawn when there is nothing to warn about
-function AlertCard({ icon: Icon, label, count, names = [], color, to }) {
+function AlertCard({ icon: Icon, label, count, names = [], color, to, hideCount = false }) {
   if (count === 0) return null;
   const extra = count - Math.min(names.length, SHOWN_NAMES);
   return (
     <Link to={to} className={`flex items-start gap-2 px-3 py-2 rounded-lg border hover:opacity-80 transition ${color}`}>
       <Icon size={18} className="mt-0.5 shrink-0" />
       <div className="text-xs">
-        <div className="font-medium">{label}: {count}</div>
+        <div className="font-medium">{hideCount ? label : `${label}: ${count}`}</div>
         {names.length > 0 && (
           <div className="opacity-80 mt-0.5">{names.slice(0, SHOWN_NAMES).join('، ')}{extra > 0 ? ` و${extra} آخرين` : ''}</div>
         )}
@@ -33,7 +33,7 @@ const overLimitCustomers = (customers) => customers
   .filter(c => c.is_active !== false && Number(c.credit_limit) > 0 && Number(c.balance) > Number(c.credit_limit))
   .map(c => c.name);
 
-const EMPTY = { reorderCount: 0, overdueChecks: 0, negative: [], overLimit: [] };
+const EMPTY = { reorderCount: 0, overdueChecks: 0, negative: [], overLimit: [], backupProblem: '' };
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(EMPTY);
@@ -45,14 +45,16 @@ export default function DashboardPage() {
     api.get('/finance/checks/overdue').then(r => r.data.length).catch(() => 0),
     api.get('/stock/items-stock').then(r => negativeStockItems(r.data)).catch(() => []),
     api.get('/customers').then(r => overLimitCustomers(r.data)).catch(() => []),
-  ]).then(([reorderCount, overdueChecks, negative, overLimit]) => {
-    setStats({ reorderCount, overdueChecks, negative, overLimit });
+    // only the admin may ask: for everyone else this is simply "no alert"
+    api.get('/backup/status').then(r => r.data.problem || '').catch(() => ''),
+  ]).then(([reorderCount, overdueChecks, negative, overLimit, backupProblem]) => {
+    setStats({ reorderCount, overdueChecks, negative, overLimit, backupProblem });
     setLoaded(true);
   });
   useEffect(() => { load(); }, []);
   useAutoRefresh(load);   // the alerts follow what the other branches do
 
-  const none = loaded && !stats.reorderCount && !stats.overdueChecks && !stats.negative.length && !stats.overLimit.length;
+  const none = loaded && !stats.reorderCount && !stats.overdueChecks && !stats.negative.length && !stats.overLimit.length && !stats.backupProblem;
 
   return (
     <div className="space-y-5">
@@ -64,6 +66,8 @@ export default function DashboardPage() {
         <h2 className="text-sm font-bold text-gray-700 mb-2">تنبيهات</h2>
         {none && <p className="text-sm text-gray-500">لا توجد تنبيهات حاليًا.</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <AlertCard icon={MdBackup} label="النسخ الاحتياطي اليومي" count={stats.backupProblem ? 1 : 0} names={[stats.backupProblem]} hideCount to="/settings/options"
+            color="bg-danger-light text-danger border-danger/30" />
           <AlertCard icon={MdRemoveCircleOutline} label="أصناف رصيدها بالسالب" count={stats.negative.length} names={stats.negative} to="/warehouse-items"
             color="bg-danger-light text-danger border-danger/30" />
           <AlertCard icon={MdPeople} label="عملاء تجاوزوا حد الائتمان" count={stats.overLimit.length} names={stats.overLimit} to="/customer-credit-limits"
