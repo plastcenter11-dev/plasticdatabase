@@ -2,6 +2,7 @@ node_modules/
 .env
 dist/
 *.log
+logs/
 database/
 
 # browser smoke tests: screenshots of failed recipes
@@ -10,3 +11,7 @@ deploy/windows/Output/
 
 # the one-time admin password written by the Setup: never to GitHub
 first-login.txt
+
+# written by update-server.ps1 / the update script copied next to it
+.built-commit
+deploy/windows/.update-latest.ps1

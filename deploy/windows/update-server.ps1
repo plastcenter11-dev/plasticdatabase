@@ -49,7 +49,12 @@ $before = (& git.exe -C $root rev-parse HEAD).Trim()
 Run-Git fetch origin $Branch
 $after = (& git.exe -C $root rev-parse "origin/$Branch").Trim()
 Write-Host "   running : $before`n   newest  : $after"
-if ($before -eq $after) { Write-Host '   Already up to date.' -ForegroundColor Green; return }
+# the commit the running program was last built and started from (written at the end of a good update): the code
+# folder can already be on the newest commit (pulled by hand) while the program still runs the old build
+$builtFile = Join-Path $root '.built-commit'
+$built = if (Test-Path $builtFile) { (Get-Content $builtFile -TotalCount 1).Trim() } else { '' }
+if ($before -eq $after -and $built -eq $after) { Write-Host '   Already up to date.' -ForegroundColor Green; return }
+if ($before -eq $after) { Write-Host '   The code is the newest, but the running program was not built from it yet: building and restarting.' -ForegroundColor Yellow }
 Write-Host ((& git.exe -C $root log --oneline "$before..$after") -join "`n")
 if ($DryRun) { Write-Host "`n[dry-run] would back up, stop the server, pull, build, start and check. Nothing changed." -ForegroundColor Yellow; return }
 
@@ -71,6 +76,7 @@ try {
   if (-not (Wait-Server)) { throw 'The new version did not come up.' }
   Push-Location $backend; Native { & $node scripts\check_invariants.js }; $inv = $LASTEXITCODE; Pop-Location
   if ($inv) { throw 'The accounting check found errors with the new version.' }
+  Set-Content -Path $builtFile -Value $after -Encoding ascii
   Write-Host "`nUpdated to $after and healthy." -ForegroundColor Green
 }
 catch {
