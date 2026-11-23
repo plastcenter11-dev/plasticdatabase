@@ -86,3 +86,31 @@ describe('closed-year locking on financial documents', () => {
     expect(res.status).toBe(201);
   });
 });
+
+describe('closing a year locks every earlier date too', () => {
+  const close2025 = () => FinancialYear.create({ name: '2025', start_date: '2025-01-01', end_date: '2025-12-31', is_active: false, is_closed: true });
+  const invoiceOn = (customer, date) => request(app).post('/api/sales-invoices').set(auth()).send({ customer_id: customer.id, date, items: [] });
+
+  test('a document dated BEFORE the closed year (never defined, or mistyped) is refused as well, with its own message', async () => {
+    await close2025();
+    const customer = await makeCustomer();
+    const before = await invoiceOn(customer, '2020-05-05');
+    expect(before.status).toBe(400);
+    expect(before.body.error).toMatch(/مقفولة/);
+    const inside = await invoiceOn(customer, '2025-06-15');
+    expect(inside.status).toBe(400);
+    expect(inside.body.error).toMatch(/"2025"/);
+    expect((await invoiceOn(customer, '2026-03-02')).status).toBe(201);
+    // a mistyped year such as 0001 is refused as a date long before the lock is asked, so the lock itself is checked directly
+    const { closedYearError } = require('../../utils/financialYear');
+    expect(await closedYearError('0001-02-21')).toMatch(/مقفولة/);
+  });
+
+  test('re-opening the year unlocks the earlier dates again', async () => {
+    const y = await close2025();
+    const customer = await makeCustomer();
+    expect((await invoiceOn(customer, '2020-05-05')).status).toBe(400);
+    await request(app).post(`/api/financial-years/${y.id}/reopen`).set(auth());
+    expect((await invoiceOn(customer, '2020-05-05')).status).toBe(201);
+  });
+});

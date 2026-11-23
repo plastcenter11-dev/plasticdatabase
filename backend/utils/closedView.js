@@ -2,9 +2,10 @@
 
 // Who may LOOK at a closed financial year.
 //
-// Closing a year already stops anyone changing its documents (closedYearError). This also hides it from
-// reading: a user who is not an admin and has no 'view_closed' on the financial-years permission sees nothing
-// dated inside a closed year, anywhere:
+// Closing a year already stops anyone changing documents dated up to its last day (closedYearError): that is
+// every earlier date too, not just the year's own days. This also hides all of it from reading. A user who is
+// not an admin and has no 'view_closed' on the financial-years permission sees nothing dated up to the end of
+// the latest closed year, anywhere:
 //   - lists of documents (invoices, delivery notes, returns, receipts, payments, checks, expenses, income,
 //     stock movements, transfers, assemblies) simply do not contain those rows;
 //   - one document of a closed year (an invoice opened by its id) is refused with a 403;
@@ -28,7 +29,9 @@ const canViewClosed = (user) => user?.role === 'admin'
 
 async function closedRanges() {
   const years = await FinancialYear.findAll({ where: { is_closed: true } });
-  return years.map(y => ({ start: ymd(y.start_date), end: ymd(y.end_date) })).filter(r => r.start && r.end);
+  // closing a year closes everything up to its last day (the same rule as closedYearError)
+  const latest = years.map(y => ymd(y.end_date)).filter(Boolean).sort().pop();
+  return latest ? [{ start: '0000-01-01', end: latest }] : [];
 }
 
 const inRanges = (date, ranges) => { const d = ymd(date); return !!d && ranges.some(r => d >= r.start && d <= r.end); };

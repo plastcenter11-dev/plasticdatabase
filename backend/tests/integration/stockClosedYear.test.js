@@ -94,6 +94,16 @@ describe('adjustments (issue / receive / count)', () => {
   });
 });
 
+describe('every earlier date is locked too', () => {
+  test('a stock movement dated before the closed year is refused', async () => {
+    await closeYear();
+    const res = await post('/api/stock/adjustments', adj('0001-02-21'));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/مقفولة/);
+    expect(await StockMovement.count()).toBe(0);
+  });
+});
+
 describe('warehouse transfers', () => {
   const transfer = (date) => ({ date, from_warehouse_id: wh.id, to_warehouse_id: wh2.id, items: [{ item_id: item.id, quantity: 1, weight: 100 }] });
 

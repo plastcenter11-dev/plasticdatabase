@@ -203,3 +203,33 @@ describe('closing and re-opening a year is for the admin only', () => {
     expect((await FinancialYear.findByPk(open.id)).is_closed).toBe(true);
   });
 });
+
+describe('closing a year closes everything before it, not only its own days', () => {
+  const MIS = '0001-02-21';   // a mistyped year, long before the closed 2026
+  let misInv;
+  beforeEach(async () => {
+    misInv = await SalesInvoice.create({ invoice_no: 'SI-MIS', date: MIS, customer_id: customer.id, status: 'posted', subtotal: 70, total: 70, remaining: 70 });
+    await StockMovement.create({ item_id: item.id, warehouse_id: wh.id, movement_type: 'صرف', quantity: 1, weight: 5, date: MIS, description: '', reference: '' });
+  });
+
+  test('a document dated before the closed year is hidden like the ones inside it', async () => {
+    expect(refs((await get('/api/sales-invoices', userT)).body, 'invoice_no')).toEqual(['SI-NEW']);
+    expect((await get(`/api/sales-invoices/${misInv.id}`, userT)).status).toBe(403);
+    expect(refs((await get('/api/sales-invoices', adminT)).body, 'invoice_no').sort()).toEqual(['SI-MIS', 'SI-NEW', 'SI-OLD']);
+    expect((await get(`/api/sales-invoices/${misInv.id}`, viewerT)).status).toBe(200);
+  });
+
+  test('its stock movement is folded into the carried-forward line: 100 - 30 - 5 = 65', async () => {
+    const user = (await get(`/api/stock/movements/${item.id}`, userT)).body;
+    expect(user.length).toBe(2);
+    expect(Number(user[0].weight)).toBe(65);
+    expect(JSON.stringify(user)).not.toContain(MIS);
+  });
+
+  test('the statement carries it forward too (1000 - 400 + 70 = 670)', async () => {
+    const user = (await get(`/api/customers/${customer.id}/statement`, userT)).body;
+    expect(user[0].type).toBe('رصيد مرحّل');
+    expect(Number(user[0].balance)).toBe(670);
+    expect(JSON.stringify(user)).not.toContain('SI-MIS');
+  });
+});
