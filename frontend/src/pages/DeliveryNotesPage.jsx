@@ -281,7 +281,7 @@ export default function DeliveryNotesPage() {
 
   // printed header/footer text comes from the company settings (defaults = the original wording)
   const [companyInfo, setCompanyInfo] = useState({});
-  useEffect(() => { api.get('/settings').then(r => setCompanyInfo(r.data)).catch(() => {}); }, []);
+  useEffect(() => { api.get('/options/company').catch(() => api.get('/settings')).then(r => setCompanyInfo(r.data)).catch(() => {}); }, []);
   const co = (key, fallback) => (companyInfo[key] ?? fallback);
 
   const handlePrint = (note, showCompany = true) => {

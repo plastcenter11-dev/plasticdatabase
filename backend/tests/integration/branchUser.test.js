@@ -141,3 +141,18 @@ describe('changes made by the admin apply immediately', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('company details for printing', () => {
+  test('a branch user (no settings permission) can read the company details that go on printed documents, and nothing else', async () => {
+    const { Settings } = require('../../models');
+    await Settings.upsert({ key: 'company_name', value: 'شركة الاختبار' });
+    await Settings.upsert({ key: 'company_vat_no', value: '123' });
+    await Settings.upsert({ key: 'backup_copy_dir', value: 'G:\secret-folder' });
+    await Settings.upsert({ key: 'opt_block_below_cost', value: '1' });
+    const res = await request(app).get('/api/options/company').set(as(t));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ company_name: 'شركة الاختبار', company_vat_no: '123' });
+    // the full settings still need the settings permission
+    expect((await request(app).get('/api/settings').set(as(t))).status).toBe(403);
+  });
+});
