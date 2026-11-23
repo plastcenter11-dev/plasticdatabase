@@ -58,7 +58,7 @@ export default function SalesInvoicePage() {
   };
   const loadLookups = async () => {
     try {
-      const [c, e, it, wh] = await Promise.all([api.get('/customers'), api.get('/employees'), api.get('/items'), api.get('/warehouses')]);
+      const [c, e, it, wh] = await Promise.all([api.get('/customers'), api.get('/employees').catch(() => ({ data: [] })) /* the sales reps are optional: a user without the employees permission still gets the page */, api.get('/items'), api.get('/warehouses')]);
       setCustomers(c.data); setEmployees(e.data); setItems(it.data); setWarehouses(wh.data);
     } catch { toast.error('خطأ في تحميل البيانات'); }
   };
