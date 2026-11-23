@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { sessionGet } from '../utils/session';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { MdSave, MdBusiness, MdBackup, MdLock, MdLockOpen, MdPassword, MdTune, MdInventory, MdUpload, MdEdit, MdDelete, MdAdd } from 'react-icons/md';
@@ -293,7 +294,7 @@ export default function SettingsPage() {
                 onClick={async () => {
                   try {
                     toast.info('جاري تجهيز نسخة SQL...');
-                    const token = localStorage.getItem('token');
+                    const token = sessionGet('token');
                     const res = await fetch('/api/backup/sql', { headers: { Authorization: `Bearer ${token}` } });
                     if (!res.ok) throw new Error('فشل التحميل');
                     const blob = await res.blob();
@@ -314,7 +315,7 @@ export default function SettingsPage() {
                 onClick={async () => {
                   try {
                     toast.info('جاري تجهيز النسخة الاحتياطية...');
-                    const token = localStorage.getItem('token');
+                    const token = sessionGet('token');
                     const res = await fetch('/api/backup', { headers: { Authorization: `Bearer ${token}` } });
                     if (!res.ok) throw new Error('فشل التحميل');
                     const blob = await res.blob();
@@ -354,7 +355,7 @@ export default function SettingsPage() {
                       }
                       try {
                         toast.info('جاري استعادة قاعدة البيانات...');
-                        const token = localStorage.getItem('token');
+                        const token = sessionGet('token');
                         const formData = new FormData();
                         formData.append('file', file);
                         const res = await fetch('/api/backup/restore', {

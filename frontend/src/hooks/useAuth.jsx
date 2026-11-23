@@ -1,22 +1,21 @@
 import { createContext, useContext, useState } from 'react';
+import { sessionGet, sessionSave, sessionClear } from '../utils/session';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
+    const saved = sessionGet('user');
     return saved ? JSON.parse(saved) : null;
   });
 
   const login = (userData, token) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    sessionSave(token, userData);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionClear();
     setUser(null);
   };
 
