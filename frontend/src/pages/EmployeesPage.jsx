@@ -39,7 +39,7 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">تعريف موظفين</h1>
+        <h1 className="text-xl font-bold text-gray-800">تعريف موظف مبيعات</h1>
         {can('employees', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة موظف</button>}
       </div>
 

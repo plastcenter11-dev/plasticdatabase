@@ -76,28 +76,10 @@ const menuGroups = [
     ]
   },
   {
-    label: 'موظفين', icon: MdPersonSearch,
-    items: [
-      { path: '/employees', label: 'تعريف موظفين', icon: MdPersonSearch, module: 'employees' },
-    ]
-  },
-  {
     label: 'تعريفات أساسية', icon: MdBuild,
     items: [
       { path: '/warehouses', label: 'تعريف مخزن', icon: MdWarehouse, module: 'warehouses' },
-    ]
-  },
-  {
-    label: 'التقارير', icon: MdBarChart,
-    items: [
-      { path: '/reports/statement', label: 'كشف حساب', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/customers', label: 'تقرير إجمالي عملاء', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/silent-customers', label: 'عملاء توقفوا وعليهم رصيد', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/rep-statements', label: 'كشوف حساب مندوب', icon: MdBarChart, module: 'customers' },
-      { path: '/reports/suppliers', label: 'تقرير إجمالي موردين', icon: MdBarChart, module: 'suppliers' },
-      { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
-      { path: '/reports/expenses', label: 'تقرير مصروفات', icon: MdBarChart, module: 'expenses' },
-      { path: '/reports/overdue-checks', label: 'شيكات قبض متأخرة', icon: MdBarChart, module: 'checks' },
+      { path: '/employees', label: 'تعريف موظف مبيعات', icon: MdPersonSearch, module: 'employees' },
     ]
   },
   {
@@ -239,7 +221,7 @@ export default function Layout() {
             { path: '/stock-issue', label: 'صرف من المخزن', icon: MdLocalShipping, module: 'stock' },
             { path: '/stock-receive', label: 'إضافة للمخزن', icon: MdLocalShipping, module: 'stock' },
             { path: '/warehouse-items', label: 'مخزن الأصناف', icon: MdWarehouse, module: 'stock' },
-            { path: '/reports/reorder', label: 'أصناف تحت حد الطلب', icon: MdBarChart, module: 'stock' },
+            { path: '/item-assembly', label: 'تركيب صنف', icon: MdBuild, module: 'stock' },
             { path: '/delivery-notes', label: 'إذن تسليم', icon: MdAssignment, module: 'delivery_notes' },
           ].filter(itemVisible).map(item => (
             <NavLink
