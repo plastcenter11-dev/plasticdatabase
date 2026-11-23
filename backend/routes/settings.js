@@ -123,7 +123,8 @@ router.get('/financial-years', async (req, res) => {
 });
 
 router.post('/financial-years', async (req, res) => {
-  try { res.status(201).json(await FinancialYear.create(clean(FinancialYear, req.body))); }
+  // a year is never created already closed or active: closing and activating have their own routes
+  try { res.status(201).json(await FinancialYear.create(clean(FinancialYear, req.body, ['is_closed', 'is_active']))); }
   catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
@@ -131,21 +132,26 @@ router.put('/financial-years/:id', async (req, res) => {
   try {
     const y = await FinancialYear.findByPk(req.params.id);
     if (!y) return res.status(404).json({ error: 'غير موجود' });
-    await y.update(clean(FinancialYear, req.body));
+    // a closed year (its dates are the limits of the lock) is changed by the admin only, and the body can
+    // never close, open or activate a year: those have their own routes
+    if (y.is_closed && req.user?.role !== 'admin') return res.status(403).json({ error: 'السنة مقفولة: التعديل عليها للمسؤول فقط' });
+    await y.update(clean(FinancialYear, req.body, ['is_closed', 'is_active']));
     res.json(y);
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.post('/financial-years/:id/activate', async (req, res) => {
   try {
-    await FinancialYear.update({ is_active: false }, { where: {} });
     const y = await FinancialYear.findByPk(req.params.id);
+    if (!y) return res.status(404).json({ error: 'غير موجود' });
+    if (y.is_closed) return res.status(400).json({ error: 'السنة مقفولة: لا يمكن تنشيطها' });
+    await FinancialYear.update({ is_active: false }, { where: {} });
     await y.update({ is_active: true });
     res.json({ message: 'تم التنشيط' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
-router.post('/financial-years/:id/close', async (req, res) => {
+router.post('/financial-years/:id/close', adminOnly, async (req, res) => {
   try {
     const { next_year_id } = req.body;
     const current = await FinancialYear.findByPk(req.params.id);
@@ -167,7 +173,7 @@ router.post('/financial-years/:id/close', async (req, res) => {
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
-router.post('/financial-years/:id/reopen', async (req, res) => {
+router.post('/financial-years/:id/reopen', adminOnly, async (req, res) => {
   try {
     const y = await FinancialYear.findByPk(req.params.id);
     if (!y) return res.status(404).json({ error: 'غير موجود' });
@@ -181,6 +187,7 @@ router.delete('/financial-years/:id', async (req, res) => {
     const y = await FinancialYear.findByPk(req.params.id);
     if (!y) return res.status(404).json({ error: 'غير موجود' });
     if (y.is_active) return res.status(400).json({ error: 'لا يمكن حذف السنة النشطة' });
+    if (y.is_closed) return res.status(400).json({ error: 'لا يمكن حذف سنة مقفولة — أعد فتحها أولاً (للمسؤول)' });
     await y.destroy();
     res.json({ message: 'تم الحذف' });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }

@@ -6,6 +6,8 @@ const { makeAuthToken, makeCustomer } = require('../helpers/fixtures');
 
 const app = express();
 app.use(express.json());
+// this mini app has no auth middleware: close / reopen are admin-only now, so the request is made by an admin
+app.use((req, res, next) => { req.user = { id: 0, role: 'admin', permissions: {} }; next(); });
 app.use('/api', require('../../routes/settings'));
 app.use('/api/sales-invoices', require('../../routes/salesInvoices'));
 

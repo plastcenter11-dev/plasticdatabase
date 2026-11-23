@@ -152,3 +152,54 @@ describe('when nothing is closed, or it is re-opened', () => {
     expect(Number((await Customer.findByPk(customer.id)).balance)).toBe(995);
   });
 });
+
+describe('closing and re-opening a year is for the admin only', () => {
+  const FY = '/api/financial-years';
+  const call = (method, url, t, body) => request(app)[method](url).set({ Authorization: `Bearer ${t}` }).send(body || {});
+  let managerT, closed, open;
+  beforeEach(async () => {
+    const manager = await User.create({ username: 'manager', password: 'x', role: 'user', permissions: { financial_years: ['view', 'create', 'edit', 'delete'] } });
+    managerT = tokenFor(manager);
+    closed = await FinancialYear.findOne({ where: { name: '2026' } });
+    open = await FinancialYear.create({ name: '2027', start_date: '2027-01-01', end_date: '2027-12-31', is_active: true, is_closed: false });
+  });
+
+  test('even full rights on the financial years cannot close or re-open a year', async () => {
+    expect((await call('post', `${FY}/${open.id}/close`, managerT, { next_year_id: closed.id })).status).toBe(403);
+    expect((await call('post', `${FY}/${closed.id}/reopen`, managerT)).status).toBe(403);
+    expect((await FinancialYear.findByPk(closed.id)).is_closed).toBe(true);
+    expect((await FinancialYear.findByPk(open.id)).is_closed).toBe(false);
+  });
+
+  test('the edit route cannot be used to slip round it: no is_closed in the body, no changes to a closed year', async () => {
+    expect((await call('put', `${FY}/${closed.id}`, managerT, { is_closed: false })).status).toBe(403);
+    expect((await call('put', `${FY}/${closed.id}`, managerT, { end_date: '2026-01-02' })).status).toBe(403);
+    const y = await FinancialYear.findByPk(closed.id);
+    expect(y.is_closed).toBe(true);
+    expect(String(y.end_date)).toBe('2026-12-31');
+    // an open year can be renamed, but closing it through the body is ignored
+    expect((await call('put', `${FY}/${open.id}`, managerT, { name: '2027 ب', is_closed: true })).status).toBe(200);
+    const o = await FinancialYear.findByPk(open.id);
+    expect(o.name).toBe('2027 ب');
+    expect(o.is_closed).toBe(false);
+  });
+
+  test('a closed year cannot be deleted or activated, and a new one is never created closed', async () => {
+    expect((await call('delete', `${FY}/${closed.id}`, managerT)).status).toBe(400);
+    expect((await call('post', `${FY}/${closed.id}/activate`, managerT)).status).toBe(400);
+    expect(await FinancialYear.findByPk(closed.id)).not.toBeNull();
+    const made = await call('post', FY, managerT, { name: '2028', start_date: '2028-01-01', end_date: '2028-12-31', is_closed: true, is_active: true });
+    expect(made.status).toBe(201);
+    expect(made.body.is_closed).toBeFalsy();
+    expect(made.body.is_active).toBeFalsy();
+  });
+
+  test('the admin can re-open, and view_closed alone gives no power over years', async () => {
+    const auditor = await User.create({ username: 'rev', password: 'x', role: 'user', permissions: { financial_years: ['view', 'view_closed'] } });
+    expect((await call('post', `${FY}/${closed.id}/reopen`, tokenFor(auditor))).status).toBe(403);
+    expect((await call('post', `${FY}/${closed.id}/reopen`, adminT)).status).toBe(200);
+    expect((await FinancialYear.findByPk(closed.id)).is_closed).toBe(false);
+    expect((await call('post', `${FY}/${open.id}/close`, adminT, { next_year_id: closed.id })).status).toBe(200);
+    expect((await FinancialYear.findByPk(open.id)).is_closed).toBe(true);
+  });
+});
