@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { runWithUser } = require('../utils/audit');
+const { applyClosedView } = require('../utils/closedView');
 
 // Sub-actions that mutate an existing record (as opposed to creating a new one)
 const EDIT_ACTION_RE = /(?:^|\/)(post|approve|deliver|confirm|activate|close|restore|reopen)(?:\/|$)/;
@@ -20,6 +21,8 @@ async function auth(req, res, next) {
       return res.status(401).json({ error: 'انتهت الجلسة، سجّل الدخول من جديد' });
     }
     req.user = { id: user.id, username: user.username, role: user.role, permissions: user.permissions || {} };
+    // a user who may not see closed financial years never receives their rows (see utils/closedView.js)
+    await applyClosedView(req, res);
     // everything the request does from here on is attributed to this user in the audit log
     return runWithUser({ user: req.user, ip: req.ip, method: req.method, path: (req.originalUrl || '').split('?')[0] }, next);
   } catch {

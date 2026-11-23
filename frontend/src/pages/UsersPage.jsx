@@ -25,7 +25,13 @@ const allPermissions = [
 ];
 
 // the sections that have the extra "correct a posted document" permission (its date and prices)
-const CORRECTABLE = ['sales_invoices', 'purchase_invoices'];
+// (the extra column of the table) the invoices can have a posted document corrected; the financial years can be
+// looked at when closed - nobody but the admin sees a closed year without it
+const SPECIAL = {
+  sales_invoices: { action: 'correct', label: 'تصحيح مرحّل', title: 'تعديل تاريخ وأسعار الفواتير المرحّلة' },
+  purchase_invoices: { action: 'correct', label: 'تصحيح مرحّل', title: 'تعديل تاريخ وأسعار الفواتير المرحّلة' },
+  financial_years: { action: 'view_closed', label: 'عرض المقفول', title: 'عرض حركات السنوات المالية المقفولة (بدونها لا يرى المستخدم أي شيء من سنة مقفولة)' },
+};
 
 const emptyForm ={ username: '', password: '', role: 'user', is_active: true, permissions: {} };
 
@@ -121,7 +127,7 @@ export default function UsersPage() {
                 <label className="form-label">الصلاحيات</label>
                 <div className="border rounded-lg p-3 max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead><tr><th className="text-right pb-2">القسم</th><th className="text-center pb-2">عرض</th><th className="text-center pb-2">إضافة</th><th className="text-center pb-2">تعديل</th><th className="text-center pb-2">حذف</th><th className="text-center pb-2" title="تعديل تاريخ وأسعار الفواتير المرحّلة">تصحيح مرحّل</th></tr></thead>
+                    <thead><tr><th className="text-right pb-2">القسم</th><th className="text-center pb-2">عرض</th><th className="text-center pb-2">إضافة</th><th className="text-center pb-2">تعديل</th><th className="text-center pb-2">حذف</th><th className="text-center pb-2" title="تعديل تاريخ وأسعار الفواتير المرحّلة">صلاحية خاصة</th></tr></thead>
                     <tbody>
                       {allPermissions.map(p => (
                         <tr key={p.key} className="border-t">
@@ -132,8 +138,11 @@ export default function UsersPage() {
                             </td>
                           ))}
                           <td className="text-center py-2">
-                            {CORRECTABLE.includes(p.key)
-                              ? <input type="checkbox" title="تعديل تاريخ وأسعار الفواتير المرحّلة" checked={form.permissions[p.key]?.includes('correct') || false} onChange={() => togglePerm(p.key, 'correct')} />
+                            {SPECIAL[p.key]
+                              ? (<label className="inline-flex items-center gap-1 text-xs text-gray-600" title={SPECIAL[p.key].title}>
+                                  <input type="checkbox" checked={form.permissions[p.key]?.includes(SPECIAL[p.key].action) || false} onChange={() => togglePerm(p.key, SPECIAL[p.key].action)} />
+                                  {SPECIAL[p.key].label}
+                                </label>)
                               : <span className="text-gray-300">—</span>}
                           </td>
                         </tr>

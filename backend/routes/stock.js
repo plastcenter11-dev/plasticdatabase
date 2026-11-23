@@ -3,7 +3,18 @@ const { describeError, errorStatus } = require('../utils/errors');
 const { Op } = require('sequelize');
 const { clean } = require('../utils/clean');
 const { lockStock } = require('../utils/stockOps');
+const { closedYearError } = require('../utils/financialYear');
 const { Stock, StockMovement, WarehouseTransfer, WarehouseTransferItem, ItemAssembly, ItemAssemblyComponent, Item, Warehouse, Category, ItemType, sequelize } = require('../models');
+
+// A manual stock movement dated inside a closed (or protected) financial year is refused, exactly like a
+// financial document: the stock history of a closed year cannot be changed. Returns true when it answered 400.
+async function refuseClosed(res, t, ...dates) {
+  for (const d of dates) {
+    const err = await closedYearError(d, t);
+    if (err) { await t.rollback(); res.status(400).json({ error: err }); return true; }
+  }
+  return false;
+}
 
 // Manual stock-adjustment types, as opposed to StockMovement rows generated
 // automatically by invoices/transfers/assemblies (which have their own
@@ -37,6 +48,7 @@ async function nonStockItemError(item_ids, t) {
 router.post('/adjustments', async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    if (await refuseClosed(res, t, req.body.date)) return;
     const { item_id, quantity, weight, movement_type } = req.body;
     if (!(await isStockableItem(item_id, t))) {
       const movement = await StockMovement.create({ ...req.body, warehouse_id: null }, { transaction: t });
@@ -64,6 +76,7 @@ router.put('/adjustments/:id', async (req, res) => {
   try {
     const old = await StockMovement.findByPk(req.params.id, { transaction: t });
     if (!old) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (await refuseClosed(res, t, old.date, req.body.date)) return;
     if (old.movement_type !== 'إضافة' && old.movement_type !== 'صرف') {
       await t.rollback();
       return res.status(400).json({ error: 'لا يمكن تعديل حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
@@ -109,6 +122,7 @@ router.delete('/adjustments/:id', async (req, res) => {
   try {
     const m = await StockMovement.findByPk(req.params.id, { transaction: t });
     if (!m) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (await refuseClosed(res, t, m.date)) return;
     if (m.movement_type !== 'إضافة' && m.movement_type !== 'صرف') {
       await t.rollback();
       return res.status(400).json({ error: 'لا يمكن حذف حركة "تعديل جرد" — سجّل حركة تعديل جرد جديدة بدلاً من ذلك' });
@@ -206,6 +220,7 @@ router.post('/transfers', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { items, ...data } = req.body;
+    if (await refuseClosed(res, t, data.date)) return;
     const nonStock = await nonStockItemError((items || []).map(i => i.item_id), t);
     if (nonStock) { await t.rollback(); return res.status(400).json({ error: nonStock }); }
     const transfer = await WarehouseTransfer.create(data, { transaction: t });
@@ -228,6 +243,7 @@ router.post('/transfers/:id/confirm', async (req, res) => {
     });
     if (!transfer) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
     if (transfer.status === 'confirmed') { await t.rollback(); return res.status(400).json({ error: 'التحويل مؤكد مسبقاً' }); }
+    if (await refuseClosed(res, t, transfer.date)) return;
 
     // No stock check on purpose: a transfer is often entered before the receipt that
     // feeds the source warehouse, so its balance (kg or count) is allowed to go negative.
@@ -284,6 +300,7 @@ router.get('/assemblies', async (req, res) => {
 router.post('/assemblies', async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    if (await refuseClosed(res, t, req.body.date)) return;
     const { components, ...data } = req.body;
     const outputWarehouseId = data.output_warehouse_id || data.warehouse_id;
 
@@ -365,6 +382,7 @@ router.put('/assemblies/:id', async (req, res) => {
   try {
     const assembly = await ItemAssembly.findByPk(req.params.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }], transaction: t });
     if (!assembly) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (await refuseClosed(res, t, assembly.date, req.body && req.body.date)) return;
 
     // Reverse the old effect first
     await reverseAssembly(assembly, assembly.components || [], t);
@@ -420,6 +438,7 @@ router.delete('/assemblies/:id', async (req, res) => {
   try {
     const assembly = await ItemAssembly.findByPk(req.params.id, { include: [{ model: ItemAssemblyComponent, as: 'components' }], transaction: t });
     if (!assembly) { await t.rollback(); return res.status(404).json({ error: 'غير موجود' }); }
+    if (await refuseClosed(res, t, assembly.date, req.body && req.body.date)) return;
 
     await reverseAssembly(assembly, assembly.components || [], t);
     await StockMovement.destroy({ where: { reference: String(assembly.id), movement_type: 'تركيب' }, transaction: t });
