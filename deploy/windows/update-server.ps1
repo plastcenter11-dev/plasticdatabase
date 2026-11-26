@@ -33,6 +33,18 @@ function Wait-Server {
   }
   return $false
 }
+# A process can end by itself between being listed and being stopped (the task has just been told to stop): that
+# is success, not an error. Then wait until none is left, so the port is free for the new one.
+function Stop-Server {
+  Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+  for ($i = 0; $i -lt 20; $i++) {
+    $procs = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'server\.js' })
+    if (-not $procs.Count) { return }
+    $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
+  }
+  throw 'The running server could not be stopped.'
+}
 function Build-All {
   Push-Location $backend; Native { npm install --no-audit --no-fund }; if ($LASTEXITCODE) { throw 'backend npm install failed' }; Pop-Location
   Push-Location $front;   Native { npm install --no-audit --no-fund }; if ($LASTEXITCODE) { throw 'frontend npm install failed' }
@@ -62,11 +74,11 @@ Step '2/6 Backup (a failed backup stops the update)'
 $node = (Get-Command node).Source
 Native { & $node (Join-Path $backend 'scripts\backup.js') }; if ($LASTEXITCODE) { throw 'The backup failed: nothing was changed.' }
 
-Step '3/6 Stop the server'
-Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'server\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-
+# From here on the server may be down: whatever fails, the catch below starts it again.
 try {
+  Step '3/6 Stop the server'
+  Stop-Server
+
   Step '4/6 New code'
   Run-Git merge --ff-only "origin/$Branch"
   Build-All
@@ -81,10 +93,9 @@ try {
 }
 catch {
   Write-Host "`nFAILED: $($_.Exception.Message)`nPutting the previous version back..." -ForegroundColor Red
-  Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-  Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'server\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-  Run-Git reset --hard $before
-  Build-All
+  # nothing here may keep the server from being started again
+  try { Stop-Server } catch { Write-Host $_.Exception.Message -ForegroundColor Red }
+  try { Run-Git reset --hard $before; Build-All } catch { Write-Host $_.Exception.Message -ForegroundColor Red }
   Start-ScheduledTask -TaskName $taskName
   if (Wait-Server) { Write-Host "Back on $before and running." -ForegroundColor Yellow } else { Write-Host 'The old version did not start either: read logs\app.log and restore the backup if needed.' -ForegroundColor Red }
   exit 1

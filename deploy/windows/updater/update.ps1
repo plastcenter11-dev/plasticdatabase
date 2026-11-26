@@ -39,6 +39,15 @@ function Server-Answers {
   catch { return ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 401) }
 }
 
+# starts the server (the Windows task, or else the same way as the desktop icon) and waits until it answers
+function Start-Program($folder) {
+  try { Start-ScheduledTask -TaskName 'PlasticDB Server' -ErrorAction Stop } catch { }
+  for ($i = 0; $i -lt 30; $i++) { Start-Sleep -Seconds 2; if (Server-Answers) { return $true } }
+  $opener = Join-Path $folder 'deploy\windows\open-server.ps1'
+  if (Test-Path $opener) { Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $opener -NoBrowser } | Out-Host }
+  return (Server-Answers)
+}
+
 $verdict = 'FAILED'
 $root = $null
 try {
@@ -79,6 +88,11 @@ try {
   $builtFile = Join-Path $root '.built-commit'
   $built = if (Test-Path $builtFile) { (Get-Content $builtFile -TotalCount 1).Trim() } else { '' }
   $answers = Server-Answers
+  # never leave the program switched off, whatever happened above
+  if (-not $answers -and -not $env:PDB_DRYRUN) {
+    Write-Host "`nThe program is not answering: starting it again..." -ForegroundColor Yellow
+    $answers = Start-Program $root
+  }
 
   if ($code -ne 0) { $verdict = 'FAILED' }
   elseif ($env:PDB_DRYRUN) { $verdict = 'DRYRUN' }
@@ -99,7 +113,13 @@ switch ($verdict) {
   'OK'     { Banner @('FINISHED - the update is DONE.', 'PlasticDB is the newest version and it is running.', 'You can close this window and use the program.') 'Green' 'FINISHED' }
   'DRYRUN' { Banner @('DRY RUN - nothing was changed.') 'Yellow' 'dry run' }
   'UNSURE' { Banner @('NOT SURE - the update script finished without an error,', 'but the check did not pass (see the three lines above).', 'Open the program and look. If it does not open, run this file again.') 'Yellow' 'CHECK' }
-  default  { Banner @('FAILED - the update did NOT finish.', 'Read the red lines above. The program was NOT left broken:', 'if the new version had replaced the old one, the old one was put back.', 'Send the log below if you need help.') 'Red' 'FAILED' }
+  default  {
+    # say what is really the case now, not what is supposed to be the case
+    $running = Server-Answers
+    if (-not $running -and $root -and -not $env:PDB_DRYRUN) { $running = Start-Program $root }
+    $state = if ($running) { 'The program IS running, you can keep working.' } else { 'THE PROGRAM IS NOT RUNNING: double-click the PlasticDB icon on the desktop.' }
+    Banner @('FAILED - the update did NOT finish.', $state, 'Read the red lines above. Running this file again is safe.', 'Send the log below if you need help.') 'Red' 'FAILED'
+  }
 }
 Write-Host "Log: $log"
 try { Stop-Transcript | Out-Null } catch { }
