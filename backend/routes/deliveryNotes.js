@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
 const { DeliveryNote, DeliveryNoteItem, Customer, Item, SalesInvoice, SalesInvoiceItem, Stock, StockMovement, CashReceipt, Check, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
+const { QueryTypes } = require('sequelize');
 const { clean } = require('../utils/clean');
 const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
@@ -16,6 +17,16 @@ router.get('/', async (req, res) => {
       include: [{ model: Customer, attributes: ['id', 'name'] }, { model: DeliveryNoteItem, as: 'items', include: [{ model: Item, attributes: ['id', 'code', 'name', 'sale_price'] }] }],
       order: [['id', 'DESC']],
     }));
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+// The number proposed for the invoice when a note is posted: one after the highest plain number used so far
+// (numbers with letters, such as SI-000014, are a different series and are left out). Only a suggestion: it can
+// be changed, and a number already in use is still refused when posting.
+router.get('/next-invoice-no', async (req, res) => {
+  try {
+    const [row] = await sequelize.query("SELECT MAX(CAST(invoice_no AS UNSIGNED)) AS n FROM sales_invoices WHERE invoice_no REGEXP '^[0-9]+$'", { type: QueryTypes.SELECT });
+    res.json({ invoice_no: String(Number(row?.n || 0) + 1) });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 

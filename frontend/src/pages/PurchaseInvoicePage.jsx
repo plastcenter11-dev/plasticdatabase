@@ -254,7 +254,7 @@ export default function PurchaseInvoicePage() {
                     {inv.status === 'draft' && can('purchase_invoices', 'edit') && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     {inv.status === 'posted' && can('purchase_invoices', 'correct') && <button onClick={() => setCorrectingId(inv.id)} title="تصحيح التاريخ أو السعر" className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1"><MdBuild size={14} /> تصحيح</button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
-                    {can('purchase_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
+                    {inv.status === 'draft' && can('purchase_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

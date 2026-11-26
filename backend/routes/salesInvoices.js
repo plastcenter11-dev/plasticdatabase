@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { describeError, errorStatus } = require('../utils/errors');
-const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, CashReceipt, sequelize } = require('../models');
+const { SalesInvoice, SalesInvoiceItem, Customer, Employee, Item, Stock, StockMovement, CashReceipt, DeliveryNote, sequelize } = require('../models');
 const { listInvoices } = require('../utils/invoiceList');
 const { closedYearError } = require('../utils/financialYear');
 const { missingWarehouseError } = require('../utils/invoiceWarehouse');
@@ -18,7 +18,7 @@ const PROTECTED = ['status', 'approved_at', 'delivery_note_id', 'subtotal', 'tax
 
 router.get('/', async (req, res) => {
   try {
-    res.json(await listInvoices(req, { Invoice: SalesInvoice, Party: Customer, ItemModel: SalesInvoiceItem, partyKey: 'customer_id', extra: [{ model: Employee, attributes: ['id', 'name'] }] }));
+    res.json(await listInvoices(req, { Invoice: SalesInvoice, Party: Customer, ItemModel: SalesInvoiceItem, partyKey: 'customer_id', extra: [{ model: Employee, attributes: ['id', 'name'] }, { model: DeliveryNote, attributes: ['id', 'note_no'] }] }));
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 

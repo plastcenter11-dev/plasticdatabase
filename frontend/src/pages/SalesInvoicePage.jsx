@@ -203,6 +203,7 @@ export default function SalesInvoicePage() {
           <thead><tr>
             <th><input type="checkbox" checked={selectedIds.length === drafts.length && drafts.length > 0} onChange={toggleSelectAll} /></th>
             <SortTh column="invoice_no" sort={sort}>رقم الفاتورة</SortTh>
+            <th>رقم الإذن</th>
             <SortTh column="date" sort={sort}>التاريخ</SortTh>
             <SortTh column="party" sort={sort}><SearchableSelect className={`${HEADER_SELECT} min-w-[130px]`} value={partyFilter} onChange={setFilter(setPartyFilter)}><option value="">العميل</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect></SortTh>
             <SortTh><SearchableSelect className={`${HEADER_SELECT} min-w-[110px]`} value={employeeFilter} onChange={setFilter(setEmployeeFilter)}><option value="">المندوب</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</SearchableSelect></SortTh>
@@ -213,11 +214,12 @@ export default function SalesInvoicePage() {
             <th>إجراءات</th>
           </tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={10} className="text-center py-8 text-gray-400">لا توجد فواتير</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={11} className="text-center py-8 text-gray-400">لا توجد فواتير</td></tr>}
             {filtered.map(inv => (
               <tr key={inv.id} className={selectedIds.includes(inv.id) ? 'bg-blue-50' : ''}>
                 <td>{inv.status === 'draft' && <input type="checkbox" checked={selectedIds.includes(inv.id)} onChange={() => toggleSelect(inv.id)} />}</td>
                 <td className="font-mono text-sm">{inv.invoice_no}</td>
+                <td className="font-mono text-sm">{inv.DeliveryNote ? inv.DeliveryNote.note_no : <span className="text-xs text-gray-400">مباشرة</span>}</td>
                 <td>{inv.date}</td>
                 <td className="font-medium">{inv.Customer?.name || '-'}</td>
                 <td className="text-sm text-gray-600">{inv.Employee?.name || '-'}</td>
@@ -233,7 +235,7 @@ export default function SalesInvoicePage() {
                     {inv.status === 'draft' && can('sales_invoices', 'edit') && <button onClick={() => openEdit(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdEdit size={14} /></button>}
                     {inv.status === 'posted' && can('sales_invoices', 'correct') && <button onClick={() => setCorrectingId(inv.id)} title="تصحيح التاريخ أو السعر" className="erp-btn erp-btn-outline py-1 px-2 text-xs flex items-center gap-1"><MdBuild size={14} /> تصحيح</button>}
                     <button onClick={() => handlePrint(inv)} className="erp-btn erp-btn-outline py-1 px-2 text-xs"><MdPrint size={14} /></button>
-                    {can('sales_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
+                    {inv.status === 'draft' && can('sales_invoices', 'delete') && <button onClick={() => handleDelete(inv.id)} className="erp-btn erp-btn-danger py-1 px-2 text-xs"><MdDelete size={14} /></button>}
                   </div>
                 </td>
               </tr>

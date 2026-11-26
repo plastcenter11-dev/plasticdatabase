@@ -224,6 +224,8 @@ export default function DeliveryNotesPage() {
     const today = todayStr();
     setShowInvoiceModal(id);
     setInvoiceNo('');
+    // propose the next invoice number (it can be changed); never overwrite something already typed
+    api.get('/delivery-notes/next-invoice-no').then(r => setInvoiceNo(typed => typed || r.data.invoice_no)).catch(() => {});
     setInvoiceWarehouseId(note?.warehouse_id ? String(note.warehouse_id) : '');
     setDeliverCustomerId(note?.customer_id || null);
     setDeliverPrices(
@@ -550,7 +552,8 @@ export default function DeliveryNotesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">رقم الفاتورة *</label>
-                <input className="erp-input text-left" dir="ltr" required autoFocus value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+                <input className="erp-input text-left" dir="ltr" required autoFocus value={invoiceNo} onFocus={e => e.target.select()} onChange={e => setInvoiceNo(e.target.value)} placeholder="مثال: 1001" />
+                <p className="text-xs text-gray-400 mt-1">مقترح: الرقم التالي، وتقدر تغيّره</p>
               </div>
               <div>
                 <label className="form-label">المخزن *</label>
