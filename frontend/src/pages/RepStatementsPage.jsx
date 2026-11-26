@@ -5,10 +5,6 @@ import SearchableSelect from '../components/SearchableSelect';
 import { repCommission, soldKg } from '../utils/repCommission';
 import { todayStr } from '../utils/today';
 
-// 1.14 → "1.14", 1 → "1", mixed → e.g. "1.07"; plus a word on where it came from.
-const divisorText = (s) => String(Number(s.divisor.toFixed(4)));
-const divisorNote = (s) => (s.divisorGuessed ? 'لا توجد فواتير في الفترة — افتراض ضريبة 14%' : s.divisor === 1 ? 'مبيعات بدون ضريبة' : s.divisor === 1.14 ? 'بدون ضريبة' : 'نسبة الأصناف بضريبة / بدون ضريبة');
-
 const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const today = () => todayStr();
 const monthStart = () => today().slice(0, 8) + '01';
@@ -89,7 +85,7 @@ export default function RepStatementsPage() {
         <tr class="sub"><td colspan="2">الإجمالي / الرصيد النهائي</td><td>${fmt(s.debit)}</td><td>${fmt(s.credit)}</td><td>${fmt(balSplit(s.closing).debit)}</td><td>${fmt(balSplit(s.closing).credit)}</td></tr>
         </tbody></table>
         <div class="totals"><span>الوزن المباع: <strong>${s.kg.toLocaleString()} كجم</strong></span><span>المبيعات: <strong>${fmt(s.sales)}</strong></span><span>مرتجعات وخصومات: <strong>${fmt(s.returns)}</strong></span><span>المدفوع: <strong>${fmt(s.paid)}</strong></span>${s.bounced ? `<span>شيكات مرتدة: <strong>${fmt(s.bounced)}</strong></span>` : ''}</div>
-        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ورد فلوس ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = ${fmt(s.base)} ÷ ${divisorText(s)} (${divisorNote(s)}) = <strong>${fmt(s.exTax)}</strong> × ${ratePct}% =<strong>${fmt(s.commission)}</strong></div>
+        <div class="comm">العمولة: الدفعات ${fmt(s.paid)}${s.bounced ? ` − شيكات مرتدة ${fmt(s.bounced)}` : ''} − مرتجعات وخصم نقدي ورد فلوس ${fmt(s.returns)} − أكلاشيهات وسلندرات ${fmt(s.plates)} = ${fmt(s.base)} ÷ ${s.divisor} (بدون ضريبة) = <strong>${fmt(s.exTax)}</strong> × ${ratePct}% =<strong>${fmt(s.commission)}</strong></div>
       </section>`;
     const summaryPage = `
       <section>
@@ -222,7 +218,7 @@ export default function RepStatementsPage() {
                 <span>− مرتجعات وخصم نقدي ورد فلوس {fmt(s.returns)}</span>
                 <span>− أكلاشيهات وسلندرات {fmt(s.plates)}</span>
                 <span>= {fmt(s.base)}</span>
-                <span>÷ {divisorText(s)} <span className={s.divisorGuessed ? 'text-yellow-700' : ''}>({divisorNote(s)})</span> = <strong>{fmt(s.exTax)}</strong></span>
+                <span>÷ {s.divisor} (بدون ضريبة) = <strong>{fmt(s.exTax)}</strong></span>
                 <span>× {ratePct}% =</span>
                 <span className="font-bold text-primary text-base">{fmt(s.commission)} ج.م</span>
               </div>

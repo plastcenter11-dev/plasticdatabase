@@ -42,12 +42,14 @@ describe('rep commission', () => {
     expect(c.commission).toBeCloseTo(-1384, 2);
   });
 
-  it('does not divide untaxed sales by 1.14', () => {
-    const rows = [inv(10000, 0, 10000, [line('فلامنكو', 10000)]), { type: 'تحصيل', credit: 10000 }];
-    const c = repCommission(rows, 1);
-    expect(c.divisor).toBe(1);
-    expect(c.exTax).toBe(10000);
-    expect(c.commission).toBe(100);
+  it('divides by 1.14 even when the invoices were saved without tax: the prices include VAT', () => {
+    // the real case: invoices saved at 0% tax, 270,000 collected
+    const rows = [inv(1166900, 0, 1166900, [line('سكول', 1166900)]), { type: 'تحصيل', credit: 120000 }, { type: 'تحصيل', credit: 150000 }];
+    const c = repCommission(rows, 1.5);
+    expect(c.base).toBe(270000);
+    expect(c.divisor).toBe(1.14);
+    expect(c.exTax).toBeCloseTo(236842.11, 2);
+    expect(c.commission).toBeCloseTo(3552.63, 2);
   });
 
   it('takes cash paid back to the customer off the payments, like a cash discount', () => {
@@ -60,27 +62,13 @@ describe('rep commission', () => {
     const c = repCommission(rows, 1);
     expect(c.returns).toBe(1500);
     expect(c.base).toBe(8500);
-    expect(c.commission).toBeCloseTo(85, 6);
+    expect(c.commission).toBeCloseTo(8500 / 1.14 / 100, 6);
   });
 
-  it('removes VAT only from the taxed share when a customer has both', () => {
-    // 11,400 taxed (10,000 ex VAT) + 10,000 untaxed → divisor 21,400 / 20,000 = 1.07
-    const rows = [inv(10000, 14, 11400, [line('فلامنكو', 10000)]), inv(10000, 0, 10000, [line('دشت', 10000)]), { type: 'تحصيل', credit: 21400 }];
-    const c = repCommission(rows, 1);
-    expect(c.divisor).toBeCloseTo(1.07, 6);
-    expect(c.exTax).toBeCloseTo(20000, 2);
-  });
-
-  it('ignores cliché lines when weighing the VAT mix', () => {
-    // untaxed cliché invoice must not pull the divisor of taxed goods below 1.14
-    const rows = [inv(10000, 14, 11400, [line('فلامنكو', 10000)]), inv(5000, 0, 5000, [line('اكلاشيه', 5000)])];
-    expect(repCommission(rows, 1).divisor).toBeCloseTo(1.14, 6);
-  });
-
-  it('falls back to 1.14 when the customer has no invoices in the period', () => {
-    const c = repCommission([{ type: 'تحصيل', credit: 1140 }], 10);
-    expect(c.divisor).toBe(1.14);
-    expect(c.divisorGuessed).toBe(true);
+  it('is the same 1.14 whatever mix of invoices the customer has, or none at all', () => {
+    const mixed = [inv(10000, 14, 11400, [line('فلامنكو', 10000)]), inv(10000, 0, 10000, [line('دشت', 10000)]), { type: 'تحصيل', credit: 21400 }];
+    expect(repCommission(mixed, 1).exTax).toBeCloseTo(21400 / 1.14, 2);
+    expect(repCommission([{ type: 'تحصيل', credit: 1140 }], 10).exTax).toBeCloseTo(1000, 6);
   });
 
   it('counts cash discount with returns and ignores the opening row', () => {
