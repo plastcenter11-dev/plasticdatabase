@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -190,6 +191,9 @@ export default function DeliveryNotesPage() {
     setShowModal(true);
   };
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm({ customer_id: '', date: todayStr(), driver_name: '', car_no: '', items: [{ ...emptyItem }] }); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
@@ -215,7 +219,7 @@ export default function DeliveryNotesPage() {
         await api.post('/delivery-notes', payload);
         toast.success('تم إنشاء إذن التسليم');
       }
-      setShowModal(false); setEditing(null); loadData();
+      loadData(); if (editing) { setShowModal(false); setEditing(null); } else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -378,7 +382,7 @@ export default function DeliveryNotesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">إذون التسليم</h1>
-        {can('delivery_notes', 'create') && <button onClick={() => { setForm({ customer_id: '', date: todayStr(), driver_name: '', car_no: '', items: [{ ...emptyItem }] }); setShowModal(true); }}
+        {can('delivery_notes', 'create') && <button onClick={openFresh}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إذن تسليم جديد</button>}
       </div>
 

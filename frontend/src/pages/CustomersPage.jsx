@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -67,7 +68,7 @@ export default function CustomersPage() {
       const payload = { ...form, credit_limit: Number(form.credit_limit || 0) };
       if (editing) { await api.put(`/customers/${editing.id}`, payload); toast.success('تم تحديث العميل'); }
       else { await api.post('/customers', payload); toast.success('تمت إضافة العميل'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openAdd);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 

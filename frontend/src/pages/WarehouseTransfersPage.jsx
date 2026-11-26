@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -43,6 +44,9 @@ export default function WarehouseTransfersPage() {
   const addFormItem = () => setForm({ ...form, items: [...form.items, { item_id: '', quantity: '', weight: '' }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.from_warehouse_id || !form.to_warehouse_id) return toast.error('اختر المخازن');
@@ -50,7 +54,7 @@ export default function WarehouseTransfersPage() {
     try {
       await api.post('/stock/transfers', { ...form, from_warehouse_id: Number(form.from_warehouse_id), to_warehouse_id: Number(form.to_warehouse_id), items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0) })) });
       toast.success('تم إنشاء أمر التحويل');
-      setShowModal(false); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -63,7 +67,7 @@ export default function WarehouseTransfersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تحويلات مخازن</h1>
-        {can('stock', 'create') && <button onClick={() => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
+        {can('stock', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحويل جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">

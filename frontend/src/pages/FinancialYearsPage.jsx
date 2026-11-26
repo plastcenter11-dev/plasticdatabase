@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -27,12 +28,15 @@ export default function FinancialYearsPage() {
   const activeYear = years.find(y => y.is_active);
   const inactiveYears = years.filter(y => !y.is_active);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (editing) { await api.put(`/financial-years/${editing.id}`, form); toast.success('تم التحديث'); }
       else { await api.post('/financial-years', form); toast.success('تمت الإضافة'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -76,7 +80,7 @@ export default function FinancialYearsPage() {
             <button onClick={() => { setCloseForm({ next_year_id: '' }); setShowCloseModal(true); }}
               className="erp-btn erp-btn-danger flex items-center gap-1"><MdLock size={18} /> إقفال السنة الحالية</button>
           )}
-          {can('financial_years', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة سنة</button>}
+          {can('financial_years', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة سنة</button>}
         </div>
       </div>
 

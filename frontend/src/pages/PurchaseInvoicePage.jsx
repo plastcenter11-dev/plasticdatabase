@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -125,6 +126,9 @@ export default function PurchaseInvoicePage() {
   // any line is a stockable item (service/fee-only invoices don't need one).
   const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
@@ -141,7 +145,7 @@ export default function PurchaseInvoicePage() {
     try {
       if (editing) { await api.put(`/purchase-invoices/${editing.id}`, payload); toast.success('تم تحديث الفاتورة'); }
       else { await api.post('/purchase-invoices', payload); toast.success('تمت إضافة الفاتورة'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -210,7 +214,7 @@ export default function PurchaseInvoicePage() {
         <h1 className="text-xl font-bold text-gray-800">فواتير الشراء</h1>
         <div className="flex gap-2">
           {selectedIds.length > 0 && can('purchase_invoices', 'delete') && <button onClick={handleBulkDelete} className="erp-btn erp-btn-danger flex items-center gap-1"><MdDeleteSweep size={20} /> حذف المحدد ({selectedIds.length})</button>}
-          {can('purchase_invoices', 'create') && <button onClick={() => { setEditing(null); setForm({ supplier_id: '', warehouse_id: '', date: todayStr(), discount: 0, tax_rate: autoTaxRate, invoice_no: '', paid: 0, items: [{ ...emptyItem }] }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
+          {can('purchase_invoices', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> فاتورة جديدة</button>}
         </div>
       </div>
 

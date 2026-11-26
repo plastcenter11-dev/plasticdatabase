@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -99,6 +100,9 @@ export default function SalesReturnsPage() {
   // are put back into stock only when a warehouse is chosen.
   const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm({ customer_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id) return toast.error('اختر العميل');
@@ -117,7 +121,7 @@ export default function SalesReturnsPage() {
         total: calcTotal(),
         items: form.items.map(i => ({ ...i, item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.total || 0) })),
       });
-      toast.success('تم حفظ المرتجع'); setShowModal(false); loadData();
+      toast.success('تم حفظ المرتجع'); loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -149,7 +153,7 @@ export default function SalesReturnsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مرتجع مبيعات</h1>
-        {can('sales_invoices', 'create') && <button onClick={() => { setForm({ customer_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', tax_rate: 0, items: [{ ...emptyItem }] }); setSalesInvoices([]); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
+        {can('sales_invoices', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">

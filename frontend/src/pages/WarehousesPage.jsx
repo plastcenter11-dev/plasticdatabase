@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -22,12 +23,15 @@ export default function WarehousesPage() {
   useEffect(() => { loadData(); }, []);
   useAutoRefresh(loadData);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (editing) { await api.put(`/warehouses/${editing.id}`, form); toast.success('تم التحديث'); }
       else { await api.post('/warehouses', form); toast.success('تمت الإضافة'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -41,7 +45,7 @@ export default function WarehousesPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">تعريف مخزن</h1>
-        {can('warehouses', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مخزن</button>}
+        {can('warehouses', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مخزن</button>}
       </div>
       <div className="page-card">
         <div className="overflow-x-auto rounded-lg border border-gray-100">

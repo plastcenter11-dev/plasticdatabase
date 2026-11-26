@@ -7,7 +7,7 @@
 
 const SKIP_TYPES = new Set(['hidden', 'button', 'submit', 'reset', 'file', 'image']);
 
-function isUsable(el) {
+export function isUsableField(el) {
   if (el.disabled || el.readOnly || el.tabIndex < 0) return false;
   if (SKIP_TYPES.has(el.type)) return false;
   return el.getClientRects().length > 0;
@@ -20,7 +20,7 @@ export function enterScope(el) {
 export function focusNextField(from, step = 1) {
   const scope = enterScope(from);
   if (!scope) return false;
-  const fields = [...scope.querySelectorAll('input, select, textarea')].filter(isUsable);
+  const fields = [...scope.querySelectorAll('input, select, textarea')].filter(isUsableField);
   const next = fields[fields.indexOf(from) + step];
   if (next) {
     next.focus();

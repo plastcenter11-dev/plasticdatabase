@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -35,13 +36,16 @@ export default function CashReceiptsPage() {
   const totalAmount = receipts.reduce((s, r) => s + Number(r.amount), 0);
   const selectedCustomer = customers.find(c => c.id === Number(form.customer_id));
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.customer_id || !form.amount) return toast.error('أكمل البيانات');
     try {
       await api.post('/finance/cash-receipts', { ...form, customer_id: Number(form.customer_id), amount: Number(form.amount) });
       toast.success('تم تسجيل التحصيل');
-      setShowModal(false); setForm(emptyForm); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -56,7 +60,7 @@ export default function CashReceiptsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">حركات تحصيل نقدية</h1>
         <div className="flex gap-2">
-          {can('cash_receipts', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>}
+          {can('cash_receipts', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تحصيل جديد</button>}
         </div>
       </div>
 

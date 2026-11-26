@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -25,12 +26,15 @@ export default function SuppliersPage() {
 
   const filtered = suppliers.filter(s => !search || s.name.includes(search) || (s.phone || '').includes(search));
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (editing) { await api.put(`/suppliers/${editing.id}`, form); toast.success('تم تحديث المورد'); }
       else { await api.post('/suppliers', form); toast.success('تمت إضافة المورد'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -46,7 +50,7 @@ export default function SuppliersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تعريف موردين</h1>
-        {can('suppliers', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مورد</button>}
+        {can('suppliers', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة مورد</button>}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

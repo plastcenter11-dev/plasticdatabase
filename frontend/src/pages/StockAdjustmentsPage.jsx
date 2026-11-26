@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -62,6 +63,9 @@ export default function StockAdjustmentsPage() {
     setShowModal(true);
   };
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if ((needsWarehouse && !form.warehouse_id) || !form.item_id || !form.weight) return toast.error('أكمل البيانات');
@@ -74,7 +78,7 @@ export default function StockAdjustmentsPage() {
         await api.post('/stock/adjustments', data);
         toast.success(`تم تسجيل ${form.movement_type}`);
       }
-      setShowModal(false); setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); loadData();
+      loadData(); if (editing) { setShowModal(false); setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); } else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -88,7 +92,7 @@ export default function StockAdjustmentsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">{pageTitle}</h1>
-        {can('stock', 'create') && <button onClick={() => { setEditing(null); setForm({ ...emptyForm, movement_type: defaultType }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>}
+        {can('stock', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> حركة جديدة</button>}
       </div>
 
       <div className="page-card">

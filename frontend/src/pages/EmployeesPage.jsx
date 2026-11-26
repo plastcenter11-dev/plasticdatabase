@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
@@ -20,13 +21,16 @@ export default function EmployeesPage() {
   };
   useEffect(() => { loadData(); }, []);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       const payload = { ...form, commission_rate: Number(form.commission_rate || 0) };
       if (editing) { await api.put(`/employees/${editing.id}`, payload); toast.success('تم التحديث'); }
       else { await api.post('/employees', payload); toast.success('تمت الإضافة'); }
-      setShowModal(false); loadData();
+      loadData(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -40,7 +44,7 @@ export default function EmployeesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-800">تعريف موظف مبيعات</h1>
-        {can('employees', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة موظف</button>}
+        {can('employees', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> إضافة موظف</button>}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">

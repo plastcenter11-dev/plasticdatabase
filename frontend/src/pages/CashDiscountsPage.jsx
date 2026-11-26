@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -38,13 +39,16 @@ export default function CashDiscountsPage() {
   const party = parties.find(p => p.id === Number(form.party_id));
   const total = rows.reduce((s, r) => s + Number(r.amount), 0);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm({ ...emptyForm, date: today() }); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.party_id || !(Number(form.amount) > 0)) return toast.error('أكمل البيانات');
     try {
       await api.post(kind.list, { [kind.field]: Number(form.party_id), amount: Number(form.amount), date: form.date, notes: form.notes, payment_method: 'خصم نقدي' });
       toast.success('تم تسجيل الخصم');
-      setShowModal(false); setForm(emptyForm); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -58,7 +62,7 @@ export default function CashDiscountsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">خصومات نقدية</h1>
-        {can(kind.module, 'create') && <button onClick={() => { setForm({ ...emptyForm, date: today() }); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> خصم جديد</button>}
+        {can(kind.module, 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> خصم جديد</button>}
       </div>
       {kinds.length > 1 && (
         <div className="flex gap-2">

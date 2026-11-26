@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -108,6 +109,9 @@ export default function ItemAssemblyPage() {
   const outputUnitCost = outputUnit > 0 ? Math.round(((componentsCost + expensesCost) / outputUnit) * 100) / 100 : null;
   const money = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.assembled_item_id || !form.assembled_qty || !form.output_warehouse_id) return toast.error('أكمل البيانات');
@@ -123,7 +127,7 @@ export default function ItemAssemblyPage() {
     try {
       if (editing) { await api.put(`/stock/assemblies/${editing.id}`, payload); toast.success('تم تحديث التركيب'); }
       else { await api.post('/stock/assemblies', payload); toast.success('تم تركيب الصنف'); }
-      setShowModal(false); setEditing(null); loadData();
+      loadData(); if (editing) { setShowModal(false); setEditing(null); } else saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -152,7 +156,7 @@ export default function ItemAssemblyPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">تركيب صنف</h1>
-        {can('stock', 'create') && <button onClick={() => { setEditing(null); setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>}
+        {can('stock', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> تركيب جديد</button>}
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">

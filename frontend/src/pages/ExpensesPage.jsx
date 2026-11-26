@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -33,13 +34,16 @@ export default function ExpensesPage() {
 
   const totalExpenses = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.description || !form.amount) return toast.error('أكمل البيانات');
     try {
       await api.post('/finance/expenses', { ...form, amount: Number(form.amount) });
       toast.success('تم تسجيل المصروف');
-      setShowModal(false); setForm(emptyForm); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -53,7 +57,7 @@ export default function ExpensesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">مصروفات</h1>
-        {can('expenses', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مصروف جديد</button>}
+        {can('expenses', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مصروف جديد</button>}
       </div>
 
       <div className="stat-card max-w-xs">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -35,13 +36,16 @@ export default function OpeningBalancesPage() {
     return suppliers.find(s => s.id === b.party_id)?.name || '-';
   };
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm(emptyForm); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.party_id || (!form.debit && !form.credit)) return toast.error('أكمل البيانات');
     try {
       await api.post('/opening-balances', { ...form, party_id: Number(form.party_id), debit: Number(form.debit || 0), credit: Number(form.credit || 0), financial_year_id: activeYear?.id });
       toast.success('تم تسجيل الرصيد الافتتاحي');
-      setShowModal(false); setForm(emptyForm); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -55,7 +59,7 @@ export default function OpeningBalancesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-gray-800">الأرصدة الافتتاحية</h1>
-        {can('financial_years', 'create') && <button onClick={() => { setForm(emptyForm); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> رصيد جديد</button>}
+        {can('financial_years', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> رصيد جديد</button>}
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">

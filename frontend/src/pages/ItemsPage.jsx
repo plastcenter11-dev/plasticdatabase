@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -52,12 +53,13 @@ export default function ItemsPage() {
   });
   const units = [...new Set(items.map(i => i.unit).filter(Boolean))].sort();
 
-  const generateCode = () => {
-    const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), 0);
+  // justSaved: the id of an item saved a moment ago, not yet in the list on screen
+  const generateCode = (justSaved) => {
+    const maxId = items.reduce((max, it) => Math.max(max, it.id || 0), Number.isInteger(justSaved) ? justSaved : 0);
     return `ITM-${String(maxId + 1).padStart(4, '0')}`;
   };
 
-  const openAdd = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
+  const openAdd = (justSaved) => { setEditing(null); setForm({ ...emptyForm, code: generateCode(justSaved) }); setShowModal(true); };
   const openEdit = (item) => {
     setEditing(item);
     setForm({ code: item.code, name: item.name, category_id: item.category_id || '', type_id: item.type_id || '', unit: item.unit, purchase_price: item.purchase_price, reorder_level: item.reorder_level, width: item.width || '', is_stockable: item.is_stockable });
@@ -68,15 +70,16 @@ export default function ItemsPage() {
     e.preventDefault();
     try {
       const payload = { ...form, purchase_price: Number(form.purchase_price || 0), reorder_level: Number(form.reorder_level || 0), width: form.width !== '' ? Number(form.width) : null, category_id: form.category_id ? Number(form.category_id) : null, type_id: form.type_id ? Number(form.type_id) : null };
+      let savedId;
       if (editing) {
         await api.put(`/items/${editing.id}`, payload);
         toast.success('تم تحديث الصنف');
       } else {
-        await api.post('/items', payload);
+        savedId = (await api.post('/items', payload)).data?.id;
         toast.success('تمت إضافة الصنف');
       }
-      setShowModal(false);
       loadData();
+      if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), () => openAdd(savedId));
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 

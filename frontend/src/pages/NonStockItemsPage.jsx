@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -31,12 +32,13 @@ export default function NonStockItemsPage() {
   // Matches the code convention used everywhere else items are created
   // (ItemsPage, the assembly/purchase-invoice quick-add forms) - computed
   // against every item, not just non-stock ones, so it can't collide.
-  const generateCode = () => {
-    const maxId = allItems.reduce((max, it) => Math.max(max, it.id || 0), 0);
+  // justSaved: the id of an item saved a moment ago, not yet in the list on screen
+  const generateCode = (justSaved) => {
+    const maxId = allItems.reduce((max, it) => Math.max(max, it.id || 0), Number.isInteger(justSaved) ? justSaved : 0);
     return `ITM-${String(maxId + 1).padStart(4, '0')}`;
   };
 
-  const openNew = () => { setEditing(null); setForm({ ...emptyForm, code: generateCode() }); setShowModal(true); };
+  const openNew = (justSaved) => { setEditing(null); setForm({ ...emptyForm, code: generateCode(justSaved) }); setShowModal(true); };
   const openEdit = (item) => { setEditing(item.id); setForm({ ...item }); setShowModal(true); };
 
   const handleSave = async (e) => {
@@ -44,10 +46,11 @@ export default function NonStockItemsPage() {
     if (!form.name) return toast.error('أدخل اسم الصنف');
     try {
       const data = { ...form, code: form.code || generateCode(), is_stockable: false, category_id: form.category_id ? Number(form.category_id) : null, purchase_price: Number(form.purchase_price || 0), sale_price: Number(form.sale_price || 0) };
+      let savedId;
       if (editing) await api.put(`/items/${editing}`, data);
-      else await api.post('/items', data);
+      else savedId = (await api.post('/items', data)).data?.id;
       toast.success(editing ? 'تم التعديل' : 'تم الإضافة');
-      setShowModal(false); load();
+      load(); if (editing) setShowModal(false); else saveAndNew(() => setShowModal(false), () => openNew(savedId));
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ في الحفظ'); }
   };
 

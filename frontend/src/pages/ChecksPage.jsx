@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -55,13 +56,16 @@ export default function ChecksPage({ partyType = 'customer' }) {
     return <span className="badge badge-yellow">قيد الانتظار</span>;
   };
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm(makeEmptyForm(partyType)); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.party_id || !form.amount || !form.check_no) return toast.error('أكمل البيانات');
     try {
       await api.post('/finance/checks', { ...form, party_id: Number(form.party_id), amount: Number(form.amount) });
       toast.success('تم تسجيل الشيك');
-      setShowModal(false); setForm(makeEmptyForm(partyType)); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -93,7 +97,7 @@ export default function ChecksPage({ partyType = 'customer' }) {
         <h1 className="text-xl font-bold text-gray-800">{isSupplier ? 'حركات دفع شيكات' : 'حركات تحصيل شيكات'}</h1>
         <div className="flex gap-2">
           {!isSupplier && <button onClick={() => navigate('/delivery-notes', { state: { openNew: true } })} className="erp-btn erp-btn-outline flex items-center gap-1"><MdShoppingCart size={18} /> إذن تسليم جديد</button>}
-          {can('checks', 'create') && <button onClick={() => { setForm(makeEmptyForm(partyType)); setShowModal(true); }} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>}
+          {can('checks', 'create') && <button onClick={openFresh} className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> شيك جديد</button>}
         </div>
       </div>
 

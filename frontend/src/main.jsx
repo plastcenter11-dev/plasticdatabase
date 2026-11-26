@@ -18,7 +18,10 @@ const ENTER_TYPES = new Set(['text', 'number', 'search', 'email', 'tel', 'url', 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.isComposing) return;
   const el = e.target;
-  if (!(el instanceof HTMLInputElement) || !ENTER_TYPES.has(el.type)) return;
+  const isList = el instanceof HTMLSelectElement && !!el.closest('[data-enter-scope]');
+  // a password box inside an entry screen moves on like the others; on the sign-in page Enter still signs in
+  const isScreenPassword = el instanceof HTMLInputElement && el.type === 'password' && !!el.closest('[data-enter-scope]');
+  if (!isList && !isScreenPassword && (!(el instanceof HTMLInputElement) || !ENTER_TYPES.has(el.type))) return;
   e.preventDefault();
   if (el.classList.contains('erp-select')) return;
   focusNextField(el, e.shiftKey ? -1 : 1);

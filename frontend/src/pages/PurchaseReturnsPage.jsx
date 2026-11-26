@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { saveAndNew } from '../utils/saveAndNew';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -106,6 +107,9 @@ export default function PurchaseReturnsPage() {
   // leave stock only when a warehouse is chosen.
   const needsWarehouse = form.items.some(i => items.find(m => m.id === Number(i.item_id))?.is_stockable);
 
+  // an empty screen for a new record (the "new" button, and again after each new record is saved)
+  const openFresh = () => { setForm({ supplier_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.supplier_id) return toast.error('اختر المورد');
@@ -124,7 +128,7 @@ export default function PurchaseReturnsPage() {
         items: validItems.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0), price: Number(i.price), discount: Number(i.discount || 0), total: Number(i.total || 0) }))
       });
       toast.success('تم تسجيل مرتجع المشتريات');
-      setShowModal(false); loadData();
+      loadData(); saveAndNew(() => setShowModal(false), openFresh);
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };
 
@@ -154,7 +158,7 @@ export default function PurchaseReturnsPage() {
     <div className="space-y-5">
       <div className="page-header">
         <h1 className="page-title">مرتجع مشتريات</h1>
-        {can('purchase_invoices', 'create') && <button onClick={() => { setForm({ supplier_id: '', invoice_id: '', warehouse_id: '', date: todayStr(), reason: '', items: [{ ...emptyItem }], invoice_tax_rate: 0, invoice_discount: 0, invoice_subtotal: 0 }); setPurchaseInvoices([]); setShowModal(true); }}
+        {can('purchase_invoices', 'create') && <button onClick={openFresh}
           className="erp-btn erp-btn-primary flex items-center gap-1"><MdAdd size={20} /> مرتجع جديد</button>}
       </div>
 
