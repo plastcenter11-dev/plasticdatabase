@@ -35,6 +35,7 @@ import FinancialYearsPage from './pages/FinancialYearsPage';
 import OpeningBalancesPage from './pages/OpeningBalancesPage';
 import EmployeesPage from './pages/EmployeesPage';
 import UsersPage from './pages/UsersPage';
+import IntegrityPage from './pages/IntegrityPage';
 import SettingsPage from './pages/SettingsPage';
 import WarehouseItemsPage from './pages/WarehouseItemsPage';
 import SalesReturnsPage from './pages/SalesReturnsPage';
@@ -145,6 +146,7 @@ function AppRoutes() {
         {/* الإعدادات — كل شيء إداري ما عدا تغيير كلمة المرور للأدمن فقط */}
         <Route path="settings/options" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="settings/integrity" element={<AdminRoute><IntegrityPage /></AdminRoute>} />
         <Route path="settings/record-protection" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         <Route path="settings/change-password" element={<SettingsPage />} />
         <Route path="settings/unlock-records" element={<AdminRoute><SettingsPage /></AdminRoute>} />

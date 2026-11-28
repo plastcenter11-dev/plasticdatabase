@@ -22,6 +22,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/options', auth, require('./routes/options'));
 app.use('/api/audit-logs', auth, adminOnly, require('./routes/audit'));
+app.use('/api/integrity', auth, adminOnly, require('./routes/integrity'));
 app.use('/api/items', auth, requireModule('items'), require('./routes/items'));
 app.use('/api/warehouses', auth, requireModule('warehouses'), require('./routes/warehouses'));
 app.use('/api/customers', auth, requireModule('customers'), require('./routes/customers'));
