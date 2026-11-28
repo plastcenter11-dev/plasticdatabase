@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { listBalances } = require('../utils/stockBalances');
 const { describeError, errorStatus } = require('../utils/errors');
 const { PurchaseReturn, PurchaseReturnItem, SalesReturn, SalesReturnItem, Supplier, Customer, Item, Stock, StockMovement, PurchaseInvoice, SalesInvoice, PurchaseInvoiceItem, SalesInvoiceItem, Warehouse, sequelize } = require('../models');
 const { closedYearError } = require('../utils/financialYear');
@@ -32,6 +33,12 @@ async function prepareReturn(kind, body, t) {
 }
 
 // Purchase Returns
+// balances for the warning before returning goods to a supplier (readable with the purchase permission)
+router.get('/purchase/stock-balances', async (req, res) => {
+  try { res.json(await listBalances()); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
 router.get('/purchase', async (req, res) => {
   try {
     res.json(await PurchaseReturn.findAll({ include: [Supplier, PurchaseInvoice, Warehouse, { model: PurchaseReturnItem, as: 'items', include: [Item] }], order: [['id', 'DESC']] }));

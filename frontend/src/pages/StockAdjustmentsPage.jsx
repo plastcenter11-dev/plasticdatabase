@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit, MdSearch } from 'react-icons/md';
 import api from '../api/axios';
+import { shortageWarnings, negativeWarnings, withoutMovement, confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { todayStr } from '../utils/today';
 
@@ -70,6 +71,17 @@ export default function StockAdjustmentsPage() {
     e.preventDefault();
     if ((needsWarehouse && !form.warehouse_id) || !form.item_id || !form.weight) return toast.error('أكمل البيانات');
     const data = { ...form, item_id: Number(form.item_id), warehouse_id: needsWarehouse ? Number(form.warehouse_id) : null, quantity: Number(form.quantity || 0), weight: Number(form.weight), unit_price: Number(form.unit_price || 0) };
+    // warnings only: the person may still go on
+    if (data.movement_type !== 'تعديل جرد') {
+      const item = items.find(i => i.id === data.item_id);
+      const line = { item_id: data.item_id, name: item?.name, weight: data.weight, quantity: data.quantity, stockable: item?.is_stockable };
+      const warnings = negativeWarnings([line]);
+      if (data.movement_type === 'صرف') {
+        const balances = await api.get('/stock/balances').then(r => r.data).catch(() => null);
+        warnings.push(...shortageWarnings([line], withoutMovement(balances, editing ? adjustments.find(m => m.id === editing) : null), data.warehouse_id));
+      }
+      if (!confirmWarnings(warnings)) return;
+    }
     try {
       if (editing) {
         await api.put(`/stock/adjustments/${editing}`, data);

@@ -10,6 +10,7 @@ import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdDelete, MdEdit, MdSearch, MdCheckCircle, MdPrint, MdDeleteSweep, MdBuild } from 'react-icons/md';
 import PostedCorrectionModal from '../components/PostedCorrectionModal';
 import api from '../api/axios';
+import { confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { useOptions } from '../hooks/useOptions';
 import { invoiceTotals, expectedBalance as balanceAfter, round2 } from '../utils/invoiceCalc';
@@ -76,8 +77,18 @@ export default function SalesInvoicePage() {
   const updateFormItem = (idx, field, value) => {
     const fitems = [...form.items];
     fitems[idx] = { ...fitems[idx], [field]: value };
-    if (field === 'item_id') { const item = items.find(i => i.id === Number(value)); if (item) fitems[idx].price = item.purchase_price; }
+    if (field === 'item_id') fitems[idx].price = '';
     setForm({ ...form, items: fitems });
+    if (field === 'item_id' && value) offerPrice(idx, value);
+  };
+  // the selling price offered for the chosen item: what was last charged, else the price on the item (never its
+  // cost). It only fills a price box that is still empty.
+  const offerPrice = async (idx, itemId) => {
+    const own = Number(items.find(i => i.id === Number(itemId))?.sale_price || 0);
+    const last = await api.get(`/sales-invoices/last-price/${itemId}`).then(r => r.data.price).catch(() => null);
+    const price = last ?? (own > 0 ? own : '');
+    if (price === '') return;
+    setForm(f => ({ ...f, items: f.items.map((l, i) => (i === idx && String(l.item_id) === String(itemId) && l.price === '' ? { ...l, price } : l)) }));
   };
   const addFormItem = () => setForm({ ...form, items: [...form.items, { ...emptyItem }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
@@ -109,6 +120,8 @@ export default function SalesInvoicePage() {
     // everything is priced by weight, so the weight is what a line must have; the roll count is optional
     if (form.items.some(i => !i.item_id || !(Number(i.weight) > 0))) return toast.error('أكمل بيانات الأصناف (الصنف والوزن)');
     if (needsWarehouse && !form.warehouse_id) return toast.error('اختر المخزن');
+    // a line left without a price would be sold for nothing
+    if (!confirmWarnings(form.items.filter(i => !(Number(i.price) > 0)).map(i => '«' + (items.find(x => x.id === Number(i.item_id))?.name || '') + '» سعر البيع صفر'))) return;
     const subtotal = calcSubtotal(), discAmt = calcDiscountAmount(), taxAmt = calcTax(), total = calcTotal(), paid = Number(form.paid || 0);
     // a payment larger than the invoice is usually a typo (an extra digit), so ask first
     if (paid > total && !window.confirm(`المدفوع (${paid.toLocaleString()}) أكبر من إجمالي الفاتورة (${total.toLocaleString()}). هل أنت متأكد؟`)) return;

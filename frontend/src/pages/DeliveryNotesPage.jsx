@@ -10,6 +10,7 @@ import { useSort, sortRows } from '../hooks/useSort';
 import { HEADER_SELECT } from '../utils/tableUi';
 import { MdAdd, MdEdit, MdSearch, MdReceipt, MdPrint, MdDelete } from 'react-icons/md';
 import api from '../api/axios';
+import { shortageWarnings, negativeWarnings, confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { todayStr } from '../utils/today';
 
@@ -264,6 +265,13 @@ export default function DeliveryNotesPage() {
     if (!invoiceWarehouseId) return toast.error('اختر المخزن');
     if (useCash && !Number(cashAmount)) return toast.error('أدخل قيمة الدفعة النقدية');
     if (useCheck && (!checkNo.trim() || !Number(checkAmount) || !checkDueDate)) return toast.error('أكمل بيانات الشيك');
+    // a warning only: posting more than the warehouse holds leaves a negative balance
+    const lines = (notes.find(x => x.id === showInvoiceModal)?.items || []).map(i => {
+      const item = allItems.find(m => m.id === i.item_id);
+      return { item_id: i.item_id, name: i.Item?.name || item?.name, weight: Number(i.net_weight || i.gross_weight || 0), quantity: i.roll_count, stockable: item?.is_stockable ?? i.Item?.is_stockable };
+    });
+    const balances = await api.get('/delivery-notes/stock-balances').then(r => r.data).catch(() => null);
+    if (!confirmWarnings([...negativeWarnings(lines), ...shortageWarnings(lines, balances, Number(invoiceWarehouseId))])) return;
     try {
       const payments = [];
       if (useCash) payments.push({ method: 'cash', amount: Number(cashAmount), date: cashDate });

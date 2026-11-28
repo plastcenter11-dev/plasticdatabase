@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdCheckCircle } from 'react-icons/md';
 import api from '../api/axios';
+import { shortageWarnings, negativeWarnings, confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { todayStr } from '../utils/today';
 
@@ -44,6 +45,16 @@ export default function WarehouseTransfersPage() {
   const addFormItem = () => setForm({ ...form, items: [...form.items, { item_id: '', quantity: '', weight: '' }] });
   const removeFormItem = (idx) => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
 
+  // warnings only (negative entry, more than the source warehouse holds): the person may still go on
+  const warnBeforeMoving = async (rows, fromWarehouseId) => {
+    const lines = (rows || []).map(i => {
+      const item = items.find(x => x.id === Number(i.item_id));
+      return { item_id: Number(i.item_id), name: item?.name || i.Item?.name, weight: i.weight, quantity: i.quantity, stockable: item?.is_stockable };
+    });
+    const balances = await api.get('/stock/balances').then(r => r.data).catch(() => null);
+    return confirmWarnings([...negativeWarnings(lines), ...shortageWarnings(lines, balances, fromWarehouseId)]);
+  };
+
   // an empty screen for a new record (the "new" button, and again after each new record is saved)
   const openFresh = () => { setForm({ from_warehouse_id: '', to_warehouse_id: '', date: todayStr(), items: [{ item_id: '', quantity: '', weight: '' }] }); setShowModal(true); };
 
@@ -51,6 +62,7 @@ export default function WarehouseTransfersPage() {
     e.preventDefault();
     if (!form.from_warehouse_id || !form.to_warehouse_id) return toast.error('اختر المخازن');
     if (form.from_warehouse_id === form.to_warehouse_id) return toast.error('لا يمكن التحويل لنفس المخزن');
+    if (!(await warnBeforeMoving(form.items, Number(form.from_warehouse_id)))) return;
     try {
       await api.post('/stock/transfers', { ...form, from_warehouse_id: Number(form.from_warehouse_id), to_warehouse_id: Number(form.to_warehouse_id), items: form.items.map(i => ({ item_id: Number(i.item_id), quantity: Number(i.quantity), weight: Number(i.weight || 0) })) });
       toast.success('تم إنشاء أمر التحويل');
@@ -59,6 +71,8 @@ export default function WarehouseTransfersPage() {
   };
 
   const handleConfirm = async (id) => {
+    const transfer = transfers.find(x => x.id === id);   // the stock may have changed since it was entered
+    if (!(await warnBeforeMoving(transfer?.items, transfer?.from_warehouse_id))) return;
     try { await api.post(`/stock/transfers/${id}/confirm`); toast.success('تم تأكيد التحويل'); loadData(); }
     catch (err) { toast.error(err.response?.data?.error || 'خطأ'); }
   };

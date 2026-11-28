@@ -11,6 +11,7 @@ const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
 const { bump } = require('../utils/balances');
 const { dateError } = require('../utils/dateGuard');
+const { QueryTypes } = require('sequelize');
 const { correctPostedInvoice } = require('../utils/postedCorrection');
 
 // what the client may set on an invoice; its status, approval, document link and every money total are the server's
@@ -19,6 +20,18 @@ const PROTECTED = ['status', 'approved_at', 'delivery_note_id', 'subtotal', 'tax
 router.get('/', async (req, res) => {
   try {
     res.json(await listInvoices(req, { Invoice: SalesInvoice, Party: Customer, ItemModel: SalesInvoiceItem, partyKey: 'customer_id', extra: [{ model: Employee, attributes: ['id', 'name'] }, { model: DeliveryNote, attributes: ['id', 'note_no'] }] }));
+  } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+// The price last charged for an item (before discounts and tax), offered on a new invoice line. Not the item's
+// stored sale price first: after a taxed invoice that one includes the tax and would be taxed twice.
+router.get('/last-price/:itemId', async (req, res) => {
+  try {
+    const [row] = await sequelize.query(
+      `SELECT l.price FROM sales_invoice_items l JOIN sales_invoices s ON s.id = l.invoice_id
+       WHERE s.status = 'posted' AND l.item_id = :itemId AND l.price > 0 ORDER BY s.date DESC, s.id DESC, l.id DESC LIMIT 1`,
+      { replacements: { itemId: Number(req.params.itemId) || 0 }, type: QueryTypes.SELECT });
+    res.json({ price: row ? Number(row.price) : null });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 

@@ -8,6 +8,7 @@ const { nextNumber } = require('../utils/numbering');
 const { lockStock, lockMany } = require('../utils/stockOps');
 const { bump, lockParty } = require('../utils/balances');
 const { dateError } = require('../utils/dateGuard');
+const { listBalances } = require('../utils/stockBalances');
 
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -28,6 +29,12 @@ router.get('/next-invoice-no', async (req, res) => {
     const [row] = await sequelize.query("SELECT MAX(CAST(invoice_no AS UNSIGNED)) AS n FROM sales_invoices WHERE invoice_no REGEXP '^[0-9]+$'", { type: QueryTypes.SELECT });
     res.json({ invoice_no: String(Number(row?.n || 0) + 1) });
   } catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
+});
+
+// balances for the warning before posting a note (readable with the delivery-notes permission)
+router.get('/stock-balances', async (req, res) => {
+  try { res.json(await listBalances()); }
+  catch (err) { res.status(errorStatus(err)).json({ error: describeError(err) }); }
 });
 
 router.get('/:id', async (req, res) => {

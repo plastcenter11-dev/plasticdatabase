@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdEdit } from 'react-icons/md';
 import api from '../api/axios';
+import { assemblyWarnings, confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { todayStr } from '../utils/today';
 
@@ -124,6 +125,8 @@ export default function ItemAssemblyPage() {
         ? { is_expense: true, quantity: Number(c.quantity), price: Number(c.price) }
         : { item_id: Number(c.item_id), warehouse_id: Number(c.warehouse_id), quantity: Number(c.quantity), weight: Number(c.weight || 0) }))
     };
+    // a warning only: a component with no cost, or more coming out than went in
+    if (!confirmWarnings(assemblyWarnings(payload.components, payload.assembled_weight, items))) return;
     try {
       if (editing) { await api.put(`/stock/assemblies/${editing.id}`, payload); toast.success('تم تحديث التركيب'); }
       else { await api.post('/stock/assemblies', payload); toast.success('تم تركيب الصنف'); }

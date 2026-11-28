@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { MdAdd, MdDelete, MdSearch, MdPrint, MdKeyboardArrowDown, MdKeyboardArrowLeft } from 'react-icons/md';
 import api from '../api/axios';
+import { shortageWarnings, negativeWarnings, confirmWarnings } from '../utils/stockWarnings';
 import { useAuth } from '../hooks/useAuth';
 import { effectiveUnitNet } from '../utils/returnCalc';
 import { round2 } from '../utils/invoiceCalc';
@@ -117,6 +118,11 @@ export default function PurchaseReturnsPage() {
     const validItems = form.items.filter(i => Number(i.quantity) > 0);
     if (!validItems.length) return toast.error('أدخل كمية المرتجع');
     if (validItems.some(i => !i.item_id)) return toast.error('اختر الصنف');
+    if (needsWarehouse) {   // a warning only: more than the warehouse holds
+      const lines = validItems.map(i => { const item = items.find(m => m.id === Number(i.item_id)); return { item_id: Number(i.item_id), name: item?.name, weight: i.weight, quantity: i.quantity, stockable: item?.is_stockable }; });
+      const balances = await api.get('/returns/purchase/stock-balances').then(r => r.data).catch(() => null);
+      if (!confirmWarnings([...negativeWarnings(lines), ...shortageWarnings(lines, balances, Number(form.warehouse_id))])) return;
+    }
     try {
       await api.post('/returns/purchase', {
         supplier_id: Number(form.supplier_id), invoice_id: form.invoice_id ? Number(form.invoice_id) : null,
